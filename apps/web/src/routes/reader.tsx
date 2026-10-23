@@ -11,7 +11,6 @@ import { ReaderSettings } from "@/components/reader/reader-settings";
 import { ViewModeToggle } from "@/components/reader/view-mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBusy, progressFor } from "@/lib/chapter-status";
 import { effectiveLayout, type PageAction, type StartAt } from "@/lib/pagination";
 import { type FontName, usePrefs, type WidthName } from "@/lib/reader-settings-store";
