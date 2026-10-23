@@ -1,4 +1,4 @@
-import { BookSettingsSchema } from "@et/contracts";
+import { BookSettingsSchema, SuggestGlossaryBodySchema } from "@et/contracts";
 import {
   deleteBook,
   getOrCreateWorkspace,
@@ -6,8 +6,10 @@ import {
   importBook,
   loadBookBytes,
   NotFoundError,
+  ProviderNotConfiguredError,
   renderChapter,
   requireBook,
+  suggestGlossary,
 } from "@et/core";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -57,6 +59,19 @@ export function booksRoutes(s: Services) {
       const settings = c.req.valid("json");
       s.settings.put(id, settings);
       return c.json(settings);
+    })
+    .post("/:id/glossary/suggest", validate("json", SuggestGlossaryBodySchema), async (c) => {
+      const body = c.req.valid("json");
+      const extractor = s.providers.termExtractor(body.provider);
+      if (!extractor) throw new ProviderNotConfiguredError(body.provider);
+      const { terms, usage } = await suggestGlossary(
+        { books: s.books, settings: s.settings, jobs: s.jobs, extractor },
+        { bookId: c.req.param("id"), model: body.model, targetLang: body.targetLang ?? "en" },
+        c.req.raw.signal,
+      );
+      c.header("x-usage-input-tokens", String(usage.inputTokens));
+      c.header("x-usage-output-tokens", String(usage.outputTokens));
+      return c.json(terms);
     })
     .get(
       "/:id/workspace",

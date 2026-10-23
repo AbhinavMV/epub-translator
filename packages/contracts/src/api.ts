@@ -93,12 +93,20 @@ export const TranslateBodySchema = z.object({
 });
 export type TranslateBody = z.infer<typeof TranslateBodySchema>;
 
+export const SuggestGlossaryBodySchema = z.object({
+  provider: ProviderIdSchema,
+  model: z.string().min(1),
+  targetLang: z.string().min(1).optional(),
+});
+export type SuggestGlossaryBody = z.infer<typeof SuggestGlossaryBodySchema>;
+
 export const ProviderInfoSchema = z.object({
   id: ProviderIdSchema,
   label: z.string(),
   configured: z.boolean(),
   models: z.array(z.string()),
   defaultModel: z.string(),
+  termsModel: z.string().optional(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfoSchema>;
 
