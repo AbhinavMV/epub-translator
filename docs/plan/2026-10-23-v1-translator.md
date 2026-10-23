@@ -547,3 +547,14 @@ Use natural, readable {Target} while preserving the source meaning.
 {Additional instructions from the reader: …}   ← only if customPrompt is non-empty
 {GLOSSARY: source → target (note)}               ← only if glossary is non-empty
 ```
+
+## Amendment C (2026-10-23): parallel execution tracks
+
+The user asked for UI and backend to be built in parallel by Sonnet agents.
+
+- **Track A (worktree):** Tasks 3–5, in `packages/segmenter` and `packages/epub`.
+- **Track B (worktree):** Tasks 6–7, in `packages/core/src/translation` and `packages/providers`.
+- **Track C (worktree):** Tasks 10–11 plus the Amendment A editor, in `apps/web`.
+- **Then:** Tasks 8–9 (store, use cases, api) and Task 12 run after A and B merge.
+
+`validateTokens(source, translated): string | null` and `stripTokens(text): string` move to `packages/core/src/translation/placeholders.ts`, owned by Track B. `core` no longer depends on `segmenter`, which keeps its own tokenizer for decoding, so the two tracks are independent.

@@ -10,8 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@et/contracts": "workspace:*",
-    "@et/segmenter": "workspace:*"
+    "@et/contracts": "workspace:*"
   },
   "devDependencies": {}
 }
