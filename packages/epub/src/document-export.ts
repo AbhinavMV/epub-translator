@@ -1,7 +1,8 @@
 import type { TargetLanguage } from "@et/contracts";
-import type { Translations } from "@et/core";
+import type { ExportOptions, Translations } from "@et/core";
 import { stripTokens } from "@et/segmenter";
 import { applyTranslation, isUsable } from "./apply-translation.ts";
+import { insertBilingualCopy } from "./bilingual.ts";
 import { documentBlocks, segmentId } from "./doc-blocks.ts";
 import { setText } from "./opf-export.ts";
 import { descendants, XHTML_NS } from "./xml.ts";
@@ -34,15 +35,21 @@ export function translateContentDocument(
   translations: Translations,
   target: TargetLanguage,
   cssHref: string,
+  layout: ExportOptions["layout"],
 ): void {
   documentBlocks(doc, isNav).forEach((block, ordinal) => {
     const translation = translations.get(segmentId(docHref, ordinal));
-    if (isUsable(translation)) applyTranslation(block, translation);
+    if (!isUsable(translation)) return;
+    if (layout === "bilingual") insertBilingualCopy(block, translation, target, isNav);
+    else applyTranslation(block, translation);
   });
 
-  const root = doc.documentElement;
-  root.setAttribute("lang", target.code);
-  root.setAttributeNS(XML_NS, "xml:lang", target.code);
+  if (layout === "translation") {
+    const root = doc.documentElement;
+    root.setAttribute("lang", target.code);
+    root.setAttributeNS(XML_NS, "xml:lang", target.code);
+    root.setAttribute("dir", target.dir);
+  }
   applyHorizontalLayout(doc, cssHref);
 }
 

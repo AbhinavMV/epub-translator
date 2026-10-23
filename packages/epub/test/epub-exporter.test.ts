@@ -6,18 +6,128 @@ import { promisify } from "node:util";
 import { getTargetLanguage } from "@et/contracts";
 import { describe, expect, it } from "vitest";
 import { readZip, YauzlEpubParser, YazlEpubExporter } from "../src/index.ts";
+import { descendants, parseXml } from "../src/xml.ts";
 import { fixedClock, identity, parsedFixture, prefixed, translateAll } from "./support.ts";
 
 const en = getTargetLanguage("en");
+const ar = getTargetLanguage("ar");
+const translation = { layout: "translation" } as const;
+const bilingual = { layout: "bilingual" } as const;
 const clock = fixedClock("2026-10-23T12:34:56.789Z");
 const exporter = new YazlEpubExporter(clock);
 const text = (bytes: Uint8Array | undefined) => new TextDecoder().decode(bytes);
 
-async function exportPrefixed(only?: (chapterId: string) => boolean) {
+async function exportPrefixed(
+  only?: (chapterId: string) => boolean,
+  options: { layout: "translation" | "bilingual" } = translation,
+  target = en,
+) {
   const { bytes, book } = await parsedFixture();
-  const out = await exporter.export(bytes, book, translateAll(book, prefixed, only), en);
+  const out = await exporter.export(
+    bytes,
+    book,
+    translateAll(book, prefixed, only),
+    target,
+    options,
+  );
   return { bytes, book, out, entries: await readZip(out) };
 }
+
+const xml = (bytes: Uint8Array | undefined, href: string) =>
+  parseXml(bytes ?? new Uint8Array(), href, "application/xhtml+xml");
+
+describe("YazlEpubExporter bilingual layout", () => {
+  it("keeps every source block and adds a translated copy after it", async () => {
+    const { entries } = await exportPrefixed(undefined, bilingual);
+    const doc = xml(entries.get("item/xhtml/p-005.xhtml"), "p-005");
+    const paragraphs = descendants(doc.documentElement, "p");
+    const sources = paragraphs.filter((p) => p.getAttribute("class") !== "et-translation");
+    const copies = paragraphs.filter((p) => p.getAttribute("class") === "et-translation");
+    expect(copies.length).toBeGreaterThan(0);
+    for (const copy of copies) {
+      expect(copy.getAttribute("lang")).toBe("en");
+      expect(copy.getAttribute("dir")).toBe("ltr");
+      const previous = copy.previousSibling as Element;
+      expect(copy.textContent).toMatch(/^EN:/);
+      expect(previous.getAttribute("class")).not.toBe("et-translation");
+    }
+    expect(sources.map((p) => p.textContent)).toContain("「まずいな……」");
+    const quote = copies.find((c) => c.previousSibling?.textContent === "「まずいな……」");
+    expect(quote?.textContent).toBe("EN:「まずいな……」");
+  });
+
+  it("leaves document language alone and keeps ids unique", async () => {
+    const { entries } = await exportPrefixed(undefined, bilingual);
+    const raw = text(entries.get("item/xhtml/p-005.xhtml"));
+    expect(raw).toMatch(/<html[^>]* xml:lang="ja"/);
+    expect(raw.match(/id="toc-001"/g)).toHaveLength(1);
+    expect(text(entries.get("item/et-override.css"))).toContain(".et-translation");
+  });
+
+  it("keeps the nav list items and adds translations inside the labels", async () => {
+    const { entries } = await exportPrefixed(undefined, bilingual);
+    const nav = text(entries.get("item/navigation-documents.xhtml"));
+    expect(nav.match(/<li[ >]/g)).toHaveLength(3);
+    expect(nav).toMatch(
+      /<a href="xhtml\/p-005.xhtml#toc-001">第一章　「始まり」<br\/><span [^>]*>EN:第一章　「始まり」<\/span><\/a>/,
+    );
+  });
+
+  it("lists the source language first and the target second", async () => {
+    const { entries } = await exportPrefixed(undefined, bilingual);
+    const opf = text(entries.get("item/standard.opf"));
+    expect(opf).toMatch(/<dc:language>ja<\/dc:language>\s*<dc:language>en<\/dc:language>/);
+    expect(opf).toMatch(/<package[^>]* xml:lang="ja"/);
+    expect(opf).toContain('<dc:title id="title">迷子の本 / EN:迷子の本</dc:title>');
+  });
+
+  it("converts a vertical source to horizontal pages that turn left to right", async () => {
+    const { entries } = await exportPrefixed(undefined, bilingual);
+    const opf = text(entries.get("item/standard.opf"));
+    expect(opf).toContain('<meta name="primary-writing-mode" content="horizontal-lr"/>');
+    expect(opf).toContain('page-progression-direction="ltr"');
+    expect(text(entries.get("item/xhtml/p-005.xhtml"))).not.toContain("vrtl");
+  });
+
+  it("keeps the source title when the title is untranslated", async () => {
+    const { bytes, book } = await parsedFixture();
+    const translations = translateAll(book, prefixed);
+    translations.delete("opf#title");
+    const entries = await readZip(await exporter.export(bytes, book, translations, en, bilingual));
+    expect(text(entries.get("item/standard.opf"))).toContain(
+      '<dc:title id="title">迷子の本</dc:title>',
+    );
+  });
+
+  it("re-parses with every source segment still present", async () => {
+    const { book, out } = await exportPrefixed(undefined, bilingual);
+    const reparsed = await new YauzlEpubParser().parse(out);
+    expect(reparsed.sourceLang).toBe("ja");
+    const bySource = new Map(reparsed.segments.map((s) => [s.id, s.sourceText]));
+    for (const s of book.segments.filter((x) => x.id.startsWith("xhtml/p-005"))) {
+      expect(bySource.get(s.id), s.id).toBeDefined();
+    }
+  });
+});
+
+describe("YazlEpubExporter right-to-left targets", () => {
+  it("marks documents, package and spine rtl and never forces a direction in css", async () => {
+    const { entries } = await exportPrefixed(undefined, translation, ar);
+    const opf = text(entries.get("item/standard.opf"));
+    expect(opf).toMatch(/<package[^>]* dir="rtl"/);
+    expect(opf).toContain("<dc:language>ar</dc:language>");
+    expect(opf).toContain('page-progression-direction="rtl"');
+    expect(opf).toContain('<meta name="primary-writing-mode" content="horizontal-rl"/>');
+    expect(text(entries.get("item/xhtml/p-005.xhtml"))).toMatch(/<html[^>]* dir="rtl"/);
+    expect(text(entries.get("item/et-override.css"))).not.toMatch(/direction\s*:/);
+  });
+
+  it("marks left-to-right targets explicitly so a source dir cannot leak", async () => {
+    const { entries } = await exportPrefixed();
+    expect(text(entries.get("item/xhtml/p-005.xhtml"))).toMatch(/<html[^>]* dir="ltr"/);
+    expect(text(entries.get("item/standard.opf"))).toMatch(/<package[^>]* dir="ltr"/);
+  });
+});
 
 describe("YazlEpubExporter", () => {
   it("export writes mimetype first stored with no extra field", async () => {
@@ -86,7 +196,7 @@ describe("YazlEpubExporter", () => {
 
   it("identity export keeps untouched entries byte-identical", async () => {
     const { bytes, book } = await parsedFixture();
-    const out = await exporter.export(bytes, book, translateAll(book, identity), en);
+    const out = await exporter.export(bytes, book, translateAll(book, identity), en, translation);
     const before = await readZip(bytes);
     const after = await readZip(out);
     for (const name of [
@@ -132,7 +242,9 @@ describe("YazlEpubExporter", () => {
     const { bytes, book } = await parsedFixture();
     const translations = translateAll(book, prefixed);
     translations.set("xhtml/p-006.xhtml#1", { text: "", status: "failed" });
-    const entries = await readZip(await exporter.export(bytes, book, translations, en));
+    const entries = await readZip(
+      await exporter.export(bytes, book, translations, en, translation),
+    );
     expect(text(entries.get("item/xhtml/p-006.xhtml"))).toContain("Tom &amp; Jerry");
   });
 
@@ -141,7 +253,9 @@ describe("YazlEpubExporter", () => {
     const translations = new Map([
       ["xhtml/p-005.xhtml#3", { text: "Oh <1>!?", status: "flagged" as const }],
     ]);
-    const entries = await readZip(await exporter.export(bytes, book, translations, en));
+    const entries = await readZip(
+      await exporter.export(bytes, book, translations, en, translation),
+    );
     expect(text(entries.get("item/xhtml/p-005.xhtml"))).toContain("<p>Oh !?</p>");
   });
 
@@ -155,13 +269,20 @@ describe("YazlEpubExporter", () => {
 const epubcheckJar = process.env.EPUBCHECK_JAR;
 
 describe("epubcheck", () => {
-  it.skipIf(!epubcheckJar)(
-    "exported fixture passes epubcheck with no new errors",
-    async () => {
+  const cases = [
+    ["translation", en, translation],
+    ["bilingual", en, bilingual],
+    ["arabic translation", ar, translation],
+    ["arabic bilingual", ar, bilingual],
+  ] as const;
+
+  it.skipIf(!epubcheckJar).each(cases)(
+    "%s export of the fixture passes epubcheck with no new errors",
+    async (_name, target, options) => {
       const { bytes, book } = await parsedFixture();
-      const out = await exporter.export(bytes, book, translateAll(book, prefixed), en);
+      const out = await exporter.export(bytes, book, translateAll(book, prefixed), target, options);
       const dir = await mkdtemp(join(tmpdir(), "et-epubcheck-"));
-      const count = async (name: string, data: Uint8Array) => {
+      const errors = async (name: string, data: Uint8Array) => {
         const epub = join(dir, `${name}.epub`);
         const report = join(dir, `${name}.json`);
         await writeFile(epub, data);
@@ -173,11 +294,16 @@ describe("epubcheck", () => {
           report,
         ]).catch(() => undefined);
         const json = JSON.parse(await readFile(report, "utf8")) as {
-          messages: { severity: string }[];
+          messages: { severity: string; ID: string }[];
         };
-        return json.messages.filter((m) => m.severity === "ERROR" || m.severity === "FATAL").length;
+        return json.messages
+          .filter((m) => m.severity === "ERROR" || m.severity === "FATAL")
+          .map((m) => m.ID);
       };
-      expect(await count("out", out)).toBeLessThanOrEqual(await count("src", bytes));
+      const source = await errors("src", bytes);
+      const exported = await errors("out", out);
+      expect(exported.length).toBeLessThanOrEqual(source.length);
+      expect(exported.filter((id) => !source.includes(id))).toEqual([]);
     },
     120_000,
   );
