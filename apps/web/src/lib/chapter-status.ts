@@ -8,7 +8,7 @@ export function progressFor(
 }
 
 export function isBusy(status: ChapterStatus | undefined): boolean {
-  return status === "running" || status === "queued";
+  return status === "running" || status === "queued" || status === "submitted";
 }
 
 export function translatedChapterCount(job: JobSummary | undefined): number {
@@ -23,6 +23,7 @@ export const STATUS_LABEL: Record<ChapterStatus, string> = {
   idle: "Not translated",
   queued: "Queued",
   running: "Translating",
+  submitted: "Submitted · waiting for batch",
   done: "Translated",
   partial: "Partly translated",
   failed: "Failed",
@@ -32,6 +33,7 @@ export const STATUS_DOT: Record<ChapterStatus, string> = {
   idle: "bg-transparent ring-1 ring-inset ring-muted-foreground/50",
   queued: "bg-flag/70",
   running: "bg-primary animate-pulse",
+  submitted: "bg-primary/50 animate-pulse",
   done: "bg-emerald-600 dark:bg-emerald-400",
   partial: "bg-flag",
   failed: "bg-destructive",

@@ -1,4 +1,4 @@
-import type { BookSettings, GlossaryEntry } from "@et/contracts";
+import type { BookSettings, GlossaryEntry, TranslateMode } from "@et/contracts";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useApi } from "@/api/api-context";
@@ -30,6 +30,7 @@ import {
   progressFor,
   translatedChapterCount,
 } from "@/lib/chapter-status";
+import { effectiveMode, loadMode, saveMode } from "@/lib/translate-mode";
 
 const route = getRouteApi("/books/$bookId");
 
@@ -56,6 +57,14 @@ export function BookPage() {
 
   const settings = book.data?.settings;
   const selection = resolveSelection(settings, providers.data);
+  const [mode, setMode] = useState<TranslateMode>(() => loadMode(window.localStorage));
+  const batchAvailable =
+    providers.data?.find((p) => p.id === selection?.provider)?.supportsBatch ?? false;
+  const body = selection ? { ...selection, mode: effectiveMode(mode, batchAvailable) } : null;
+  const onMode = (next: TranslateMode) => {
+    setMode(next);
+    saveMode(window.localStorage, next);
+  };
   const saveSettings = useSaveSettings(bookId);
   const action = useJobAction(jobId);
 
@@ -105,6 +114,9 @@ export function BookPage() {
         providers={providers.data}
         selection={selection}
         onSelection={onSelection}
+        mode={effectiveMode(mode, batchAvailable)}
+        batchAvailable={batchAvailable}
+        onMode={onMode}
         targetLang={targetLang}
         onTargetLang={setTargetLang}
         settings={settings}
@@ -142,13 +154,9 @@ export function BookPage() {
             hasNext={chapterIndex >= 0 && chapterIndex < chapters.length - 1}
             hasTranslation={hasAnyTranslation(job.data)}
             onTranslate={() =>
-              selection &&
-              chapterId &&
-              action.mutate({ kind: "translate", chapterId, body: selection })
+              body && chapterId && action.mutate({ kind: "translate", chapterId, body })
             }
-            onTranslateAll={() =>
-              selection && action.mutate({ kind: "translate-all", body: selection })
-            }
+            onTranslateAll={() => body && action.mutate({ kind: "translate-all", body })}
             onPrev={() => goTo(chapters[chapterIndex - 1]?.id)}
             onNext={() => goTo(chapters[chapterIndex + 1]?.id)}
             onCancel={() => action.mutate({ kind: "cancel" })}
@@ -166,11 +174,7 @@ export function BookPage() {
               canRetry={Boolean(
                 selection && chapterId && (chapterProgress?.done ?? 0) > 0 && !busy,
               )}
-              onRetry={() =>
-                selection &&
-                chapterId &&
-                action.mutate({ kind: "retry", chapterId, body: selection })
-              }
+              onRetry={() => body && chapterId && action.mutate({ kind: "retry", chapterId, body })}
               onClear={() => chapterId && action.mutate({ kind: "clear", chapterId })}
             />
           </div>

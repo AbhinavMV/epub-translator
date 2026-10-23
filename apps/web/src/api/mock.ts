@@ -105,6 +105,7 @@ const PROVIDERS: ProviderInfo[] = [
     configured: true,
     models: ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5"],
     defaultModel: "claude-sonnet-5-5",
+    supportsBatch: true,
   },
   {
     id: "openai",
@@ -112,6 +113,7 @@ const PROVIDERS: ProviderInfo[] = [
     configured: false,
     models: ["gpt-5.1"],
     defaultModel: "gpt-5.1",
+    supportsBatch: false,
   },
   {
     id: "gemini",
@@ -119,6 +121,7 @@ const PROVIDERS: ProviderInfo[] = [
     configured: false,
     models: ["gemini-3-pro"],
     defaultModel: "gemini-3-pro",
+    supportsBatch: false,
   },
   {
     id: "fake",
@@ -126,6 +129,7 @@ const PROVIDERS: ProviderInfo[] = [
     configured: true,
     models: ["fake-1"],
     defaultModel: "fake-1",
+    supportsBatch: true,
   },
 ];
 
@@ -160,6 +164,7 @@ export function createMockApi(): Api {
   const sources = new Map<string, Set<MockSource>>();
   const timers = new Map<string, ReturnType<typeof setInterval>>();
   const queues = new Map<string, string[]>();
+  const batchTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   const segCount = CHAPTERS.reduce((n, c) => n + c.pairs.length, 0);
   const addBook = (id: string, title: string) => {
@@ -187,7 +192,7 @@ export function createMockApi(): Api {
   const segKey = (jobId: string, id: string) => `${jobId}:${id}`;
 
   const recompute = (job: JobSummary): JobSummary => {
-    const running = job.progress.some((p) => p.status === "running" || p.status === "queued");
+    const running = job.progress.some((p) => ["running", "queued", "submitted"].includes(p.status));
     const allDone = job.progress.every((p) => p.status === "done");
     return { ...job, status: running ? "running" : allDone ? "done" : "idle" };
   };
@@ -271,9 +276,44 @@ export function createMockApi(): Api {
     return jobs.get(jobId) ?? null;
   };
 
+  const batchKey = (jobId: string, chapterId: string) => `${jobId}:${chapterId}`;
+
+  const submitBatch = (jobId: string, chapterIds: string[]) => {
+    for (const id of chapterIds) {
+      const c = CHAPTERS.find((x) => x.id === id);
+      const k = batchKey(jobId, id);
+      if (!c || batchTimers.has(k)) continue;
+      setChapterProgress(jobId, progressFor(jobId, c, "submitted"));
+      batchTimers.set(
+        k,
+        setTimeout(() => {
+          batchTimers.delete(k);
+          c.pairs.forEach((pair, i) => {
+            const segmentId = segId(c, i);
+            segs.set(segKey(jobId, segmentId), { html: `<p>${pair[1]}</p>`, status: "done" });
+            emit(jobId, {
+              type: "segment.done",
+              jobId,
+              chapterId: c.id,
+              segmentId,
+              status: "done",
+            });
+          });
+          setChapterProgress(jobId, progressFor(jobId, c, "done"));
+        }, 6000),
+      );
+    }
+    return jobs.get(jobId) ?? null;
+  };
+
+  const start = (jobId: string, chapterIds: string[], mode: string | undefined) =>
+    mode === "batch" ? submitBatch(jobId, chapterIds) : enqueue(jobId, chapterIds);
+
   const clear = (jobId: string, chapterId: string) => {
     const c = CHAPTERS.find((x) => x.id === chapterId);
     if (!c) return;
+    clearTimeout(batchTimers.get(batchKey(jobId, chapterId)));
+    batchTimers.delete(batchKey(jobId, chapterId));
     for (let i = 0; i < c.pairs.length; i++) segs.delete(segKey(jobId, segId(c, i)));
     setChapterProgress(jobId, progressFor(jobId, c, "idle"));
   };
@@ -370,18 +410,19 @@ export function createMockApi(): Api {
       });
     },
     listProviders: () => delay(PROVIDERS),
-    translateChapter: (jobId, chapterId) => delay(enqueue(jobId, [chapterId]), 60),
-    translateAll: (jobId) =>
+    translateChapter: (jobId, chapterId, body) => delay(start(jobId, [chapterId], body.mode), 60),
+    translateAll: (jobId, body) =>
       delay(
-        enqueue(
+        start(
           jobId,
           CHAPTERS.map((c) => c.id),
+          body.mode,
         ),
         60,
       ),
-    retryChapter(jobId, chapterId) {
+    retryChapter(jobId, chapterId, body) {
       clear(jobId, chapterId);
-      return delay(enqueue(jobId, [chapterId]), 60);
+      return delay(start(jobId, [chapterId], body.mode), 60);
     },
     async clearChapter(jobId, chapterId) {
       clear(jobId, chapterId);
@@ -392,11 +433,17 @@ export function createMockApi(): Api {
       if (timer) clearInterval(timer);
       timers.delete(jobId);
       queues.set(jobId, []);
+      for (const [k, t] of batchTimers) {
+        if (k.startsWith(`${jobId}:`)) {
+          clearTimeout(t);
+          batchTimers.delete(k);
+        }
+      }
       const job = jobs.get(jobId);
       if (job) {
         for (const p of job.progress) {
           const c = CHAPTERS.find((x) => x.id === p.chapterId);
-          if (c && (p.status === "running" || p.status === "queued")) {
+          if (c && (p.status === "running" || p.status === "queued" || p.status === "submitted")) {
             const next = progressFor(jobId, c, p.done > 0 ? "partial" : "idle");
             setChapterProgress(jobId, next);
           }
