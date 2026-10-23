@@ -1,3 +1,9 @@
+export const CONTENTS_CHAPTER_ID = "ch-contents";
+export const TITLE_SEGMENT_ID = "opf#title";
+export const NCX_SEGMENT_PREFIX = "ncx#";
+export const OPF_SEGMENT_PREFIX = "opf#";
+export const PARSER_VERSION = 2;
+
 export interface StoredBook {
   id: string;
   sha256: string;
@@ -9,7 +15,7 @@ export interface StoredBook {
 }
 
 export interface ParsedSegment {
-  /** `${docHref}#${ordinal}`, or `opf#title` / `ncx#N` for metadata labels. */
+  /** `${docHref}#${ordinal}`, or `opf#…` / `ncx#N` for metadata and navigation labels. */
   id: string;
   chapterId: string;
   ordinal: number;
@@ -25,6 +31,8 @@ export interface ParsedChapter {
 }
 
 export interface ParsedBook {
+  /** Absent in books parsed before versioning; read as 1. */
+  parserVersion?: number;
   title: string;
   author: string | null;
   sourceLang: string | null;

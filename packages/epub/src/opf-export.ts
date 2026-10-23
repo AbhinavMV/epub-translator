@@ -24,7 +24,6 @@ export interface OpfEdit {
   target: TargetLanguage;
   layout: ExportOptions["layout"];
   modified: Date;
-  title: string | null;
   cssPath: string;
 }
 
@@ -48,11 +47,6 @@ export function editPackageDocument(pkg: PackageDoc, edit: OpfEdit): void {
     root.setAttributeNS(XML_NS, "xml:lang", edit.target.code);
     root.setAttribute("dir", edit.target.dir);
     if (language) setText(language, edit.target.code);
-  }
-
-  const title = descendants(metadata, "title")[0];
-  if (title && edit.title !== null) {
-    setText(title, bilingual ? `${title.textContent} / ${edit.title}` : edit.title);
   }
 
   const modified = descendants(metadata, "meta").find(

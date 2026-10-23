@@ -5,7 +5,7 @@ import { applyTranslation, isUsable } from "./apply-translation.ts";
 import { insertBilingualCopy } from "./bilingual.ts";
 import { documentBlocks, segmentId } from "./doc-blocks.ts";
 import { setText } from "./opf-export.ts";
-import { descendants, XHTML_NS } from "./xml.ts";
+import { descendants, normalizedText, XHTML_NS } from "./xml.ts";
 
 const XML_NS = "http://www.w3.org/XML/1998/namespace";
 
@@ -69,6 +69,14 @@ export function applyHorizontalLayout(doc: Document, cssHref: string): void {
   link.setAttribute("type", "text/css");
   link.setAttribute("href", cssHref);
   head.appendChild(link);
+}
+
+export function retitleDocument(doc: Document, sourceTitle: string, replacement: string): boolean {
+  const head = descendants(doc.documentElement, "head")[0];
+  const title = head ? descendants(head, "title")[0] : undefined;
+  if (!title || normalizedText(title) !== sourceTitle) return false;
+  setText(title, replacement);
+  return true;
 }
 
 export function translateNcx(
