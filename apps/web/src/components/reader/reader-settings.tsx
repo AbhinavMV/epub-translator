@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   type FontName,
+  type Layout,
   type ThemeName,
   usePrefs,
   type WidthName,
@@ -102,6 +103,27 @@ export function ReaderSettings() {
               Wide
             </ToggleGroupItem>
           </ToggleGroup>
+        </Field>
+        <Field label="Layout">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            value={prefs.layout}
+            onValueChange={(v) => v && setPrefs({ layout: v as Layout })}
+            aria-label="Layout"
+          >
+            <ToggleGroupItem value="scroll" className="flex-1">
+              Scroll
+            </ToggleGroupItem>
+            <ToggleGroupItem value="paged" className="flex-1">
+              Paged
+            </ToggleGroupItem>
+          </ToggleGroup>
+          {prefs.layout === "paged" && prefs.viewMode === "side-by-side" && (
+            <p className="text-xs text-muted-foreground">Side-by-side always scrolls.</p>
+          )}
         </Field>
         <Field label="Theme">
           <ToggleGroup

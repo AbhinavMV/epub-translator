@@ -5,12 +5,14 @@ import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
 import { ChapterRail } from "@/components/chapter-rail";
 import { ChapterContent } from "@/components/reader/chapter-view";
+import { PagedReader, type PagePosition } from "@/components/reader/paged-reader";
 import { ReaderSettings } from "@/components/reader/reader-settings";
 import { ViewModeToggle } from "@/components/reader/view-mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBusy, progressFor } from "@/lib/chapter-status";
+import { effectiveLayout, type PageAction, type StartAt } from "@/lib/pagination";
 import { type FontName, usePrefs, type WidthName } from "@/lib/reader-settings-store";
 
 const route = getRouteApi("/books/$bookId/read/$chapterId");
@@ -47,10 +49,13 @@ export function ReaderPage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(0);
+  const [startAt, setStartAt] = useState<StartAt>("first");
+  const paged = effectiveLayout(prefs.layout, prefs.viewMode) === "paged";
 
   const go = useCallback(
-    (id: string | null | undefined) => {
+    (id: string | null | undefined, landOn: StartAt = "first") => {
       if (!id) return;
+      setStartAt(landOn);
       void navigate({
         to: "/books/$bookId/read/$chapterId",
         params: { bookId, chapterId: id },
@@ -69,7 +74,18 @@ export function ReaderPage() {
   const prevId = view?.prevChapterId ?? chapters[position - 1]?.id ?? null;
   const nextId = view?.nextChapterId ?? chapters[position + 1]?.id ?? null;
 
+  const onPagedChapter = useCallback(
+    (direction: PageAction, landOn: StartAt) => go(direction === "next" ? nextId : prevId, landOn),
+    [go, nextId, prevId],
+  );
+
+  const onPosition = useCallback(
+    ({ page, count }: PagePosition) => setScrolled((page + 1) / count),
+    [],
+  );
+
   useEffect(() => {
+    if (paged) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || isTyping(e.target)) return;
       if (e.key === "ArrowLeft") go(prevId);
@@ -77,7 +93,7 @@ export function ReaderPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go, prevId, nextId]);
+  }, [go, prevId, nextId, paged]);
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -97,6 +113,24 @@ export function ReaderPage() {
   } as React.CSSProperties;
 
   const title = book.data?.title;
+
+  const content = view ? (
+    <ChapterContent view={view} mode={prefs.viewMode} running={running} />
+  ) : (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-2/3" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-5/6" />
+    </div>
+  );
+  const layoutKey = [
+    prefs.font,
+    prefs.fontSize,
+    prefs.lineHeight,
+    prefs.width,
+    prefs.viewMode,
+    running,
+  ].join("|");
 
   return (
     <div className="flex h-dvh flex-col">
@@ -153,30 +187,39 @@ export function ReaderPage() {
             />
           </aside>
         )}
-        <div ref={scrollRef} onScroll={onScroll} className="min-w-0 flex-1 overflow-y-auto">
-          <article className="reader-prose mx-auto px-5 py-10 md:px-8" style={proseStyle}>
-            {view ? (
-              <ChapterContent view={view} mode={prefs.viewMode} running={running} />
-            ) : (
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-2/3" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-              </div>
-            )}
-            <nav
-              aria-label="Chapter navigation"
-              className="mt-12 flex items-stretch justify-between gap-3 border-t pt-6 font-sans text-sm"
-            >
-              <Button variant="outline" disabled={!prevId} onClick={() => go(prevId)}>
-                <ArrowLeft /> Previous
-              </Button>
-              <Button variant="outline" disabled={!nextId} onClick={() => go(nextId)}>
-                Next <ArrowRight />
-              </Button>
-            </nav>
-          </article>
-        </div>
+        {paged ? (
+          <PagedReader
+            key={chapterId}
+            startAt={startAt}
+            ready={Boolean(view)}
+            hasPrev={Boolean(prevId)}
+            hasNext={Boolean(nextId)}
+            maxPageWidth={widthEm * prefs.fontSize}
+            layoutKey={layoutKey}
+            style={proseStyle}
+            onChapter={onPagedChapter}
+            onPosition={onPosition}
+          >
+            {content}
+          </PagedReader>
+        ) : (
+          <div ref={scrollRef} onScroll={onScroll} className="min-w-0 flex-1 overflow-y-auto">
+            <article className="reader-prose mx-auto px-5 py-10 md:px-8" style={proseStyle}>
+              {content}
+              <nav
+                aria-label="Chapter navigation"
+                className="mt-12 flex items-stretch justify-between gap-3 border-t pt-6 font-sans text-sm"
+              >
+                <Button variant="outline" disabled={!prevId} onClick={() => go(prevId)}>
+                  <ArrowLeft /> Previous
+                </Button>
+                <Button variant="outline" disabled={!nextId} onClick={() => go(nextId)}>
+                  Next <ArrowRight />
+                </Button>
+              </nav>
+            </article>
+          </div>
+        )}
       </div>
     </div>
   );
