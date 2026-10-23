@@ -134,4 +134,22 @@ describe("SqliteTranslationRepository", () => {
     repo.deleteMany("j1", ["s1"]);
     expect([...repo.forJob("j1").keys()]).toEqual(["s2"]);
   });
+
+  it("keeps the reason a segment failed", () => {
+    new SqliteBookRepository(db).insert(book, parsed);
+    new SqliteJobRepository(db).insert({
+      id: "j1",
+      bookId: "b1",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: book.createdAt,
+    });
+    const repo = new SqliteTranslationRepository(db);
+    repo.put("j1", "s1", { text: "", status: "failed", note: "declined" });
+    repo.put("j1", "s2", { text: "ok", status: "done" });
+    expect(repo.get("j1", "s1")).toEqual({ text: "", status: "failed", note: "declined" });
+    expect(repo.forJob("j1").get("s2")).toEqual({ text: "ok", status: "done" });
+  });
 });

@@ -195,6 +195,7 @@ export class JobRunner {
     const k = key(jobId, chapterId);
     if (this.runtime.has(k) || this.batches?.hasOpen(jobId, chapterId)) return;
     this.errors.delete(k);
+    if (this.deps.jobs.get(jobId)?.error) this.deps.jobs.update(jobId, { error: null });
     this.runtime.set(k, { status: "queued" });
     if (provider) {
       this.queue.push({ jobId, chapterId, body, provider, controller: new AbortController() });
@@ -346,9 +347,12 @@ export class JobRunner {
       }
     } catch (err) {
       if (task.controller.signal.aborted) return;
-      const message =
-        err instanceof FatalProviderError || err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
       this.errors.set(key(task.jobId, task.chapterId), message);
+      if (err instanceof FatalProviderError) {
+        this.deps.jobs.update(task.jobId, { error: message });
+        this.stop(task.jobId, (t) => t !== task);
+      }
     }
   }
 

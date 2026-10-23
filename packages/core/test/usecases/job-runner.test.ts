@@ -165,6 +165,38 @@ describe("JobRunner", () => {
     expect(summary.status).toBe("failed");
   });
 
+  it("stops the queued chapters of the job after a fatal provider error", async () => {
+    const single = new JobRunner(
+      {
+        books,
+        jobs,
+        translations,
+        settings,
+        providers: () => provider,
+        events: { publish: () => {} },
+        sleep: async () => {},
+      },
+      { chapterConcurrency: 1, contextSize: 8, maxChars: 4000, maxCount: 40 },
+    );
+    provider.failWith = "HTTP 401: authentication failed";
+    single.translateAll("j1", body);
+    await single.whenIdle();
+    expect(provider.requests).toHaveLength(1);
+    const summary = single.summary("j1");
+    expect(summary.error).toBe("HTTP 401: authentication failed");
+    expect(summary.progress.find((p) => p.chapterId === "ch-1")?.status).toBe("idle");
+  });
+
+  it("clears the job error when translation starts again", async () => {
+    provider.failWith = "HTTP 401: authentication failed";
+    runner.translateChapter("j1", "ch-0", body);
+    await runner.whenIdle();
+    provider.failWith = null;
+    runner.translateChapter("j1", "ch-0", body);
+    await runner.whenIdle();
+    expect(runner.summary("j1").error).toBeNull();
+  });
+
   it("retryChapter clears and retranslates only that chapter", async () => {
     translations.put("j1", "a.xhtml#0", { text: "Old", status: "flagged" });
     translations.put("j1", "b.xhtml#0", { text: "Keep", status: "done" });

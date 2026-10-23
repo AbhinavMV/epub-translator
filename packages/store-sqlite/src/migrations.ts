@@ -49,6 +49,9 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX provider_batches_open ON provider_batches (status, job_id, chapter_id);
   `,
+  `
+  ALTER TABLE translations ADD COLUMN note TEXT;
+  `,
 ];
 
 export function migrate(db: BetterSqlite3.Database): void {

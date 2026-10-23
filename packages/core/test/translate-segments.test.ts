@@ -216,6 +216,17 @@ describe("SegmentTranslator", () => {
       signal,
     );
     expect(out.results.get("a")?.status).toBe("failed");
+    expect(out.results.get("a")?.note).toMatch(/too long/i);
+  });
+
+  it("records the policy category when the model declines a passage", async () => {
+    const provider = new ScriptedProvider([{ kind: "refused", usage, category: "general_harms" }]);
+    const out = await translator(provider).translateBatch(
+      request([{ id: "a", text: "x" }]),
+      signal,
+    );
+    expect(out.results.get("a")).toMatchObject({ status: "failed", text: "" });
+    expect(out.results.get("a")?.note).toMatch(/declined.*general_harms/i);
   });
 
   it("isolates a refused segment by splitting and marks it failed", async () => {
@@ -277,7 +288,7 @@ describe("SegmentTranslator", () => {
       signal,
     );
     expect(provider.requests).toHaveLength(2);
-    expect(out.results.get("a")).toEqual({ text: "still bad", status: "flagged" });
+    expect(out.results.get("a")).toMatchObject({ text: "still bad", status: "flagged" });
   });
 
   it("marks a segment failed when it never comes back, so it is retried later", async () => {
@@ -286,7 +297,8 @@ describe("SegmentTranslator", () => {
       request([{ id: "a", text: "<1>x</1>y" }]),
       signal,
     );
-    expect(out.results.get("a")).toEqual({ text: "", status: "failed" });
+    expect(out.results.get("a")).toMatchObject({ text: "", status: "failed" });
+    expect(out.results.get("a")?.note).toMatch(/no translation came back/i);
   });
 
   it("marks a segment failed when the translation is empty twice", async () => {
@@ -298,7 +310,7 @@ describe("SegmentTranslator", () => {
       request([{ id: "a", text: "……" }]),
       signal,
     );
-    expect(out.results.get("a")).toEqual({ text: "", status: "failed" });
+    expect(out.results.get("a")).toMatchObject({ text: "", status: "failed" });
   });
 
   it("throws FatalProviderError on fatal", async () => {

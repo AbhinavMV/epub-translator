@@ -203,8 +203,8 @@ describe("JobRunner batch mode", () => {
       results: new Map([["0", okFor([["a.xhtml#0", "One<1>"]])]]),
     };
     await runner.pollBatches();
-    expect(translations.get("j1", "a.xhtml#0")).toEqual({ text: "One", status: "flagged" });
-    expect(translations.get("j1", "a.xhtml#1")).toEqual({ text: "", status: "failed" });
+    expect(translations.get("j1", "a.xhtml#0")).toMatchObject({ text: "One", status: "flagged" });
+    expect(translations.get("j1", "a.xhtml#1")).toMatchObject({ text: "", status: "failed" });
     expect(chapter("ch-0")).toMatchObject({ status: "partial", flagged: 1, failed: 1 });
     expect(vendor.submitted).toHaveLength(1);
   });

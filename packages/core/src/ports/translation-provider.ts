@@ -15,7 +15,8 @@ export interface SegmentBatchRequest {
 
 export type SegmentBatchResult =
   | { kind: "ok"; segments: { id: string; text: string }[]; usage: Usage }
-  | { kind: "truncated" | "refused"; usage: Usage }
+  | { kind: "truncated"; usage: Usage }
+  | { kind: "refused"; usage: Usage; category?: string | null }
   | { kind: "retryable"; retryAfterMs?: number; cause: string }
   | { kind: "fatal"; cause: string };
 

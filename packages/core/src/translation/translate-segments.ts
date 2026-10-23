@@ -7,7 +7,7 @@ import type {
   SegmentBatchResult,
   TranslationProvider,
 } from "../ports/translation-provider.ts";
-import { checkReturned, feedbackFor, settleRejected } from "./settle.ts";
+import { checkReturned, failureNote, feedbackFor, settleRejected } from "./settle.ts";
 
 const MAX_BACKOFF_MS = 30_000;
 
@@ -46,7 +46,7 @@ export class SegmentTranslator {
     outcome.usage.outputTokens += result.usage.outputTokens;
 
     if (result.kind !== "ok") {
-      await this.splitOrFail(req, signal, outcome, isRetry);
+      await this.splitOrFail(req, signal, outcome, isRetry, result);
       return;
     }
 
@@ -72,10 +72,13 @@ export class SegmentTranslator {
     signal: AbortSignal,
     outcome: BatchOutcome,
     isRetry: boolean,
+    result: Extract<SegmentBatchResult, { kind: "truncated" | "refused" }>,
   ): Promise<void> {
     if (req.segments.length === 1) {
       const only = req.segments[0];
-      if (only) outcome.results.set(only.id, { text: "", status: "failed" });
+      if (only) {
+        outcome.results.set(only.id, { text: "", status: "failed", note: failureNote(result) });
+      }
       return;
     }
     const mid = Math.ceil(req.segments.length / 2);

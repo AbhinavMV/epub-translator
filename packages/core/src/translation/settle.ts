@@ -20,6 +20,19 @@ export interface Checked {
   rejected: Rejected[];
 }
 
+export const MISSING_NOTE = "No translation came back for this passage.";
+export const TRUNCATED_NOTE = "The passage was too long for a single response.";
+
+export function refusedNote(category?: string | null): string {
+  return `The model declined to translate this passage${category ? ` (policy category: ${category})` : ""}.`;
+}
+
+export function failureNote(result: Exclude<SegmentBatchResult, { kind: "ok" }>): string {
+  if (result.kind === "refused") return refusedNote(result.category);
+  if (result.kind === "truncated") return TRUNCATED_NOTE;
+  return result.cause;
+}
+
 function problemWith(source: string, translated: string | undefined): string | null {
   if (translated === undefined) return "missing from your response";
   if (translated.trim() === "" && source.trim() !== "") return "empty translation";
@@ -58,8 +71,12 @@ export function settleRejected(rejected: readonly Rejected[]): Map<string, Segme
     settled.set(
       r.id,
       received === null
-        ? { text: "", status: "failed" }
-        : { text: stripTokens(received), status: "flagged" },
+        ? { text: "", status: "failed", note: MISSING_NOTE }
+        : {
+            text: stripTokens(received),
+            status: "flagged",
+            note: `Formatting couldn't be preserved (${r.problem}).`,
+          },
     );
   }
   return settled;
@@ -72,7 +89,8 @@ export function settleOnce(
   if (result.kind !== "ok") {
     const usage = "usage" in result ? result.usage : { inputTokens: 0, outputTokens: 0 };
     const results = new Map<string, SegmentTranslation>();
-    for (const s of sources) results.set(s.id, { text: "", status: "failed" });
+    const note = failureNote(result);
+    for (const s of sources) results.set(s.id, { text: "", status: "failed", note });
     return { results, usage };
   }
   const { accepted, rejected } = checkReturned(sources, result.segments);
