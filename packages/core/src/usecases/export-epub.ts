@@ -1,4 +1,4 @@
-import { getTargetLanguage } from "@et/contracts";
+import { type ExportLayout, getTargetLanguage } from "@et/contracts";
 import { NotFoundError } from "../domain/errors.ts";
 import type { EpubExporter } from "../ports/epub.ts";
 import type {
@@ -17,18 +17,25 @@ export interface ExportEpubDeps {
   exporter: EpubExporter;
 }
 
-export function exportFilename(title: string, targetLang: string, ext: string): string {
+export function exportFilename(
+  title: string,
+  targetLang: string,
+  ext: string,
+  layout: ExportLayout = "translation",
+): string {
   const safe =
     title
       .replace(/[\\/:*?"<>|\p{Cc}]/gu, "_")
       .trim()
       .slice(0, 150) || "book";
-  return `${safe} (${targetLang}).${ext}`;
+  const suffix = layout === "bilingual" ? `${targetLang}, bilingual` : targetLang;
+  return `${safe} (${suffix}).${ext}`;
 }
 
 export async function exportEpub(
   deps: ExportEpubDeps,
   jobId: string,
+  layout: ExportLayout = "translation",
 ): Promise<{ filename: string; bytes: Uint8Array }> {
   const job = deps.jobs.get(jobId);
   if (!job) throw new NotFoundError("Job", jobId);
@@ -39,6 +46,7 @@ export async function exportEpub(
     parsed,
     deps.translations.forJob(jobId),
     getTargetLanguage(job.targetLang),
+    { layout },
   );
-  return { filename: exportFilename(book.title, job.targetLang, "epub"), bytes: out };
+  return { filename: exportFilename(book.title, job.targetLang, "epub", layout), bytes: out };
 }

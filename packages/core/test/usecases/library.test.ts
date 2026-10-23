@@ -184,5 +184,31 @@ describe("exportEpub", () => {
     expect(exporter.lastTarget).toBe("en");
     expect(out.filename).toBe("本 (en).epub");
     expect(out.bytes.at(-1)).toBe(9);
+    expect(exporter.lastLayout).toBe("translation");
+  });
+
+  it("bilingual layout reaches the exporter and marks the filename", async () => {
+    const lib = libraryDeps();
+    const book = await importBook(lib, bytes);
+    const jobs = new MemoryJobs();
+    const job = getOrCreateWorkspace(
+      { books: lib.books, jobs, ids: counterIds("j"), clock: fixedClock },
+      book.id,
+      "en",
+    );
+    const exporter = new RecordingExporter();
+    const out = await exportEpub(
+      {
+        books: lib.books,
+        jobs,
+        blobs: lib.blobs,
+        translations: new MemoryTranslations(),
+        exporter,
+      },
+      job.id,
+      "bilingual",
+    );
+    expect(exporter.lastLayout).toBe("bilingual");
+    expect(out.filename).toBe("本 (en, bilingual).epub");
   });
 });

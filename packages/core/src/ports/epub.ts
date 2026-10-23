@@ -1,4 +1,4 @@
-import type { ChapterView, TargetLanguage } from "@et/contracts";
+import type { ChapterView, ExportLayout, TargetLanguage } from "@et/contracts";
 import type { ParsedBook } from "../domain/book.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
 
@@ -24,11 +24,16 @@ export interface ChapterRenderer {
   ): Promise<ChapterView>;
 }
 
+export interface ExportOptions {
+  layout: ExportLayout;
+}
+
 export interface EpubExporter {
   export(
     bytes: Uint8Array,
     book: ParsedBook,
     translations: Translations,
     target: TargetLanguage,
+    options: ExportOptions,
   ): Promise<Uint8Array>;
 }

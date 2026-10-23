@@ -163,13 +163,16 @@ export class RecordingRenderer implements ChapterRenderer {
 
 export class RecordingExporter implements EpubExporter {
   lastTarget: string | null = null;
+  lastLayout: string | null = null;
   async export(
     bytes: Uint8Array,
     _b: ParsedBook,
     _t: ReadonlyMap<string, SegmentTranslation>,
     target: { code: string },
+    options: { layout: string },
   ) {
     this.lastTarget = target.code;
+    this.lastLayout = options.layout;
     return new Uint8Array([...bytes, 9]);
   }
 }
