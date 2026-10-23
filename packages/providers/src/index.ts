@@ -1,4 +1,8 @@
 export { AnthropicProvider, mapAnthropicError } from "./anthropic.ts";
+export { AnthropicBatchProvider } from "./batch/anthropic.ts";
+export { FakeBatchProvider } from "./batch/fake.ts";
+export { GeminiBatchProvider } from "./batch/gemini.ts";
+export { OpenAIBatchProvider } from "./batch/openai.ts";
 export { FakeProvider } from "./fake.ts";
 export { GeminiProvider, mapGeminiError } from "./gemini.ts";
 export { mapOpenAIError, OpenAIProvider } from "./openai.ts";
