@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.turbo/
+*.epub
+data/
+.env
+.superpowers/
+coverage/
+*.tsbuildinfo
+.DS_Store
