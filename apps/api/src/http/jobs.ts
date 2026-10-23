@@ -62,17 +62,18 @@ export function jobsRoutes(s: Services) {
       const id = c.req.param("id");
       const initial = s.runner.summary(id);
       return streamSSE(c, async (stream) => {
+        const closed = new Promise<void>((resolve) => stream.onAbort(resolve));
         let seq = 0;
         const send = (data: unknown) =>
           stream.writeSSE({ id: String(++seq), data: JSON.stringify(data) });
-        await send({ type: "job.status", job: initial });
         const unsubscribe = s.events.subscribe(id, (event) => {
           void send(event);
         });
         const heartbeat = setInterval(() => {
           void stream.write(": ping\n\n");
         }, HEARTBEAT_MS);
-        await new Promise<void>((resolve) => stream.onAbort(resolve));
+        await send({ type: "job.status", job: initial });
+        await closed;
         clearInterval(heartbeat);
         unsubscribe();
       });

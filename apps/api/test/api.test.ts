@@ -268,6 +268,20 @@ describe("jobs api", () => {
   });
 });
 
+describe("host check", () => {
+  it("rejects requests whose Host is not a local name (dns rebinding)", async () => {
+    const { app } = setup();
+    const evil = await app.request("http://evil.example:8787/api/books", {
+      headers: { host: "evil.example:8787" },
+    });
+    expect(evil.status).toBe(403);
+    for (const host of ["localhost:5173", "127.0.0.1:8787", "[::1]:8787"]) {
+      const ok = await app.request(`http://${host}/api/books`, { headers: { host } });
+      expect(ok.status, host).toBe(200);
+    }
+  });
+});
+
 describe("providers api", () => {
   it("never returns keys and marks configuration", async () => {
     const { app } = setup({ ANTHROPIC_API_KEY: "sk-secret-123" });
