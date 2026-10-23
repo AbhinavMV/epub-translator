@@ -3,6 +3,7 @@ import type { BookRepository, JobRepository, TranslationRepository } from "../po
 import { stripTokens } from "../translation/placeholders.ts";
 import { exportFilename } from "./export-epub.ts";
 import { requireBook } from "./load-book.ts";
+import { translatedTitles } from "./translated-titles.ts";
 
 export function exportText(
   deps: { books: BookRepository; jobs: JobRepository; translations: TranslationRepository },
@@ -23,8 +24,10 @@ export function exportText(
       .filter((p) => p.length > 0);
     if (paragraphs.length > 0) sections.push([chapter.title, ...paragraphs].join("\n\n"));
   }
+  const title = translatedTitles(parsed, translations).book;
+  if (title) sections.unshift(title);
   return {
-    filename: exportFilename(book.title, job.targetLang, "txt"),
+    filename: exportFilename(title ?? book.title, job.targetLang, "txt"),
     text: `${sections.join("\n\n\n")}\n`,
   };
 }

@@ -1,5 +1,5 @@
 import { getTargetLanguage, type JobSummary, type TranslateBody } from "@et/contracts";
-import type { ParsedBook, ParsedChapter } from "../domain/book.ts";
+import { CONTENTS_CHAPTER_ID, type ParsedBook, type ParsedChapter } from "../domain/book.ts";
 import {
   BatchNotSupportedError,
   FatalProviderError,
@@ -22,6 +22,7 @@ import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
 import { chapterWork, promptExtras } from "./chapter-work.ts";
 import { type ChapterRuntime, chapterProgress, jobSummary } from "./job-progress.ts";
 import { requireBook } from "./load-book.ts";
+import { translatedTitles } from "./translated-titles.ts";
 
 export interface JobRunnerDeps {
   books: BookRepository;
@@ -88,7 +89,10 @@ export class JobRunner {
     const { job, parsed } = this.requireJob(jobId);
     const provider = this.requireProvider(body);
     const translations = this.deps.translations.forJob(jobId);
-    for (const chapter of parsed.chapters) {
+    const contentsFirst = [...parsed.chapters].sort(
+      (a, b) => Number(b.id === CONTENTS_CHAPTER_ID) - Number(a.id === CONTENTS_CHAPTER_ID),
+    );
+    for (const chapter of contentsFirst) {
       const p = chapterProgress(parsed, chapter.id, translations, undefined, null);
       if (p.status !== "done") this.enqueue(job.id, chapter.id, body, provider);
     }
@@ -146,6 +150,7 @@ export class JobRunner {
           this.errors.get(key(jobId, c.id)) ?? null,
         ),
       ),
+      translatedTitles(parsed, translations),
     );
   }
 

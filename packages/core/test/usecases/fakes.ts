@@ -31,6 +31,10 @@ export class MemoryBooks implements BookRepository {
   getParsed(id: string) {
     return this.rows.get(id)?.parsed ?? null;
   }
+  updateParsed(id: string, parsed: ParsedBook) {
+    const row = this.rows.get(id);
+    if (row) row.parsed = parsed;
+  }
   list() {
     return [...this.rows.values()].map((r) => r.book);
   }

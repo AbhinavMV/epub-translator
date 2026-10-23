@@ -8,6 +8,7 @@ export interface BookRepository {
   get(id: string): StoredBook | null;
   findBySha256(sha256: string): StoredBook | null;
   getParsed(id: string): ParsedBook | null;
+  updateParsed(id: string, parsed: ParsedBook): void;
   list(): StoredBook[];
   delete(id: string): void;
 }

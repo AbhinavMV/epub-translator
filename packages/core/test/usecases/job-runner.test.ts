@@ -270,4 +270,49 @@ describe("JobRunner", () => {
     expect(() => runner.translateChapter("j1", "ch-9", body)).toThrow(NotFoundError);
     expect(() => runner.translateChapter("nope", "ch-0", body)).toThrow(NotFoundError);
   });
+
+  describe("with a Contents chapter", () => {
+    beforeEach(() => {
+      const withContents = {
+        ...sampleParsed,
+        chapters: [
+          ...sampleParsed.chapters,
+          { id: "ch-contents", index: -1, title: "Contents", docHrefs: ["nav.xhtml"] },
+        ],
+        segments: [
+          ...sampleParsed.segments,
+          { id: "opf#title", chapterId: "ch-contents", ordinal: 0, sourceText: "本" },
+          { id: "nav.xhtml#0", chapterId: "ch-contents", ordinal: 0, sourceText: "第一章" },
+        ],
+      };
+      books.rows.set("b1", { book: books.rows.get("b1")?.book as never, parsed: withContents });
+      runner = new JobRunner(
+        {
+          books,
+          jobs,
+          translations,
+          settings,
+          providers: (id) => (id === "fake" ? provider : null),
+          events: { publish: (e) => events.push(e) },
+          sleep: async () => {},
+        },
+        { chapterConcurrency: 1, contextSize: 8, maxChars: 4000, maxCount: 10 },
+      );
+    });
+
+    it("translateAll starts with the Contents chapter so titles appear first", async () => {
+      runner.translateAll("j1", body);
+      await runner.whenIdle();
+      expect(provider.requests[0]?.segments.map((s) => s.id)).toEqual(["opf#title", "nav.xhtml#0"]);
+    });
+
+    it("summary carries translated book and chapter titles", async () => {
+      runner.translateChapter("j1", "ch-contents", body);
+      await runner.whenIdle();
+      expect(runner.summary("j1").titles).toEqual({
+        book: "EN:本",
+        chapters: { "ch-0": "EN:第一章" },
+      });
+    });
+  });
 });

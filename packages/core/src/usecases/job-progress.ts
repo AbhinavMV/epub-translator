@@ -1,4 +1,10 @@
-import type { ChapterProgress, ChapterStatus, JobStatus, JobSummary } from "@et/contracts";
+import type {
+  ChapterProgress,
+  ChapterStatus,
+  JobStatus,
+  JobSummary,
+  JobTitles,
+} from "@et/contracts";
 import type { ParsedBook } from "../domain/book.ts";
 import type { Job } from "../domain/job.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
@@ -58,7 +64,11 @@ export function jobStatus(progress: readonly ChapterProgress[]): JobStatus {
   return "idle";
 }
 
-export function jobSummary(job: Job, progress: ChapterProgress[]): JobSummary {
+export function jobSummary(
+  job: Job,
+  progress: ChapterProgress[],
+  titles: JobTitles,
+): JobSummary {
   return {
     id: job.id,
     bookId: job.bookId,
@@ -66,6 +76,7 @@ export function jobSummary(job: Job, progress: ChapterProgress[]): JobSummary {
     status: jobStatus(progress),
     error: job.error,
     progress,
+    titles,
     usage: job.usage,
     createdAt: job.createdAt,
   };
