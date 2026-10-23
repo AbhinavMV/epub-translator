@@ -1,4 +1,4 @@
-import type { BookSettings, GlossaryEntry, ProviderInfo } from "@et/contracts";
+import type { BookSettings, GlossaryEntry, ProviderInfo, TranslateMode } from "@et/contracts";
 import { TARGET_LANGUAGES } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Menu } from "lucide-react";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GlossaryDialog } from "./glossary-dialog";
+import { ModeToggle } from "./mode-toggle";
 import type { Selection } from "./model-selection";
 import { PromptDialog } from "./prompt-dialog";
 import { ProviderSelect } from "./provider-select";
@@ -26,6 +27,9 @@ export function EditorHeader({
   providers,
   selection,
   onSelection,
+  mode,
+  batchAvailable,
+  onMode,
   targetLang,
   onTargetLang,
   settings,
@@ -41,6 +45,9 @@ export function EditorHeader({
   providers: ProviderInfo[] | undefined;
   selection: Selection | null;
   onSelection: (s: Selection) => void;
+  mode: TranslateMode;
+  batchAvailable: boolean;
+  onMode: (mode: TranslateMode) => void;
   targetLang: string;
   onTargetLang: (code: string) => void;
   settings: BookSettings | undefined;
@@ -71,6 +78,7 @@ export function EditorHeader({
       </Tooltip>
       <div className="order-last flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:flex-nowrap">
         <ProviderSelect providers={providers} selection={selection} onChange={onSelection} />
+        <ModeToggle mode={mode} batchAvailable={batchAvailable} onChange={onMode} />
         <Select value={targetLang} onValueChange={onTargetLang}>
           <SelectTrigger size="sm" className="w-[7.5rem]" aria-label="Target language">
             <SelectValue />

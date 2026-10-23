@@ -4,7 +4,7 @@ import type { Job } from "../domain/job.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
 
 export interface ChapterRuntime {
-  status: "queued" | "running";
+  status: "queued" | "running" | "submitted";
 }
 
 export function chapterProgress(
@@ -51,7 +51,8 @@ function chapterStatus(
 }
 
 export function jobStatus(progress: readonly ChapterProgress[]): JobStatus {
-  if (progress.some((p) => p.status === "queued" || p.status === "running")) return "running";
+  const inFlight = ["queued", "running", "submitted"];
+  if (progress.some((p) => inFlight.includes(p.status))) return "running";
   if (progress.some((p) => p.status === "failed")) return "failed";
   if (progress.every((p) => p.status === "done")) return "done";
   return "idle";

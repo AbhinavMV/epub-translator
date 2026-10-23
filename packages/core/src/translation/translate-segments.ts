@@ -7,20 +7,13 @@ import type {
   SegmentBatchResult,
   TranslationProvider,
 } from "../ports/translation-provider.ts";
-import { stripTokens, validateTokens } from "./placeholders.ts";
+import { checkReturned, feedbackFor, settleRejected } from "./settle.ts";
 
 const MAX_BACKOFF_MS = 30_000;
 
 export interface BatchOutcome {
   results: Map<string, SegmentTranslation>;
   usage: Usage;
-}
-
-interface Rejected {
-  id: string;
-  text: string;
-  problem: string;
-  received: string | null;
 }
 
 export class SegmentTranslator {
@@ -57,36 +50,12 @@ export class SegmentTranslator {
       return;
     }
 
-    const returned = new Map<string, string>();
-    for (const s of result.segments) if (!returned.has(s.id)) returned.set(s.id, s.text);
-
-    const rejected: Rejected[] = [];
-    for (const s of req.segments) {
-      const text = returned.get(s.id);
-      const problem = this.problemWith(s.text, text);
-      if (problem === null && text !== undefined) {
-        outcome.results.set(s.id, { text, status: "done" });
-      } else {
-        rejected.push({
-          id: s.id,
-          text: s.text,
-          problem: problem ?? "invalid",
-          received: text ?? null,
-        });
-      }
-    }
+    const { accepted, rejected } = checkReturned(req.segments, result.segments);
+    for (const [id, t] of accepted) outcome.results.set(id, t);
     if (rejected.length === 0) return;
 
     if (isRetry) {
-      for (const r of rejected) {
-        const received = r.received?.trim() ? r.received : null;
-        outcome.results.set(
-          r.id,
-          received === null
-            ? { text: "", status: "failed" }
-            : { text: stripTokens(received), status: "flagged" },
-        );
-      }
+      for (const [id, t] of settleRejected(rejected)) outcome.results.set(id, t);
       return;
     }
 
@@ -96,12 +65,6 @@ export class SegmentTranslator {
       feedback: feedbackFor(rejected),
     };
     await this.run(retryReq, signal, outcome, true);
-  }
-
-  private problemWith(source: string, translated: string | undefined): string | null {
-    if (translated === undefined) return "missing from your response";
-    if (translated.trim() === "" && source.trim() !== "") return "empty translation";
-    return validateTokens(source, translated);
   }
 
   private async splitOrFail(
@@ -138,13 +101,4 @@ export class SegmentTranslator {
       );
     }
   }
-}
-
-function feedbackFor(rejected: Rejected[]): string {
-  const lines = rejected.map((r) => `- ${r.id}: ${r.problem}`);
-  return [
-    "Your previous answer for these segments was rejected:",
-    ...lines,
-    "Translate them again. Keep every placeholder tag exactly once, properly nested, never add new tags, and return one entry per id.",
-  ].join("\n");
 }

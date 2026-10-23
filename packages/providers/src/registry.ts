@@ -1,6 +1,13 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { ProviderId } from "@et/contracts";
-import type { TermExtractor, TranslationProvider } from "@et/core";
+import type { BatchTranslationProvider, TermExtractor, TranslationProvider } from "@et/core";
+import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { AnthropicProvider } from "./anthropic.ts";
+import { AnthropicBatchProvider } from "./batch/anthropic.ts";
+import { FakeBatchProvider } from "./batch/fake.ts";
+import { GeminiBatchProvider } from "./batch/gemini.ts";
+import { OpenAIBatchProvider } from "./batch/openai.ts";
 import { FakeProvider } from "./fake.ts";
 import { GeminiProvider } from "./gemini.ts";
 import { OpenAIProvider } from "./openai.ts";
@@ -11,6 +18,7 @@ import { OpenAITermExtractor } from "./terms/openai.ts";
 
 export interface ProviderEntry {
   provider: TranslationProvider | null;
+  batch?: BatchTranslationProvider | null;
   configured: boolean;
   defaultModel: string;
   terms?: TermExtractor | null;
@@ -28,11 +36,24 @@ function entry(
   key: string | undefined,
   defaultModel: string,
   termsModel: string,
-  create: (key: string) => { provider: TranslationProvider; terms: TermExtractor },
+  create: (key: string) => {
+    provider: TranslationProvider;
+    terms: TermExtractor;
+    batch: BatchTranslationProvider;
+  },
 ): ProviderEntry {
-  if (!key) return { provider: null, configured: false, defaultModel, terms: null, termsModel };
-  const { provider, terms } = create(key);
-  return { provider, configured: true, defaultModel, terms, termsModel };
+  if (!key) {
+    return {
+      provider: null,
+      batch: null,
+      configured: false,
+      defaultModel,
+      terms: null,
+      termsModel,
+    };
+  }
+  const { provider, terms, batch } = create(key);
+  return { provider, batch, configured: true, defaultModel, terms, termsModel };
 }
 
 export function buildProviderRegistry(env: Record<string, string | undefined>): ProviderRegistry {
@@ -49,6 +70,7 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
         (k) => ({
           provider: new AnthropicProvider(k, anthropicModel),
           terms: new AnthropicTermExtractor(k, anthropicModel),
+          batch: new AnthropicBatchProvider(anthropicModel, new Anthropic({ apiKey: k })),
         }),
       ),
     ],
@@ -61,6 +83,7 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
         (k) => ({
           provider: new OpenAIProvider(k, openaiModel),
           terms: new OpenAITermExtractor(k, openaiModel),
+          batch: new OpenAIBatchProvider(openaiModel, new OpenAI({ apiKey: k })),
         }),
       ),
     ],
@@ -73,13 +96,18 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
         (k) => ({
           provider: new GeminiProvider(k, geminiModel),
           terms: new GeminiTermExtractor(k, geminiModel),
+          batch: new GeminiBatchProvider(geminiModel, new GoogleGenAI({ apiKey: k })),
         }),
       ),
     ],
   ]);
   if (env.ENABLE_FAKE_PROVIDER === "1") {
+    const endsAfterFetches = Number(env.FAKE_BATCH_FETCHES ?? 2);
     registry.set("fake", {
       provider: new FakeProvider(),
+      batch: new FakeBatchProvider({
+        endsAfterFetches: Number.isFinite(endsAfterFetches) ? endsAfterFetches : 2,
+      }),
       configured: true,
       defaultModel: "fake-echo",
       terms: new FakeTermExtractor(),

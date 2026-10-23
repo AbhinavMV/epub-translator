@@ -6,7 +6,10 @@ import {
   type TranslationProvider,
 } from "@et/core";
 import OpenAI from "openai";
-import type { Response } from "openai/resources/responses/responses";
+import type {
+  Response,
+  ResponseCreateParamsNonStreaming,
+} from "openai/resources/responses/responses";
 import { completionToResult, type RawCompletion } from "./completion.ts";
 import { failureFromStatus, messageOf, retryAfterMs } from "./errors.ts";
 import { SEGMENTS_JSON_SCHEMA } from "./schema.ts";
@@ -32,6 +35,34 @@ function hasRefusal(response: Response): boolean {
   );
 }
 
+export function openaiParams(
+  req: SegmentBatchRequest,
+  defaultModel: string,
+): ResponseCreateParamsNonStreaming {
+  const { system, user } = buildPrompt(req);
+  return {
+    model: req.model || defaultModel,
+    instructions: system,
+    input: user,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "segments",
+        schema: SEGMENTS_JSON_SCHEMA,
+        strict: true,
+      },
+    },
+  };
+}
+
+export function outputTextOf(response: Response): string {
+  return response.output
+    .flatMap((item) => (item.type === "message" ? item.content : []))
+    .flatMap((c) => (c.type === "output_text" ? [c.text] : []))
+    .join("");
+}
+
 export function toCompletion(response: Response): RawCompletion {
   const usage = {
     inputTokens: response.usage?.input_tokens ?? 0,
@@ -43,7 +74,7 @@ export function toCompletion(response: Response): RawCompletion {
   if (response.incomplete_details?.reason === "content_filter" || hasRefusal(response)) {
     return { kind: "refused", usage };
   }
-  return { kind: "text", text: response.output_text, usage };
+  return { kind: "text", text: outputTextOf(response), usage };
 }
 
 export class OpenAIProvider implements TranslationProvider {
@@ -68,25 +99,10 @@ export class OpenAIProvider implements TranslationProvider {
     req: SegmentBatchRequest,
     signal: AbortSignal,
   ): Promise<SegmentBatchResult> {
-    const { system, user } = buildPrompt(req);
     try {
-      const response = await this.client.responses.create(
-        {
-          model: req.model || this.defaultModel,
-          instructions: system,
-          input: user,
-          max_output_tokens: MAX_OUTPUT_TOKENS,
-          text: {
-            format: {
-              type: "json_schema",
-              name: "segments",
-              schema: SEGMENTS_JSON_SCHEMA,
-              strict: true,
-            },
-          },
-        },
-        { signal },
-      );
+      const response = await this.client.responses.create(openaiParams(req, this.defaultModel), {
+        signal,
+      });
       return completionToResult(toCompletion(response));
     } catch (err) {
       if (signal.aborted) throw err;

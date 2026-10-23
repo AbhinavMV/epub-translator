@@ -1,5 +1,6 @@
 import type { BookSettings, ChapterView, Usage } from "@et/contracts";
 import type {
+  BatchRepository,
   BlobStore,
   BookRepository,
   BookSettingsRepository,
@@ -9,6 +10,8 @@ import type {
   Job,
   JobRepository,
   ParsedBook,
+  ProviderBatch,
+  ProviderBatchStatus,
   SegmentTranslation,
   StoredBook,
   TranslationRepository,
@@ -96,6 +99,26 @@ export class MemoryTranslations implements TranslationRepository {
   }
   deleteMany(jobId: string, ids: readonly string[]) {
     for (const id of ids) this.job(jobId).delete(id);
+  }
+}
+
+export class MemoryBatches implements BatchRepository {
+  readonly rows = new Map<string, ProviderBatch>();
+  insert(batch: ProviderBatch) {
+    this.rows.set(batch.id, structuredClone(batch));
+  }
+  listOpen() {
+    return [...this.rows.values()].filter((b) => b.status === "submitted");
+  }
+  openForChapter(jobId: string, chapterId: string) {
+    return this.listOpen().find((b) => b.jobId === jobId && b.chapterId === chapterId) ?? null;
+  }
+  openForJob(jobId: string) {
+    return this.listOpen().filter((b) => b.jobId === jobId);
+  }
+  setStatus(id: string, status: ProviderBatchStatus) {
+    const b = this.rows.get(id);
+    if (b) b.status = status;
   }
 }
 

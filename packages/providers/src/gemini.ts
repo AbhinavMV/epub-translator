@@ -5,7 +5,12 @@ import {
   type SegmentBatchResult,
   type TranslationProvider,
 } from "@et/core";
-import { ApiError, type GenerateContentResponse, GoogleGenAI } from "@google/genai";
+import {
+  ApiError,
+  type GenerateContentConfig,
+  type GenerateContentResponse,
+  GoogleGenAI,
+} from "@google/genai";
 import { completionToResult, type RawCompletion } from "./completion.ts";
 import { failureFromStatus, messageOf } from "./errors.ts";
 import { SEGMENTS_JSON_SCHEMA } from "./schema.ts";
@@ -25,6 +30,28 @@ export function mapGeminiError(err: unknown): SegmentBatchResult & { kind: "retr
   return { kind: "fatal", cause: messageOf(err) };
 }
 
+export function geminiRequest(
+  req: SegmentBatchRequest,
+  defaultModel: string,
+): { model: string; contents: string; config: GenerateContentConfig } {
+  const { system, user } = buildPrompt(req);
+  return {
+    model: req.model || defaultModel,
+    contents: user,
+    config: {
+      systemInstruction: system,
+      responseMimeType: "application/json",
+      responseJsonSchema: SEGMENTS_JSON_SCHEMA,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+    },
+  };
+}
+
+export function textOf(response: GenerateContentResponse): string {
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  return parts.flatMap((p) => (p.text && !p.thought ? [p.text] : [])).join("");
+}
+
 export function toCompletion(response: GenerateContentResponse): RawCompletion {
   const usage = {
     inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
@@ -36,7 +63,7 @@ export function toCompletion(response: GenerateContentResponse): RawCompletion {
   if (response.promptFeedback?.blockReason) return { kind: "refused", usage };
   if (finish === "MAX_TOKENS") return { kind: "truncated", usage };
   if (finish && REFUSAL_FINISH_REASONS.has(finish)) return { kind: "refused", usage };
-  return { kind: "text", text: response.text ?? "", usage };
+  return { kind: "text", text: textOf(response), usage };
 }
 
 export class GeminiProvider implements TranslationProvider {
@@ -64,18 +91,11 @@ export class GeminiProvider implements TranslationProvider {
     req: SegmentBatchRequest,
     signal: AbortSignal,
   ): Promise<SegmentBatchResult> {
-    const { system, user } = buildPrompt(req);
+    const built = geminiRequest(req, this.defaultModel);
     try {
       const response = await this.client.models.generateContent({
-        model: req.model || this.defaultModel,
-        contents: user,
-        config: {
-          systemInstruction: system,
-          responseMimeType: "application/json",
-          responseJsonSchema: SEGMENTS_JSON_SCHEMA,
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-          abortSignal: signal,
-        },
+        ...built,
+        config: { ...built.config, abortSignal: signal },
       });
       return completionToResult(toCompletion(response));
     } catch (err) {

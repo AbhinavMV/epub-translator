@@ -1,5 +1,5 @@
 import type { ProviderId, ProviderInfo } from "@et/contracts";
-import type { TermExtractor, TranslationProvider } from "@et/core";
+import type { BatchTranslationProvider, TermExtractor, TranslationProvider } from "@et/core";
 import { type ProviderRegistry, resolveDefaultModel } from "@et/providers";
 
 const LABELS: Record<ProviderId, string> = {
@@ -29,6 +29,10 @@ export class ProviderCatalog {
     return this.registry.get(id)?.terms ?? null;
   }
 
+  batchProvider(id: ProviderId): BatchTranslationProvider | null {
+    return this.registry.get(id)?.batch ?? null;
+  }
+
   list(): Promise<ProviderInfo[]> {
     this.cache ??= this.load().catch((err) => {
       this.cache = null;
@@ -47,6 +51,7 @@ export class ProviderCatalog {
             configured: false,
             models: [],
             defaultModel: entry.defaultModel,
+            supportsBatch: false,
           };
         }
         const models = await this.modelsFor(id, entry.provider, entry.defaultModel);
@@ -62,6 +67,7 @@ export class ProviderCatalog {
           models,
           defaultModel,
           ...(entry.terms && entry.termsModel ? { termsModel: entry.termsModel } : {}),
+          supportsBatch: Boolean(entry.batch),
         };
       }),
     );
