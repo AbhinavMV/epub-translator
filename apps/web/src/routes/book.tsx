@@ -1,4 +1,9 @@
-import type { BookSettings, GlossaryEntry, TranslateMode } from "@et/contracts";
+import {
+  type BookSettings,
+  CONTENTS_CHAPTER_ID,
+  type GlossaryEntry,
+  type TranslateMode,
+} from "@et/contracts";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useApi } from "@/api/api-context";
@@ -109,6 +114,7 @@ export function BookPage() {
       <EditorHeader
         bookId={bookId}
         title={book.data?.title}
+        translatedTitle={job.data?.titles.book}
         chapterId={chapterId}
         jobId={jobId}
         providers={providers.data}
@@ -157,6 +163,10 @@ export function BookPage() {
               body && chapterId && action.mutate({ kind: "translate", chapterId, body })
             }
             onTranslateAll={() => body && action.mutate({ kind: "translate-all", body })}
+            onTranslateTitles={() =>
+              body && action.mutate({ kind: "translate", chapterId: CONTENTS_CHAPTER_ID, body })
+            }
+            titlesBusy={isBusy(progressFor(job.data, CONTENTS_CHAPTER_ID)?.status)}
             onPrev={() => goTo(chapters[chapterIndex - 1]?.id)}
             onNext={() => goTo(chapters[chapterIndex + 1]?.id)}
             onCancel={() => action.mutate({ kind: "cancel" })}

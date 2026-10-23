@@ -1,3 +1,4 @@
+import { refreshParsedBooks } from "@et/core";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { composeServices } from "./compose.ts";
@@ -6,6 +7,10 @@ import { startBatchPolling } from "./infra/batch-poller.ts";
 
 const config = loadConfig(process.env);
 const services = composeServices({ dataDir: config.dataDir, env: config.env });
+const refreshed = await refreshParsedBooks(services);
+if (refreshed.upgraded + refreshed.failed > 0) {
+  console.log(`[api] re-parsed ${refreshed.upgraded} book(s), ${refreshed.failed} failed`);
+}
 const server = serve(
   { fetch: createApp(services).fetch, port: config.port, hostname: config.host },
   (info) => {

@@ -1,4 +1,12 @@
-import type { ParsedBook, ParsedChapter, ParsedSegment } from "@et/core";
+import {
+  CONTENTS_CHAPTER_ID,
+  NCX_SEGMENT_PREFIX,
+  PARSER_VERSION,
+  type ParsedBook,
+  type ParsedChapter,
+  type ParsedSegment,
+  TITLE_SEGMENT_ID,
+} from "@et/core";
 import { encodeBlock, escapeText } from "@et/segmenter";
 import {
   FRONT_MATTER_TITLE,
@@ -9,14 +17,13 @@ import {
   type TocEntry,
 } from "./chapters.ts";
 import { documentBlocks, loadDocument, segmentId } from "./doc-blocks.ts";
+import { metadataFields } from "./metadata-fields.ts";
 import { entryPath, type PackageDoc, XHTML_MEDIA_TYPE } from "./package-doc.ts";
 import { normalizedText, parseXml } from "./xml.ts";
 import type { ZipEntries } from "./zip-reader.ts";
 
-export const CONTENTS_CHAPTER_ID = "ch-contents";
+export { CONTENTS_CHAPTER_ID, NCX_SEGMENT_PREFIX, TITLE_SEGMENT_ID };
 export const CONTENTS_CHAPTER_TITLE = "Contents";
-export const TITLE_SEGMENT_ID = "opf#title";
-export const NCX_SEGMENT_PREFIX = "ncx#";
 
 export function isContentDocument(pkg: PackageDoc, href: string): boolean {
   const item = [...pkg.manifest.values()].find((i) => i.href === href);
@@ -67,6 +74,14 @@ export function buildBook(entries: ZipEntries, pkg: PackageDoc): ParsedBook {
       sourceText: escapeText(pkg.title),
     },
   ];
+  for (const field of metadataFields(pkg.doc.documentElement)) {
+    contents.push({
+      id: field.segmentId,
+      chapterId: CONTENTS_CHAPTER_ID,
+      ordinal: contents.length,
+      sourceText: escapeText(normalizedText(field.element)),
+    });
+  }
   if (navDoc && navHref) {
     contentsDocHrefs.push(navHref);
     documentBlocks(navDoc, true).forEach((block, ordinal) => {
@@ -98,6 +113,7 @@ export function buildBook(entries: ZipEntries, pkg: PackageDoc): ParsedBook {
   segments.push(...contents);
 
   return {
+    parserVersion: PARSER_VERSION,
     title: pkg.title,
     author: pkg.author,
     sourceLang: pkg.sourceLang,

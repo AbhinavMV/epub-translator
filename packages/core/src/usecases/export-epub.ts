@@ -8,6 +8,7 @@ import type {
   TranslationRepository,
 } from "../ports/stores.ts";
 import { loadBookBytes, requireBook } from "./load-book.ts";
+import { translatedTitles } from "./translated-titles.ts";
 
 export interface ExportEpubDeps {
   books: BookRepository;
@@ -41,12 +42,14 @@ export async function exportEpub(
   if (!job) throw new NotFoundError("Job", jobId);
   const { book, parsed } = requireBook(deps.books, job.bookId);
   const bytes = await loadBookBytes(deps.blobs, book);
+  const translations = deps.translations.forJob(jobId);
   const out = await deps.exporter.export(
     bytes,
     parsed,
-    deps.translations.forJob(jobId),
+    translations,
     getTargetLanguage(job.targetLang),
     { layout },
   );
-  return { filename: exportFilename(book.title, job.targetLang, "epub", layout), bytes: out };
+  const title = translatedTitles(parsed, translations).book ?? book.title;
+  return { filename: exportFilename(title, job.targetLang, "epub", layout), bytes: out };
 }

@@ -187,6 +187,24 @@ describe("exportEpub", () => {
     expect(exporter.lastLayout).toBe("translation");
   });
 
+  it("names the file after the translated title when one exists", async () => {
+    const lib = libraryDeps();
+    const book = await importBook(lib, bytes);
+    const jobs = new MemoryJobs();
+    const job = getOrCreateWorkspace(
+      { books: lib.books, jobs, ids: counterIds("j"), clock: fixedClock },
+      book.id,
+      "en",
+    );
+    const translations = new MemoryTranslations();
+    translations.put(job.id, "opf#title", { text: "A <1>Lost</1> Book", status: "done" });
+    const out = await exportEpub(
+      { books: lib.books, jobs, blobs: lib.blobs, translations, exporter: new RecordingExporter() },
+      job.id,
+    );
+    expect(out.filename).toBe("A Lost Book (en).epub");
+  });
+
   it("bilingual layout reaches the exporter and marks the filename", async () => {
     const lib = libraryDeps();
     const book = await importBook(lib, bytes);

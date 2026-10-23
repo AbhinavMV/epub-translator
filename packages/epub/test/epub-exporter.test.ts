@@ -266,6 +266,93 @@ describe("YazlEpubExporter", () => {
   });
 });
 
+describe("YazlEpubExporter metadata", () => {
+  const opfOf = async (...args: Parameters<typeof exportPrefixed>) => {
+    const { entries } = await exportPrefixed(...args);
+    return xml(entries.get("item/standard.opf"), "standard.opf");
+  };
+  const metas = (opf: Document, refines: string) =>
+    descendants(opf.documentElement, "meta")
+      .filter((m) => m.getAttribute("refines") === `#${refines}`)
+      .map((m) => [m.getAttribute("property"), m.getAttribute("xml:lang"), m.textContent]);
+  const dc = (opf: Document, name: string) =>
+    descendants(opf.documentElement, name).map((e) => e.textContent);
+
+  it("replaces creators, publisher, description and subjects with their translations", async () => {
+    const opf = await opfOf();
+    expect(dc(opf, "creator")).toEqual(["EN:ネコクロ", "EN:絵師"]);
+    expect(dc(opf, "publisher")).toEqual(["EN:株式会社 集英社"]);
+    expect(dc(opf, "description")).toEqual(["EN:隣の席の天使様。"]);
+    expect(dc(opf, "subject")).toEqual(["EN:ライトノベル", "EN:ラブコメ"]);
+  });
+
+  it("keeps the original as an alternate-script in the source language", async () => {
+    const opf = await opfOf();
+    expect(metas(opf, "creator01")).toContainEqual(["alternate-script", "ja", "ネコクロ"]);
+    expect(metas(opf, "publisher")).toContainEqual(["alternate-script", "ja", "株式会社 集英社"]);
+    expect(metas(opf, "title")).toContainEqual(["alternate-script", "ja", "迷子の本"]);
+  });
+
+  it("gives an id to a translated element that had none", async () => {
+    const opf = await opfOf();
+    const description = descendants(opf.documentElement, "description")[0] as Element;
+    const id = description.getAttribute("id");
+    expect(id).toBeTruthy();
+    expect(metas(opf, id as string)).toContainEqual(["alternate-script", "ja", "隣の席の天使様。"]);
+  });
+
+  it("drops source-script file-as readings of translated elements and keeps roles", async () => {
+    const opf = await opfOf();
+    const props = metas(opf, "creator01").map((m) => m[0]);
+    expect(props).not.toContain("file-as");
+    expect(props).toContain("role");
+  });
+
+  it("never gives an alternate-script the language of the element it refines", async () => {
+    const opf = await opfOf();
+    expect(opf.documentElement.getAttribute("xml:lang")).toBe("en");
+    for (const m of descendants(opf.documentElement, "meta")) {
+      if (m.getAttribute("property") === "alternate-script") {
+        expect(m.getAttribute("xml:lang")).not.toBe("en");
+      }
+    }
+  });
+
+  it("leaves metadata alone when the Contents chapter is not translated", async () => {
+    const opf = await opfOf((id) => id !== "ch-contents");
+    expect(dc(opf, "creator")).toEqual(["ネコクロ", "絵師"]);
+    expect(
+      descendants(opf.documentElement, "meta").map((m) => m.getAttribute("property")),
+    ).not.toContain("alternate-script");
+    expect(metas(opf, "creator01").map((m) => m[0])).toContain("file-as");
+  });
+
+  it("bilingual keeps the original text and adds the translation as alternate-script", async () => {
+    const opf = await opfOf(undefined, bilingual);
+    expect(dc(opf, "creator")).toEqual(["ネコクロ", "絵師"]);
+    expect(metas(opf, "creator01")).toContainEqual(["alternate-script", "en", "EN:ネコクロ"]);
+    expect(metas(opf, "creator01").map((m) => m[0])).toContain("file-as");
+    expect(dc(opf, "title")).toEqual(["迷子の本 / EN:迷子の本"]);
+  });
+
+  it("replaces content document head titles that equal the source title", async () => {
+    const { entries } = await exportPrefixed();
+    const head = (href: string) =>
+      descendants(xml(entries.get(href), href).documentElement, "title")[0]?.textContent;
+    expect(head("item/xhtml/p-001.xhtml")).toBe("EN:迷子の本");
+    expect(head("item/xhtml/p-cover.xhtml")).toBe("EN:迷子の本");
+    expect(head("item/navigation-documents.xhtml")).toBe("目次");
+  });
+
+  it("bilingual head titles read original then translation", async () => {
+    const { entries } = await exportPrefixed(undefined, bilingual);
+    const doc = xml(entries.get("item/xhtml/p-001.xhtml"), "p-001");
+    expect(descendants(doc.documentElement, "title")[0]?.textContent).toBe(
+      "迷子の本 / EN:迷子の本",
+    );
+  });
+});
+
 const epubcheckJar = process.env.EPUBCHECK_JAR;
 
 describe("epubcheck", () => {

@@ -1,4 +1,4 @@
-import type { ChapterSummary, JobSummary } from "@et/contracts";
+import { type ChapterSummary, CONTENTS_CHAPTER_ID, type JobSummary } from "@et/contracts";
 import { progressFor, STATUS_DOT, STATUS_LABEL } from "@/lib/chapter-status";
 import { formatCount } from "@/lib/text";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,13 @@ export function ChapterRail({
         const progress = progressFor(job, chapter.id);
         const status = progress?.status ?? "idle";
         const active = chapter.id === activeId;
+        const translated = job?.titles.chapters[chapter.id];
+        const label =
+          chapter.id === CONTENTS_CHAPTER_ID ? "Title & contents" : (translated ?? chapter.title);
+        const original =
+          translated && chapter.id !== CONTENTS_CHAPTER_ID && translated !== chapter.title
+            ? chapter.title
+            : null;
         const ratio = progress && progress.total > 0 ? progress.done / progress.total : 0;
         return (
           <button
@@ -44,7 +51,12 @@ export function ChapterRail({
               />
               <span className="ml-auto">{formatCount(chapter.charCount)} chars</span>
             </span>
-            <span className="line-clamp-2 text-sm leading-snug font-medium">{chapter.title}</span>
+            <span className="line-clamp-2 text-sm leading-snug font-medium">{label}</span>
+            {original && (
+              <span className="line-clamp-1 text-xs leading-snug text-muted-foreground">
+                {original}
+              </span>
+            )}
             {ratio > 0 && ratio < 1 && (
               <span className="mt-0.5 block h-0.5 overflow-hidden rounded-full bg-current/15">
                 <span

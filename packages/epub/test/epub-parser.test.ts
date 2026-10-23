@@ -58,11 +58,17 @@ describe("YauzlEpubParser", () => {
     expect(texts.get("xhtml/p-006.xhtml#1")).toBe("　Tom &amp; Jerry。");
   });
 
-  it("includes nav labels, title and ncx labels in Contents chapter", async () => {
+  it("includes title, metadata, nav labels and ncx labels in Contents chapter", async () => {
     const book = await parser.parse(await buildFixtureEpub());
     const contents = book.segments.filter((s) => s.chapterId === "ch-contents");
     expect(contents.map((s) => [s.id, s.sourceText])).toEqual([
       ["opf#title", "迷子の本"],
+      ["opf#creator-0", "ネコクロ"],
+      ["opf#creator-1", "絵師"],
+      ["opf#publisher-0", "株式会社 集英社"],
+      ["opf#description", "隣の席の天使様。"],
+      ["opf#subject-0", "ライトノベル"],
+      ["opf#subject-1", "ラブコメ"],
       ["navigation-documents.xhtml#0", "目次"],
       ["navigation-documents.xhtml#1", "第一章　「始まり」"],
       ["navigation-documents.xhtml#2", "第二章　「約束」"],

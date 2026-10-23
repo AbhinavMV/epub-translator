@@ -25,6 +25,8 @@ export * from "./usecases/import-book.ts";
 export * from "./usecases/job-progress.ts";
 export * from "./usecases/job-runner.ts";
 export * from "./usecases/load-book.ts";
+export * from "./usecases/refresh-parsed-books.ts";
 export * from "./usecases/render-chapter.ts";
 export * from "./usecases/suggest-glossary.ts";
+export * from "./usecases/translated-titles.ts";
 export * from "./usecases/workspace.ts";

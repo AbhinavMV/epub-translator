@@ -3,6 +3,7 @@ import { TARGET_LANGUAGES } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Menu } from "lucide-react";
 import { AppMark } from "@/components/app-mark";
+import { BookTitle } from "@/components/book-title";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GlossaryDialog } from "./glossary-dialog";
 import { ModeToggle } from "./mode-toggle";
 import type { Selection } from "./model-selection";
@@ -22,6 +22,7 @@ import { ProviderSelect } from "./provider-select";
 export function EditorHeader({
   bookId,
   title,
+  translatedTitle,
   chapterId,
   jobId,
   providers,
@@ -40,6 +41,7 @@ export function EditorHeader({
 }: {
   bookId: string;
   title: string | undefined;
+  translatedTitle: string | null | undefined;
   chapterId: string | undefined;
   jobId: string | undefined;
   providers: ProviderInfo[] | undefined;
@@ -68,14 +70,7 @@ export function EditorHeader({
         <Menu />
       </Button>
       <AppMark />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <h1 className="min-w-0 flex-1 truncate font-serif text-base font-semibold">
-            {title ?? "Loading…"}
-          </h1>
-        </TooltipTrigger>
-        {title && <TooltipContent>{title}</TooltipContent>}
-      </Tooltip>
+      <BookTitle title={title} translated={translatedTitle} />
       <div className="order-last flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:flex-nowrap">
         <ProviderSelect providers={providers} selection={selection} onChange={onSelection} />
         <ModeToggle mode={mode} batchAvailable={batchAvailable} onChange={onMode} />

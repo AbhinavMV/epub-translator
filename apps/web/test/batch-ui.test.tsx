@@ -67,11 +67,13 @@ describe("submitted chapter state", () => {
           canTranslate
           noProviderHint=""
           starting={false}
+          titlesBusy={false}
           hasPrev={false}
           hasNext
           hasTranslation={false}
           onTranslate={() => {}}
           onTranslateAll={() => {}}
+          onTranslateTitles={() => {}}
           onPrev={() => {}}
           onNext={() => {}}
           onCancel={() => {}}

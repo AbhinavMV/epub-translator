@@ -24,6 +24,8 @@ export function BookCard({
 }) {
   const [confirm, setConfirm] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
+  const shownTitle = book.translatedTitle || book.title;
+  const original = shownTitle !== book.title ? book.title : null;
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
@@ -52,11 +54,14 @@ export function BookCard({
           <Tooltip>
             <TooltipTrigger asChild>
               <h3 className="line-clamp-2 min-h-[2.5rem] text-sm leading-tight font-semibold">
-                {book.title}
+                {shownTitle}
               </h3>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs">{book.title}</TooltipContent>
+            <TooltipContent className="max-w-xs">
+              {original ? `${shownTitle} — ${original}` : shownTitle}
+            </TooltipContent>
           </Tooltip>
+          {original && <p className="truncate text-xs text-muted-foreground">{original}</p>}
           <p className="truncate text-xs text-muted-foreground">
             {book.author ?? "Unknown author"}
           </p>
@@ -69,7 +74,7 @@ export function BookCard({
       <Button
         variant="secondary"
         size="icon-sm"
-        aria-label={`Delete ${book.title}`}
+        aria-label={`Delete ${shownTitle}`}
         className="absolute top-2 right-2 opacity-100 shadow-sm md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
         onClick={() => setConfirm(true)}
       >
@@ -80,7 +85,7 @@ export function BookCard({
           <DialogHeader>
             <DialogTitle>Delete this book?</DialogTitle>
             <DialogDescription>
-              “{book.title}” and all of its translations will be removed from this machine.
+              “{shownTitle}” and all of its translations will be removed from this machine.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

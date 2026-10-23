@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, PencilLine } from
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
+import { BookTitle } from "@/components/book-title";
 import { ChapterRail } from "@/components/chapter-rail";
 import { ChapterContent } from "@/components/reader/chapter-view";
 import { PagedReader, type PagePosition } from "@/components/reader/paged-reader";
@@ -148,14 +149,7 @@ export function ReaderPage() {
         >
           {prefs.railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
         </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <h1 className="min-w-0 flex-1 truncate font-serif text-base font-semibold">
-              {title ?? "Loading…"}
-            </h1>
-          </TooltipTrigger>
-          {title && <TooltipContent>{title}</TooltipContent>}
-        </Tooltip>
+        <BookTitle title={title} translated={job.data?.titles.book} />
         <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
           Chapter {position >= 0 ? position + 1 : "–"} of {chapters.length || "–"}
         </span>

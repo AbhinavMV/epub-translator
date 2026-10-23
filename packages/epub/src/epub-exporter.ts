@@ -1,17 +1,17 @@
 import type { TargetLanguage } from "@et/contracts";
 import type { Clock, EpubExporter, ExportOptions, ParsedBook, Translations } from "@et/core";
-import { stripTokens } from "@et/segmenter";
-import { isUsable } from "./apply-translation.ts";
 import { isContentDocument, NCX_SEGMENT_PREFIX, TITLE_SEGMENT_ID } from "./book-layout.ts";
 import { readNcxLabels } from "./chapters.ts";
 import { loadDocument } from "./doc-blocks.ts";
 import {
   applyHorizontalLayout,
   hasTranslation,
+  retitleDocument,
   translateContentDocument,
   translateNcx,
 } from "./document-export.ts";
 import { relativeHref } from "./hrefs.ts";
+import { applyMetadataTranslations, displayTitle, translatedTitle } from "./metadata-export.ts";
 import { editPackageDocument } from "./opf-export.ts";
 import { OVERRIDE_CSS_NAME, overrideCss } from "./override-css.ts";
 import { entryPath, loadPackage } from "./package-doc.ts";
@@ -51,12 +51,17 @@ export class YazlEpubExporter implements EpubExporter {
     const replaced = new Map<string, Uint8Array>();
 
     const cssPath = entryPath(pkg, OVERRIDE_CSS_NAME);
+    const headTitle = displayTitle(pkg.title, translatedTitle(translations), options.layout);
 
     const translate = (href: string, isNav: boolean) => {
       const count = counts.get(href) ?? 0;
-      if (count === 0 && (isNav || target.writingMode !== "horizontal-tb")) return;
       const path = entryPath(pkg, href);
       const doc = loadDocument(entries, pkg, href);
+      const retitled = headTitle !== null && retitleDocument(doc, pkg.title, headTitle);
+      if (count === 0 && (isNav || target.writingMode !== "horizontal-tb")) {
+        if (retitled) replaced.set(path, encode(serializeXml(doc)));
+        return;
+      }
       const css = relativeHref(path, cssPath);
       if (count > 0 && hasTranslation(href, count, translations)) {
         translateContentDocument(doc, href, isNav, translations, target, css, options.layout);
@@ -80,12 +85,11 @@ export class YazlEpubExporter implements EpubExporter {
       replaced.set(path, encode(serializeXml(ncx)));
     }
 
-    const titleTranslation = translations.get(TITLE_SEGMENT_ID);
+    applyMetadataTranslations(pkg, translations, target, options.layout);
     editPackageDocument(pkg, {
       target,
       layout: options.layout,
       modified: this.clock.now(),
-      title: isUsable(titleTranslation) ? stripTokens(titleTranslation.text) : null,
       cssPath: OVERRIDE_CSS_NAME,
     });
     replaced.set(pkg.opfPath, encode(serializeXml(pkg.doc)));

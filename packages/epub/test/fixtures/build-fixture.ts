@@ -149,6 +149,13 @@ const OPF = `<?xml version='1.0' encoding='utf-8'?>
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:title id="title">迷子の本</dc:title>
     <dc:creator id="creator01">ネコクロ</dc:creator>
+    <meta refines="#creator01" property="role" scheme="marc:relators">aut</meta>
+    <meta refines="#creator01" property="file-as">ネコクロ</meta>
+    <dc:creator>絵師</dc:creator>
+    <dc:publisher id="publisher">株式会社 集英社</dc:publisher>
+    <dc:description>隣の席の天使様。</dc:description>
+    <dc:subject>ライトノベル</dc:subject>
+    <dc:subject>ラブコメ</dc:subject>
     <dc:language>ja</dc:language>
     <dc:identifier id="jdcn">08631644018188000000</dc:identifier>
     <meta property="dcterms:modified">2026-02-28T00:00:00Z</meta>

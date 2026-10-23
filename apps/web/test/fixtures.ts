@@ -11,6 +11,7 @@ export function makeJob(overrides: Partial<JobSummary> = {}): JobSummary {
       { chapterId: "c1", status: "idle", done: 0, flagged: 0, failed: 0, total: 4, error: null },
       { chapterId: "c2", status: "idle", done: 0, flagged: 0, failed: 0, total: 2, error: null },
     ],
+    titles: { book: null, chapters: {} },
     usage: { inputTokens: 0, outputTokens: 0 },
     createdAt: "2026-10-23T00:00:00.000Z",
     ...overrides,

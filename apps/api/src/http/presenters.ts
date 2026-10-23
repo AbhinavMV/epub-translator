@@ -1,10 +1,15 @@
 import type { BookDetail, BookSummary, ChapterSummary } from "@et/contracts";
 import { type ParsedBook, type StoredBook, stripTokens } from "@et/core";
 
-export function bookSummary(book: StoredBook, parsed: ParsedBook): BookSummary {
+export function bookSummary(
+  book: StoredBook,
+  parsed: ParsedBook,
+  translatedTitle: string | null = null,
+): BookSummary {
   return {
     id: book.id,
     title: book.title,
+    translatedTitle,
     author: book.author,
     sourceLang: book.sourceLang,
     coverUrl: book.coverHref ? `/api/books/${book.id}/cover` : null,
@@ -31,8 +36,13 @@ export function bookDetail(
   book: StoredBook,
   parsed: ParsedBook,
   settings: BookDetail["settings"],
+  translatedTitle: string | null = null,
 ): BookDetail {
-  return { ...bookSummary(book, parsed), chapters: chapterSummaries(parsed), settings };
+  return {
+    ...bookSummary(book, parsed, translatedTitle),
+    chapters: chapterSummaries(parsed),
+    settings,
+  };
 }
 
 export function assetUrl(bookId: string): (href: string) => string {

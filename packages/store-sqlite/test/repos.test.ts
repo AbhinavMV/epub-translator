@@ -50,6 +50,16 @@ describe("SqliteBookRepository", () => {
     expect(repo.getParsed("b1")).toBeNull();
   });
 
+  it("updateParsed replaces the stored structure and the cache", () => {
+    const repo = new SqliteBookRepository(db);
+    repo.insert(book, parsed);
+    repo.getParsed("b1");
+    const next = { ...parsed, parserVersion: 2 };
+    repo.updateParsed("b1", next);
+    expect(repo.getParsed("b1")).toEqual(next);
+    expect(new SqliteBookRepository(db).getParsed("b1")).toEqual(next);
+  });
+
   it("delete cascades to jobs and translations", () => {
     const books = new SqliteBookRepository(db);
     const jobs = new SqliteJobRepository(db);

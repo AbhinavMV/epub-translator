@@ -79,7 +79,7 @@ describe("XmlChapterRenderer", () => {
       sourceHtml: "迷子の本",
       targetHtml: "A Lost Book",
     });
-    expect(segments(view)).toHaveLength(8);
+    expect(segments(view)).toHaveLength(14);
   });
 
   it("throws NotFoundError for an unknown chapter", async () => {

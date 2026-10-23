@@ -108,6 +108,23 @@ describe("books api", () => {
     expect(list).toHaveLength(1);
   });
 
+  it("library shows the translated title once the en workspace has one", async () => {
+    const { app, services } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    expect(book.translatedTitle).toBeNull();
+    const workspace = JobSummarySchema.parse(
+      await (await app.request(`/api/books/${book.id}/workspace?targetLang=en`)).json(),
+    );
+    expect(workspace.titles).toEqual({ book: null, chapters: {} });
+    services.translations.put(workspace.id, "opf#title", { text: "The Book", status: "done" });
+    const list = z.array(BookSummarySchema).parse(await (await app.request("/api/books")).json());
+    expect(list[0]?.translatedTitle).toBe("The Book");
+    const again = JobSummarySchema.parse(
+      await (await app.request(`/api/books/${book.id}/workspace?targetLang=en`)).json(),
+    );
+    expect(again.titles.book).toBe("The Book");
+  });
+
   it("upload of non-epub returns 422", async () => {
     const { app } = setup();
     const res = await upload(app, new Uint8Array([1, 2, 3]));
