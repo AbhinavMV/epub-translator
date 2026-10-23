@@ -43,6 +43,12 @@ export const ChapterProgressSchema = z.object({
 });
 export type ChapterProgress = z.infer<typeof ChapterProgressSchema>;
 
+export const JobTitlesSchema = z.object({
+  book: z.string().nullable(),
+  chapters: z.record(z.string(), z.string()),
+});
+export type JobTitles = z.infer<typeof JobTitlesSchema>;
+
 export const JobSummarySchema = z.object({
   id: z.string(),
   bookId: z.string(),
@@ -50,6 +56,7 @@ export const JobSummarySchema = z.object({
   status: JobStatusSchema,
   error: z.string().nullable(),
   progress: z.array(ChapterProgressSchema),
+  titles: JobTitlesSchema,
   usage: UsageSchema,
   createdAt: z.string(),
 });
@@ -60,6 +67,7 @@ export const BookSummarySchema = z.object({
   title: z.string(),
   author: z.string().nullable(),
   sourceLang: z.string().nullable(),
+  translatedTitle: z.string().nullable().optional(),
   coverUrl: z.string().nullable(),
   chapterCount: z.number(),
   segmentCount: z.number(),
