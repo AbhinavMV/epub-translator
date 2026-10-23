@@ -558,3 +558,14 @@ The user asked for UI and backend to be built in parallel by Sonnet agents.
 - **Then:** Tasks 8–9 (store, use cases, api) and Task 12 run after A and B merge.
 
 `validateTokens(source, translated): string | null` and `stripTokens(text): string` move to `packages/core/src/translation/placeholders.ts`, owned by Track B. `core` no longer depends on `segmenter`, which keeps its own tokenizer for decoding, so the two tracks are independent.
+
+## Amendment D (2026-10-23): previously deferred features
+
+The user asked for the deferred items now. Each runs as a parallel Sonnet track in its own worktree. Shared-file conflicts are resolved at merge time.
+
+| Track | Scope | Key interfaces |
+|---|---|---|
+| **Batch** | Economy mode via the vendor batch APIs (50% cost, up to 24 h) | `TranslateBody.mode: "live" \| "batch"` (default live). A separate port `BatchTranslationProvider { submit(requests): Promise<string>; fetch(batchId): Promise<BatchFetch> }` lives in its own provider files. `provider_batches` table; the runner polls and resumes on boot; the UI shows a mode toggle and a "submitted" chapter state. |
+| **Glossary** | "Suggest from book": extracts names and recurring terms with a cheap model | Port `TermExtractor { extractTerms(req): Promise<TermResult> }` in its own provider files. Use case `suggestGlossary`. `POST /api/books/:id/glossary/suggest {provider, model}` → `GlossaryEntry[]`. A Glossary dialog button merges the suggestions for review. |
+| **Bilingual + RTL** | Export layout `translation \| bilingual` and correct RTL output | `GET /api/jobs/:id/export?layout=bilingual`. Bilingual inserts the translated block after the source, with target `lang`/`dir` and ids stripped. RTL targets get `dir="rtl"` on documents, in the editor panes and in the reader. |
+| **Paged reader** | Page-by-page reading mode in the web reader | CSS multi-column pagination; ←/→, tap zones and a page x/y indicator; scroll and paged modes. |
