@@ -103,8 +103,9 @@ const PROVIDERS: ProviderInfo[] = [
     id: "anthropic",
     label: "Anthropic",
     configured: true,
-    models: ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5"],
+    models: ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"],
     defaultModel: "claude-sonnet-5-5",
+    termsModel: "claude-haiku-5-5",
   },
   {
     id: "openai",
@@ -310,6 +311,19 @@ export function createMockApi(): Api {
       const book = books.get(id);
       if (book) book.settings = settings;
       return delay(settings);
+    },
+    async suggestGlossary() {
+      return delay(
+        {
+          terms: [
+            { source: "天使様", target: "Angel", note: "nickname for Mahiru" },
+            { source: "椎名真昼", target: "Mahiru Shiina", note: "female lead" },
+            { source: "藤宮周", target: "Amane Fujimiya", note: "protagonist" },
+          ],
+          usage: { inputTokens: 5120, outputTokens: 210 },
+        },
+        900,
+      );
     },
     async getWorkspace(bookId, targetLang) {
       const id = `job-${bookId}-${targetLang}`;

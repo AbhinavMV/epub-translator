@@ -83,7 +83,15 @@ export function EditorHeader({
             ))}
           </SelectContent>
         </Select>
-        <GlossaryDialog settings={settings} saving={saving} onSave={onSaveGlossary} />
+        <GlossaryDialog
+          bookId={bookId}
+          targetLang={targetLang}
+          providers={providers}
+          selection={selection}
+          settings={settings}
+          saving={saving}
+          onSave={onSaveGlossary}
+        />
         <PromptDialog
           value={settings?.customPrompt}
           disabled={!settings}
