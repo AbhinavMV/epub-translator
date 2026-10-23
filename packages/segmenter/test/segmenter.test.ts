@@ -44,6 +44,26 @@ describe("findSegmentBlocks", () => {
     );
     expect(blocks.map((b) => b.textContent)).toEqual(["one", "two", "three"]);
   });
+
+  it("segments loose text that sits beside nested blocks", () => {
+    const blocks = findSegmentBlocks(
+      body("地の文<b>強</b><div>前<p>段落</p>後</div><ul><li>項目<ul><li>子</li></ul></li></ul>"),
+    );
+    expect(blocks.map((b) => b.textContent)).toEqual([
+      "地の文強",
+      "前",
+      "段落",
+      "後",
+      "項目",
+      "子",
+    ]);
+  });
+
+  it("wraps loose runs deterministically so repeated passes find the same segments", () => {
+    const root = body("前<p>段落</p>");
+    const first = findSegmentBlocks(root).map((b) => b.textContent);
+    expect(findSegmentBlocks(root).map((b) => b.textContent)).toEqual(first);
+  });
 });
 
 describe("encodeBlock", () => {
