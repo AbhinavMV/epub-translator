@@ -6,10 +6,12 @@ import {
   importBook,
   loadBookBytes,
   NotFoundError,
+  type ParsedBook,
   ProviderNotConfiguredError,
   renderChapter,
   requireBook,
   suggestGlossary,
+  translatedTitles,
 } from "@et/core";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -17,6 +19,13 @@ import { z } from "zod";
 import type { Services } from "../services.ts";
 import { assetUrl, bookDetail, bookSummary } from "./presenters.ts";
 import { validate } from "./validate.ts";
+
+const LIBRARY_TITLE_LANG = "en";
+
+function libraryTitle(s: Services, bookId: string, parsed: ParsedBook): string | null {
+  const job = s.jobs.findByBookAndLang(bookId, LIBRARY_TITLE_LANG);
+  return job ? translatedTitles(parsed, s.translations.forJob(job.id)).book : null;
+}
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 
@@ -26,7 +35,7 @@ export function booksRoutes(s: Services) {
       c.json(
         s.books.list().flatMap((book) => {
           const parsed = s.books.getParsed(book.id);
-          return parsed ? [bookSummary(book, parsed)] : [];
+          return parsed ? [bookSummary(book, parsed, libraryTitle(s, book.id, parsed))] : [];
         }),
       ),
     )
@@ -47,7 +56,7 @@ export function booksRoutes(s: Services) {
     .get("/:id", (c) => {
       const id = c.req.param("id");
       const { book, parsed } = requireBook(s.books, id);
-      return c.json(bookDetail(book, parsed, s.settings.get(id)));
+      return c.json(bookDetail(book, parsed, s.settings.get(id), libraryTitle(s, id, parsed)));
     })
     .delete("/:id", async (c) => {
       await deleteBook(s, c.req.param("id"));
