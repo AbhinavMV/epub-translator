@@ -40,9 +40,9 @@ const parser: EpubParser = {
 };
 const assets: EpubAssets = {
   async read(_bytes, href) {
-    return href === "image/cover.jpg"
-      ? { bytes: new Uint8Array([7]), mediaType: "image/jpeg" }
-      : null;
+    if (href === "image/cover.jpg") return { bytes: new Uint8Array([7]), mediaType: "image/jpeg" };
+    if (href === "evil.html") return { bytes: new Uint8Array([60]), mediaType: "text/html" };
+    return null;
   },
 };
 const renderer: ChapterRenderer = {
@@ -154,6 +154,17 @@ describe("books api", () => {
     const cover = await app.request(`/api/books/${book.id}/cover`);
     expect(cover.headers.get("content-type")).toBe("image/jpeg");
     expect((await app.request(`/api/books/${book.id}/assets/nope.png`)).status).toBe(404);
+  });
+
+  it("serves book assets sandboxed so embedded scripts cannot run on the app origin", async () => {
+    const { app } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    const cover = await app.request(`/api/books/${book.id}/cover`);
+    expect(cover.headers.get("content-security-policy")).toContain("sandbox");
+    expect(cover.headers.get("content-security-policy")).toContain("default-src 'none'");
+    const html = await app.request(`/api/books/${book.id}/assets/evil.html`);
+    expect(html.headers.get("content-type")).toBe("application/octet-stream");
+    expect(html.headers.get("content-disposition")).toContain("attachment");
   });
 
   it("delete removes the book", async () => {

@@ -89,15 +89,20 @@ export function booksRoutes(s: Services) {
     });
 }
 
+const INLINE_MEDIA = /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|font\/[\w.+-]+|text\/css)$/;
+const ASSET_CSP = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
+
 async function serveAsset(s: Services, bookId: string, href: string): Promise<Response> {
   const { book } = requireBook(s.books, bookId);
   const asset = await s.assets.read(await loadBookBytes(s.blobs, book), href);
   if (!asset) throw new NotFoundError("Asset", href);
-  return new Response(new Uint8Array(asset.bytes), {
-    headers: {
-      "content-type": asset.mediaType,
-      "cache-control": "private, max-age=86400",
-      "x-content-type-options": "nosniff",
-    },
-  });
+  const inline = INLINE_MEDIA.test(asset.mediaType);
+  const headers: Record<string, string> = {
+    "content-type": inline ? asset.mediaType : "application/octet-stream",
+    "content-security-policy": ASSET_CSP,
+    "cache-control": "private, max-age=86400",
+    "x-content-type-options": "nosniff",
+  };
+  if (!inline) headers["content-disposition"] = "attachment";
+  return new Response(new Uint8Array(asset.bytes), { headers });
 }
