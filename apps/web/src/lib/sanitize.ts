@@ -5,6 +5,15 @@ const URL_ATTRS = ["src", "href", "xlink:href", "srcset", "poster", "action", "d
 function createSanitizer(win: Window & typeof globalThis) {
   const purify = createDOMPurify(win);
   purify.addHook("uponSanitizeAttribute", (_node, data) => {
+    if (data.attrName === "srcset") {
+      const allowed = data.attrValue
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => c.startsWith("/api/"));
+      if (allowed.length > 0) data.attrValue = allowed.join(", ");
+      else data.keepAttr = false;
+      return;
+    }
     if (URL_ATTRS.includes(data.attrName) && !data.attrValue.trim().startsWith("/api/")) {
       data.keepAttr = false;
     }

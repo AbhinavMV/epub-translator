@@ -22,4 +22,12 @@ describe("sanitize", () => {
     expect(out).toContain('src="/api/books/1/assets/a.png"');
     expect(out).toContain("<svg");
   });
+
+  it("drops srcset candidates that point outside the api", () => {
+    const out = sanitize(
+      '<img src="/api/a.png" srcset="/api/a.png 1x, https://evil.test/b.png 2x">',
+    );
+    expect(out).not.toContain("evil.test");
+    expect(out).toContain('src="/api/a.png"');
+  });
 });
