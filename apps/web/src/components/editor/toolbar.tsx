@@ -4,7 +4,7 @@ import { ExportEpubMenu } from "@/components/editor/export-epub-menu";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { isBusy } from "@/lib/chapter-status";
+import { isBusy, STATUS_LABEL } from "@/lib/chapter-status";
 
 function DownloadButton({
   href,
@@ -93,7 +93,11 @@ export function EditorToolbar({
   const translateButton = (
     <Button size="sm" onClick={onTranslate} disabled={!canTranslate || busy || starting}>
       {busy || starting ? <Loader2 className="animate-spin" /> : <Languages />}
-      {busy ? "Translating…" : "Translate chapter"}
+      {busy
+        ? chapterProgress?.status === "submitted"
+          ? "Submitted"
+          : "Translating…"
+        : "Translate chapter"}
     </Button>
   );
 
@@ -164,9 +168,11 @@ export function EditorToolbar({
             <Loader2 className="size-3 animate-spin" />
             {busy && chapterProgress?.status === "running"
               ? `Translating ${segmentsDone}/${chapterProgress.total} segments…`
-              : busy
-                ? "Queued…"
-                : `Translating ${busyCount} other chapter${busyCount > 1 ? "s" : ""}…`}
+              : busy && chapterProgress?.status === "submitted"
+                ? STATUS_LABEL.submitted
+                : busy
+                  ? "Queued…"
+                  : `Translating ${busyCount} other chapter${busyCount > 1 ? "s" : ""}…`}
             <button
               type="button"
               onClick={onCancel}

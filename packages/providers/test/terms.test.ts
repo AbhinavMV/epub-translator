@@ -108,7 +108,7 @@ describe("OpenAITermExtractor", () => {
         create: async (params: Record<string, unknown>) => {
           calls.push(params);
           return {
-            output: [],
+            output: [{ type: "message", content: [{ type: "output_text", text: payload }] }],
             output_text: payload,
             usage: { input_tokens: 3, output_tokens: 4 },
           };
@@ -133,7 +133,7 @@ describe("GeminiTermExtractor", () => {
       models: {
         generateContent: async () => ({
           text: payload,
-          candidates: [{ finishReason: "STOP" }],
+          candidates: [{ finishReason: "STOP", content: { parts: [{ text: payload }] } }],
           usageMetadata: { promptTokenCount: 3, candidatesTokenCount: 4 },
         }),
       },

@@ -1,11 +1,11 @@
+import { getTargetLanguage, type JobSummary, type TranslateBody } from "@et/contracts";
+import type { ParsedBook, ParsedChapter } from "../domain/book.ts";
 import {
-  type GlossaryEntry,
-  getTargetLanguage,
-  type JobSummary,
-  type TranslateBody,
-} from "@et/contracts";
-import type { ParsedBook, ParsedChapter, ParsedSegment } from "../domain/book.ts";
-import { FatalProviderError, NotFoundError, ProviderNotConfiguredError } from "../domain/errors.ts";
+  BatchNotSupportedError,
+  FatalProviderError,
+  NotFoundError,
+  ProviderNotConfiguredError,
+} from "../domain/errors.ts";
 import type { Job } from "../domain/job.ts";
 import type { JobEventSink } from "../ports/events.ts";
 import type {
@@ -18,6 +18,8 @@ import type { Sleep } from "../ports/system.ts";
 import type { TranslationProvider } from "../ports/translation-provider.ts";
 import { batchSegments } from "../translation/batcher.ts";
 import { SegmentTranslator } from "../translation/translate-segments.ts";
+import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
+import { chapterWork, promptExtras } from "./chapter-work.ts";
 import { type ChapterRuntime, chapterProgress, jobSummary } from "./job-progress.ts";
 import { requireBook } from "./load-book.ts";
 
@@ -29,6 +31,7 @@ export interface JobRunnerDeps {
   providers: (id: TranslateBody["provider"]) => TranslationProvider | null;
   events: JobEventSink;
   sleep: Sleep;
+  batch?: BatchDeps;
 }
 
 export interface JobRunnerOptions {
@@ -46,13 +49,21 @@ interface Task {
   controller: AbortController;
 }
 
+interface Submission {
+  jobId: string;
+  chapterId: string;
+  cancelled: boolean;
+}
+
 const key = (jobId: string, chapterId: string) => `${jobId}\u0000${chapterId}`;
 
 export class JobRunner {
   private readonly queue: Task[] = [];
   private readonly active = new Map<string, Task>();
+  private readonly submissions = new Map<string, Submission>();
   private readonly runtime = new Map<string, ChapterRuntime>();
   private readonly errors = new Map<string, string>();
+  private readonly batches: BatchRunner | null;
   private idleWaiters: (() => void)[] = [];
 
   constructor(
@@ -63,7 +74,9 @@ export class JobRunner {
       maxChars: 4000,
       maxCount: 40,
     },
-  ) {}
+  ) {
+    this.batches = deps.batch ? new BatchRunner({ ...deps, batch: deps.batch }, options) : null;
+  }
 
   translateChapter(jobId: string, chapterId: string, body: TranslateBody): void {
     const { parsed } = this.requireJob(jobId);
@@ -91,6 +104,7 @@ export class JobRunner {
     const { parsed } = this.requireJob(jobId);
     const chapter = this.requireChapter(parsed, chapterId);
     this.stop(jobId, (t) => t.chapterId === chapterId);
+    this.cancelBatches(jobId, chapterId);
     this.errors.delete(key(jobId, chapterId));
     this.deps.translations.deleteMany(
       jobId,
@@ -102,7 +116,20 @@ export class JobRunner {
   cancel(jobId: string): void {
     this.requireJob(jobId);
     this.stop(jobId, () => true);
+    this.cancelBatches(jobId);
     this.publishJob(jobId);
+  }
+
+  async pollBatches(): Promise<void> {
+    if (!this.batches) return;
+    for (const t of await this.batches.poll()) {
+      if (t.error) this.errors.set(key(t.jobId, t.chapterId), t.error);
+      const job = this.deps.jobs.get(t.jobId);
+      const parsed = job ? this.deps.books.getParsed(job.bookId) : null;
+      if (!parsed) continue;
+      this.publishChapter(t.jobId, parsed, t.chapterId);
+      this.publishJob(t.jobId);
+    }
   }
 
   summary(jobId: string): JobSummary {
@@ -115,7 +142,7 @@ export class JobRunner {
           parsed,
           c.id,
           translations,
-          this.runtime.get(key(jobId, c.id)),
+          this.runtimeOf(jobId, c.id),
           this.errors.get(key(jobId, c.id)) ?? null,
         ),
       ),
@@ -123,8 +150,18 @@ export class JobRunner {
   }
 
   whenIdle(): Promise<void> {
-    if (this.queue.length === 0 && this.active.size === 0) return Promise.resolve();
+    if (this.isIdle()) return Promise.resolve();
     return new Promise((resolve) => this.idleWaiters.push(resolve));
+  }
+
+  private isIdle(): boolean {
+    return this.queue.length === 0 && this.active.size === 0 && this.submissions.size === 0;
+  }
+
+  private runtimeOf(jobId: string, chapterId: string): ChapterRuntime | undefined {
+    const live = this.runtime.get(key(jobId, chapterId));
+    if (live) return live;
+    return this.batches?.hasOpen(jobId, chapterId) ? { status: "submitted" } : undefined;
   }
 
   private requireJob(jobId: string): { job: Job; parsed: ParsedBook } {
@@ -139,7 +176,11 @@ export class JobRunner {
     return chapter;
   }
 
-  private requireProvider(body: TranslateBody): TranslationProvider {
+  private requireProvider(body: TranslateBody): TranslationProvider | null {
+    if (body.mode === "batch") {
+      if (!this.batches?.supports(body.provider)) throw new BatchNotSupportedError(body.provider);
+      return null;
+    }
     const provider = this.deps.providers(body.provider);
     if (!provider) throw new ProviderNotConfiguredError(body.provider);
     return provider;
@@ -149,16 +190,54 @@ export class JobRunner {
     jobId: string,
     chapterId: string,
     body: TranslateBody,
-    provider: TranslationProvider,
+    provider: TranslationProvider | null,
   ): void {
     const k = key(jobId, chapterId);
-    if (this.runtime.has(k)) return;
+    if (this.runtime.has(k) || this.batches?.hasOpen(jobId, chapterId)) return;
     this.errors.delete(k);
     this.runtime.set(k, { status: "queued" });
-    this.queue.push({ jobId, chapterId, body, provider, controller: new AbortController() });
+    if (provider) {
+      this.queue.push({ jobId, chapterId, body, provider, controller: new AbortController() });
+    } else {
+      this.submit(jobId, chapterId, body);
+    }
     this.publishChapter(jobId, this.requireJob(jobId).parsed, chapterId);
     this.publishJob(jobId);
     this.pump();
+  }
+
+  private submit(jobId: string, chapterId: string, body: TranslateBody): void {
+    const k = key(jobId, chapterId);
+    const submission: Submission = { jobId, chapterId, cancelled: false };
+    this.submissions.set(k, submission);
+    void (this.batches as BatchRunner)
+      .submit(jobId, chapterId, body, () => submission.cancelled)
+      .catch((err: unknown) => {
+        if (!submission.cancelled) {
+          this.errors.set(k, err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        if (this.submissions.get(k) === submission) {
+          this.submissions.delete(k);
+          this.runtime.delete(k);
+        }
+        this.safePublish(jobId, chapterId);
+        this.notifyIdle();
+      });
+  }
+
+  private cancelBatches(jobId: string, chapterId?: string): void {
+    for (const [k, submission] of this.submissions) {
+      if (submission.jobId !== jobId) continue;
+      if (chapterId !== undefined && submission.chapterId !== chapterId) continue;
+      submission.cancelled = true;
+      this.submissions.delete(k);
+      this.runtime.delete(k);
+    }
+    if (chapterId === undefined) this.batches?.cancelJob(jobId);
+    else this.batches?.cancelChapter(jobId, chapterId);
+    this.notifyIdle();
   }
 
   private stop(jobId: string, match: (t: Task) => boolean): void {
@@ -197,23 +276,23 @@ export class JobRunner {
             this.active.delete(k);
             this.runtime.delete(k);
           }
-          this.safePublish(task);
+          this.safePublish(task.jobId, task.chapterId);
           this.pump();
           this.notifyIdle();
         });
     }
   }
 
-  private safePublish(task: Task): void {
-    const job = this.deps.jobs.get(task.jobId);
+  private safePublish(jobId: string, chapterId: string): void {
+    const job = this.deps.jobs.get(jobId);
     const parsed = job ? this.deps.books.getParsed(job.bookId) : null;
     if (!parsed) return;
-    this.publishChapter(task.jobId, parsed, task.chapterId);
-    this.publishJob(task.jobId);
+    this.publishChapter(jobId, parsed, chapterId);
+    this.publishJob(jobId);
   }
 
   private notifyIdle(): void {
-    if (this.queue.length > 0 || this.active.size > 0) return;
+    if (!this.isIdle()) return;
     const waiters = this.idleWaiters;
     this.idleWaiters = [];
     for (const w of waiters) w();
@@ -229,12 +308,7 @@ export class JobRunner {
     const settings = this.deps.settings.get(job.bookId);
     const translator = new SegmentTranslator(task.provider, this.deps.sleep);
     const segments = parsed.segments.filter((s) => s.chapterId === task.chapterId);
-    const existing = this.deps.translations.forJob(task.jobId);
-    const context = this.initialContext(segments, existing);
-    const pending = segments.filter((s) => {
-      const t = existing.get(s.id);
-      return !t || t.status === "failed";
-    });
+    const { pending, context } = chapterWork(segments, this.deps.translations.forJob(task.jobId));
 
     try {
       for (const batch of batchSegments(pending, this.options.maxChars, this.options.maxCount)) {
@@ -247,7 +321,7 @@ export class JobRunner {
             bookTitle: parsed.title,
             context: context.slice(-this.options.contextSize),
             segments: batch.map((s) => ({ id: s.id, text: s.sourceText })),
-            ...this.promptExtras(settings.customPrompt, settings.glossary),
+            ...promptExtras(settings.customPrompt, settings.glossary),
           },
           task.controller.signal,
         );
@@ -278,28 +352,6 @@ export class JobRunner {
     }
   }
 
-  private initialContext(
-    segments: readonly ParsedSegment[],
-    existing: ReadonlyMap<string, { text: string; status: string }>,
-  ): { source: string; target: string }[] {
-    const context: { source: string; target: string }[] = [];
-    for (const s of segments) {
-      const t = existing.get(s.id);
-      if (t?.status === "done") context.push({ source: s.sourceText, target: t.text });
-    }
-    return context;
-  }
-
-  private promptExtras(
-    customPrompt: string,
-    glossary: GlossaryEntry[],
-  ): { instructions?: string; glossary?: GlossaryEntry[] } {
-    const extras: { instructions?: string; glossary?: GlossaryEntry[] } = {};
-    if (customPrompt.trim()) extras.instructions = customPrompt;
-    if (glossary.length > 0) extras.glossary = glossary;
-    return extras;
-  }
-
   private publishChapter(jobId: string, parsed: ParsedBook, chapterId: string): void {
     const k = key(jobId, chapterId);
     this.deps.events.publish({
@@ -309,7 +361,7 @@ export class JobRunner {
         parsed,
         chapterId,
         this.deps.translations.forJob(jobId),
-        this.runtime.get(k),
+        this.runtimeOf(jobId, chapterId),
         this.errors.get(k) ?? null,
       ),
     });

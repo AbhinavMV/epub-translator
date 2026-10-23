@@ -10,6 +10,7 @@ export const ChapterStatusSchema = z.enum([
   "idle",
   "queued",
   "running",
+  "submitted",
   "done",
   "partial",
   "failed",
@@ -93,12 +94,15 @@ export type ExportLayout = z.infer<typeof ExportLayoutSchema>;
 export const ExportQuerySchema = z.object({
   layout: ExportLayoutSchema.default("translation"),
 });
+export const TranslateModeSchema = z.enum(["live", "batch"]);
+export type TranslateMode = z.infer<typeof TranslateModeSchema>;
 
 export const TranslateBodySchema = z.object({
   provider: ProviderIdSchema,
   model: z.string().min(1),
+  mode: TranslateModeSchema.default("live"),
 });
-export type TranslateBody = z.infer<typeof TranslateBodySchema>;
+export type TranslateBody = z.input<typeof TranslateBodySchema>;
 
 export const SuggestGlossaryBodySchema = z.object({
   provider: ProviderIdSchema,
@@ -114,6 +118,7 @@ export const ProviderInfoSchema = z.object({
   models: z.array(z.string()),
   defaultModel: z.string(),
   termsModel: z.string().optional(),
+  supportsBatch: z.boolean(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfoSchema>;
 

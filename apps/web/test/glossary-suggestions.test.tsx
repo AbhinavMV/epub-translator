@@ -16,6 +16,7 @@ const providers: ProviderInfo[] = [
     models: ["claude-sonnet-5-5", "claude-haiku-5-5"],
     defaultModel: "claude-sonnet-5-5",
     termsModel: "claude-haiku-5-5",
+    supportsBatch: true,
   },
 ];
 

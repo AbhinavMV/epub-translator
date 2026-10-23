@@ -24,6 +24,23 @@ export function mapAnthropicError(
   return { kind: "fatal", cause: messageOf(err) };
 }
 
+export function anthropicParams(
+  req: SegmentBatchRequest,
+  defaultModel: string,
+): Anthropic.MessageCreateParamsNonStreaming {
+  const { system, user } = buildPrompt(req);
+  return {
+    model: req.model || defaultModel,
+    max_tokens: MAX_OUTPUT_TOKENS,
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: user }],
+    output_config: {
+      effort: "low",
+      format: { type: "json_schema", schema: SEGMENTS_JSON_SCHEMA },
+    },
+  };
+}
+
 export function toCompletion(message: Anthropic.Message): RawCompletion {
   const usage = {
     inputTokens:
@@ -58,21 +75,10 @@ export class AnthropicProvider implements TranslationProvider {
     req: SegmentBatchRequest,
     signal: AbortSignal,
   ): Promise<SegmentBatchResult> {
-    const { system, user } = buildPrompt(req);
     try {
-      const message = await this.client.messages.create(
-        {
-          model: req.model || this.defaultModel,
-          max_tokens: MAX_OUTPUT_TOKENS,
-          system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-          messages: [{ role: "user", content: user }],
-          output_config: {
-            effort: "low",
-            format: { type: "json_schema", schema: SEGMENTS_JSON_SCHEMA },
-          },
-        },
-        { signal },
-      );
+      const message = await this.client.messages.create(anthropicParams(req, this.defaultModel), {
+        signal,
+      });
       return completionToResult(toCompletion(message));
     } catch (err) {
       if (signal.aborted) throw err;
