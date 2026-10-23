@@ -87,6 +87,13 @@ export const BookDetailSchema = BookSummarySchema.extend({
 });
 export type BookDetail = z.infer<typeof BookDetailSchema>;
 
+export const ExportLayoutSchema = z.enum(["translation", "bilingual"]);
+export type ExportLayout = z.infer<typeof ExportLayoutSchema>;
+
+export const ExportQuerySchema = z.object({
+  layout: ExportLayoutSchema.default("translation"),
+});
+
 export const TranslateBodySchema = z.object({
   provider: ProviderIdSchema,
   model: z.string().min(1),

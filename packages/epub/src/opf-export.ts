@@ -1,4 +1,5 @@
 import type { TargetLanguage } from "@et/contracts";
+import type { ExportOptions } from "@et/core";
 import type { PackageDoc } from "./package-doc.ts";
 import { descendants } from "./xml.ts";
 
@@ -21,6 +22,7 @@ function uniqueId(pkg: PackageDoc, base: string): string {
 
 export interface OpfEdit {
   target: TargetLanguage;
+  layout: ExportOptions["layout"];
   modified: Date;
   title: string | null;
   cssPath: string;
@@ -32,13 +34,26 @@ export function editPackageDocument(pkg: PackageDoc, edit: OpfEdit): void {
   const ns = root.namespaceURI;
   const metadata = descendants(root, "metadata")[0] as Element;
 
-  root.setAttributeNS(XML_NS, "xml:lang", edit.target.code);
+  const bilingual = edit.layout === "bilingual";
+  const sourceLang = pkg.sourceLang;
 
   const language = descendants(metadata, "language")[0];
-  if (language) setText(language, edit.target.code);
+  if (bilingual) {
+    if (
+      !descendants(metadata, "language").some((l) => sameLanguage(l.textContent, edit.target.code))
+    ) {
+      addSecondLanguage(doc, metadata, language, edit.target.code);
+    }
+  } else {
+    root.setAttributeNS(XML_NS, "xml:lang", edit.target.code);
+    root.setAttribute("dir", edit.target.dir);
+    if (language) setText(language, edit.target.code);
+  }
 
   const title = descendants(metadata, "title")[0];
-  if (title && edit.title !== null) setText(title, edit.title);
+  if (title && edit.title !== null) {
+    setText(title, bilingual ? `${title.textContent} / ${edit.title}` : edit.title);
+  }
 
   const modified = descendants(metadata, "meta").find(
     (m) => m.getAttribute("property") === "dcterms:modified",
@@ -55,13 +70,21 @@ export function editPackageDocument(pkg: PackageDoc, edit: OpfEdit): void {
   const writingMode = descendants(metadata, "meta").find(
     (m) => m.getAttribute("name") === "primary-writing-mode",
   );
-  writingMode?.setAttribute("content", kindleWritingMode(edit.target));
-
   const spine = descendants(root, "spine")[0];
-  if (spine) {
-    const previous = spine.getAttribute("page-progression-direction");
-    if (previous && previous !== edit.target.dir) mirrorPageSpreads(spine);
-    spine.setAttribute("page-progression-direction", edit.target.dir);
+  const previous = spine?.getAttribute("page-progression-direction") ?? null;
+  const direction = bilingual ? bilingualDirection(sourceLang, previous) : edit.target.dir;
+
+  if (writingMode) {
+    const current = writingMode.getAttribute("content") ?? "";
+    if (!bilingual) writingMode.setAttribute("content", kindleWritingMode(edit.target));
+    else if (current.startsWith("vertical")) {
+      writingMode.setAttribute("content", direction === "rtl" ? "horizontal-rl" : "horizontal-lr");
+    }
+  }
+
+  if (spine && direction) {
+    if (previous && previous !== direction) mirrorPageSpreads(spine);
+    spine.setAttribute("page-progression-direction", direction);
   }
 
   const manifest = descendants(root, "manifest")[0];
@@ -72,6 +95,35 @@ export function editPackageDocument(pkg: PackageDoc, edit: OpfEdit): void {
     item.setAttribute("media-type", "text/css");
     manifest.appendChild(item);
   }
+}
+
+const RTL_SCRIPTS = new Set(["ar", "he", "fa", "ur", "yi", "ps", "sd", "ug", "dv"]);
+
+function baseLanguage(code: string | null): string {
+  return (code ?? "").trim().toLowerCase().split("-")[0] ?? "";
+}
+
+function sameLanguage(a: string | null, b: string): boolean {
+  return (a ?? "").trim().toLowerCase() === b.toLowerCase();
+}
+
+// A right-to-left spine in a book whose language is not written right to left can only come
+// from vertical text, which bilingual output converts to horizontal.
+function bilingualDirection(sourceLang: string | null, previous: string | null): string | null {
+  if (previous === "rtl" && !RTL_SCRIPTS.has(baseLanguage(sourceLang))) return "ltr";
+  return previous;
+}
+
+function addSecondLanguage(
+  doc: Document,
+  metadata: Element,
+  first: Element | undefined,
+  code: string,
+): void {
+  const el = doc.createElementNS(first?.namespaceURI ?? null, first?.tagName ?? "dc:language");
+  setText(el, code);
+  if (first?.parentNode === metadata) metadata.insertBefore(el, first.nextSibling);
+  else metadata.appendChild(el);
 }
 
 function kindleWritingMode(target: TargetLanguage): string {

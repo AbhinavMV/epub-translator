@@ -65,8 +65,10 @@ const renderer: ChapterRenderer = {
     };
   },
 };
+const exportLayouts: string[] = [];
 const exporter: EpubExporter = {
-  async export() {
+  async export(_bytes, _book, _translations, _target, options) {
+    exportLayouts.push(options.layout);
     return new Uint8Array([0x50, 0x4b]);
   },
 };
@@ -275,8 +277,22 @@ describe("jobs api", () => {
     const epub = await app.request(`/api/jobs/${job.id}/export`);
     expect(epub.headers.get("content-type")).toBe("application/epub+zip");
     expect(epub.headers.get("content-disposition")).toContain("attachment");
+    expect(exportLayouts.at(-1)).toBe("translation");
     const txt = await app.request(`/api/jobs/${job.id}/export.txt`);
     expect(await txt.text()).toContain("[en] 一二");
+  });
+
+  it("export honours the layout query and rejects unknown layouts", async () => {
+    const { app } = setup();
+    const { job } = await workspace(app);
+    const bilingual = await app.request(`/api/jobs/${job.id}/export?layout=bilingual`);
+    expect(bilingual.status).toBe(200);
+    expect(exportLayouts.at(-1)).toBe("bilingual");
+    expect(bilingual.headers.get("content-disposition")).toContain("(en%2C%20bilingual).epub");
+    const explicit = await app.request(`/api/jobs/${job.id}/export?layout=translation`);
+    expect(explicit.status).toBe(200);
+    expect(exportLayouts.at(-1)).toBe("translation");
+    expect((await app.request(`/api/jobs/${job.id}/export?layout=sideways`)).status).toBe(400);
   });
 
   it("workspace is stable per book and language and rejects unknown languages", async () => {

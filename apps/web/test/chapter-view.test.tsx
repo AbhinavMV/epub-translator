@@ -33,3 +33,31 @@ describe("ChapterContent", () => {
     expect(screen.getByText("Target three").closest("[data-flagged]")).not.toBeNull();
   });
 });
+
+describe("ChapterContent target language", () => {
+  const modes = ["translation", "interleaved", "side-by-side"] as const;
+
+  it.each(modes)("%s marks translated html with the target lang and dir", (mode) => {
+    render(<ChapterContent view={makeChapter()} mode={mode} running={false} targetLang="ar" />);
+    const target = screen.getByText("Target one").closest("[lang]");
+    expect(target).toHaveAttribute("lang", "ar");
+    expect(target).toHaveAttribute("dir", "rtl");
+  });
+
+  it.each(modes)("%s leaves source and pending fallback text unmarked", (mode) => {
+    render(<ChapterContent view={makeChapter()} mode={mode} running={false} targetLang="ar" />);
+    for (const el of screen.getAllByText("原文二")) expect(el.closest("[lang]")).toBeNull();
+  });
+
+  it("left-to-right targets get dir ltr", () => {
+    render(
+      <ChapterContent view={makeChapter()} mode="translation" running={false} targetLang="en" />,
+    );
+    expect(screen.getByText("Target one").closest("[lang]")).toHaveAttribute("dir", "ltr");
+  });
+
+  it("omits lang and dir without a target language", () => {
+    render(<ChapterContent view={makeChapter()} mode="translation" running={false} />);
+    expect(screen.getByText("Target one").closest("[lang]")).toBeNull();
+  });
+});

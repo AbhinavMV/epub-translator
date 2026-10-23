@@ -115,7 +115,12 @@ export function ReaderPage() {
   const title = book.data?.title;
 
   const content = view ? (
-    <ChapterContent view={view} mode={prefs.viewMode} running={running} />
+    <ChapterContent
+      view={view}
+      mode={prefs.viewMode}
+      running={running}
+      targetLang={job.data?.targetLang}
+    />
   ) : (
     <div className="space-y-4">
       <Skeleton className="h-8 w-2/3" />

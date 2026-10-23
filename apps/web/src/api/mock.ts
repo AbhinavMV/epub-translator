@@ -425,8 +425,8 @@ export function createMockApi(): Api {
       set.add(source);
       return source;
     },
-    exportUrl: (_jobId, kind) =>
-      `data:text/plain;charset=utf-8,${encodeURIComponent(`mock ${kind} export`)}`,
+    exportUrl: (_jobId, kind, layout = "translation") =>
+      `data:text/plain;charset=utf-8,${encodeURIComponent(`mock ${kind} ${layout} export`)}`,
   };
   return api;
 }

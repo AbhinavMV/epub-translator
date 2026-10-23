@@ -153,6 +153,7 @@ export function BookPage() {
             onNext={() => goTo(chapters[chapterIndex + 1]?.id)}
             onCancel={() => action.mutate({ kind: "cancel" })}
             epubHref={jobId ? api.exportUrl(jobId, "epub") : undefined}
+            bilingualEpubHref={jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined}
             txtHref={jobId ? api.exportUrl(jobId, "txt") : undefined}
           />
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background">

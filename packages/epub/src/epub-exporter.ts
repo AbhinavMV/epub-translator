@@ -1,5 +1,5 @@
 import type { TargetLanguage } from "@et/contracts";
-import type { Clock, EpubExporter, ParsedBook, Translations } from "@et/core";
+import type { Clock, EpubExporter, ExportOptions, ParsedBook, Translations } from "@et/core";
 import { stripTokens } from "@et/segmenter";
 import { isUsable } from "./apply-translation.ts";
 import { isContentDocument, NCX_SEGMENT_PREFIX, TITLE_SEGMENT_ID } from "./book-layout.ts";
@@ -13,7 +13,7 @@ import {
 } from "./document-export.ts";
 import { relativeHref } from "./hrefs.ts";
 import { editPackageDocument } from "./opf-export.ts";
-import { OVERRIDE_CSS, OVERRIDE_CSS_NAME } from "./override-css.ts";
+import { OVERRIDE_CSS_NAME, overrideCss } from "./override-css.ts";
 import { entryPath, loadPackage } from "./package-doc.ts";
 import { parseXml, serializeXml } from "./xml.ts";
 import { DEFAULT_ZIP_LIMITS, readZip } from "./zip-reader.ts";
@@ -43,6 +43,7 @@ export class YazlEpubExporter implements EpubExporter {
     book: ParsedBook,
     translations: Translations,
     target: TargetLanguage,
+    options: ExportOptions,
   ): Promise<Uint8Array> {
     const entries = await readZip(bytes, DEFAULT_ZIP_LIMITS);
     const pkg = loadPackage(entries);
@@ -58,7 +59,7 @@ export class YazlEpubExporter implements EpubExporter {
       const doc = loadDocument(entries, pkg, href);
       const css = relativeHref(path, cssPath);
       if (count > 0 && hasTranslation(href, count, translations)) {
-        translateContentDocument(doc, href, isNav, translations, target, css);
+        translateContentDocument(doc, href, isNav, translations, target, css, options.layout);
       } else {
         applyHorizontalLayout(doc, css);
       }
@@ -82,6 +83,7 @@ export class YazlEpubExporter implements EpubExporter {
     const titleTranslation = translations.get(TITLE_SEGMENT_ID);
     editPackageDocument(pkg, {
       target,
+      layout: options.layout,
       modified: this.clock.now(),
       title: isUsable(titleTranslation) ? stripTokens(titleTranslation.text) : null,
       cssPath: OVERRIDE_CSS_NAME,
@@ -92,7 +94,7 @@ export class YazlEpubExporter implements EpubExporter {
       name,
       data: replaced.get(name) ?? data,
     }));
-    output.push({ name: cssPath, data: encode(OVERRIDE_CSS) });
+    output.push({ name: cssPath, data: encode(overrideCss(options.layout)) });
     return writeEpubZip(output, this.clock.now());
   }
 }

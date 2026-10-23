@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Html } from "@/components/html";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { type LanguageAttrs, languageAttrs } from "@/lib/language-attrs";
 import { chapterText, countChars, formatCount } from "@/lib/text";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +32,12 @@ function TargetCell({
   block,
   busy,
   firstPending,
+  language,
 }: {
   block: SegmentBlock;
   busy: boolean;
   firstPending: boolean;
+  language: LanguageAttrs | undefined;
 }) {
   const flagged = block.status === "flagged";
   const pending = block.targetHtml === null;
@@ -50,7 +53,7 @@ function TargetCell({
       )}
     >
       {block.targetHtml !== null ? (
-        <Html html={block.targetHtml} />
+        <Html html={block.targetHtml} language={language} />
       ) : busy ? (
         <div className="space-y-2 py-1.5" role="status" aria-label="Translating">
           <Skeleton className="h-3 w-11/12" />
@@ -87,6 +90,7 @@ export function EditorPanes({
   onClear: () => void;
 }) {
   const [showSource, setShowSource] = useState(false);
+  const targetLanguage = languageAttrs(targetLang);
 
   const stats = useMemo(() => {
     if (!view) return { source: "", target: "", sourceChars: 0, targetChars: 0 };
@@ -180,7 +184,12 @@ export function EditorPanes({
               >
                 <Html html={block.sourceHtml} />
               </div>
-              <TargetCell block={block} busy={busy} firstPending={block.id === firstPendingId} />
+              <TargetCell
+                block={block}
+                busy={busy}
+                firstPending={block.id === firstPendingId}
+                language={targetLanguage}
+              />
             </div>
           ),
         )

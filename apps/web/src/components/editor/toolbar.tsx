@@ -1,13 +1,6 @@
 import type { ChapterProgress } from "@et/contracts";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Download,
-  FileText,
-  Languages,
-  Loader2,
-  Square,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Languages, Loader2, Square } from "lucide-react";
+import { ExportEpubMenu } from "@/components/editor/export-epub-menu";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -71,6 +64,7 @@ export function EditorToolbar({
   onNext,
   onCancel,
   epubHref,
+  bilingualEpubHref,
   txtHref,
 }: {
   chapterProgress: ChapterProgress | undefined;
@@ -89,6 +83,7 @@ export function EditorToolbar({
   onNext: () => void;
   onCancel: () => void;
   epubHref: string | undefined;
+  bilingualEpubHref: string | undefined;
   txtHref: string | undefined;
 }) {
   const busy = isBusy(chapterProgress?.status);
@@ -153,12 +148,10 @@ export function EditorToolbar({
           variant="outline"
           hint="Translate a chapter first"
         />
-        <DownloadButton
-          href={epubHref}
+        <ExportEpubMenu
+          translationHref={epubHref}
+          bilingualHref={bilingualEpubHref}
           disabled={!hasTranslation}
-          label="Export EPUB"
-          icon={<Download />}
-          variant="secondary"
           hint="Translate a chapter first"
         />
       </div>

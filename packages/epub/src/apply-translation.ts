@@ -7,13 +7,21 @@ export function isUsable(
   return translation !== undefined && translation.status !== "failed";
 }
 
-/** Falls back to plain text so a mangled token never produces broken XHTML. */
-export function applyTranslation(block: Element, translation: SegmentTranslation): void {
+/**
+ * Reads the inline structure from `block` and writes the translation into `into`
+ * (default: the block itself). Falls back to plain text so a mangled token never
+ * produces broken XHTML.
+ */
+export function applyTranslation(
+  block: Element,
+  translation: SegmentTranslation,
+  into: Element = block,
+): void {
   const { inline } = encodeBlock(block);
   try {
-    decodeInto(block, translation.text, inline);
+    decodeInto(into, translation.text, inline);
   } catch (e) {
     if (!(e instanceof PlaceholderMismatchError)) throw e;
-    plainTextInto(block, translation.text, inline);
+    plainTextInto(into, translation.text, inline);
   }
 }
