@@ -25,7 +25,7 @@ function encodeChildren(parent: Node, inline: Node[]): string {
     const node = parent.childNodes[i] as Node;
     if (node.nodeType === TEXT_NODE || node.nodeType === CDATA_NODE) {
       const value = node.nodeValue ?? "";
-      out += value.trim() === "" ? " " : escapeText(value);
+      out += /^[ \t\r\n]*$/.test(value) ? " " : escapeText(value);
     } else if (node.nodeType === ELEMENT_NODE) {
       out += encodeElement(node as Element, inline);
     }

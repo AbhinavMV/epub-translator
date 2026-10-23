@@ -63,6 +63,11 @@ describe("encodeBlock", () => {
     expect(enc.text).toBe("a<x1/>b<x2/>");
   });
 
+  it("keeps a lone full-width space between inline elements", () => {
+    const enc = encodeBlock(firstBlock("<p><b>a</b>　<i>b</i></p>"));
+    expect(enc.text).toBe("<1>a</1>　<2>b</2>");
+  });
+
   it("escapes markup characters in text", () => {
     expect(encodeBlock(firstBlock("<p>a &lt; b &amp; c</p>")).text).toBe("a &lt; b &amp; c");
   });
