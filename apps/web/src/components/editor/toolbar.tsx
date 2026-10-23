@@ -1,10 +1,35 @@
 import type { ChapterProgress } from "@et/contracts";
-import { ArrowLeft, ArrowRight, FileText, Heading, Languages, Loader2, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  FileText,
+  Heading,
+  Languages,
+  Loader2,
+  RotateCcw,
+  Square,
+} from "lucide-react";
 import { ExportEpubMenu } from "@/components/editor/export-epub-menu";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBusy, STATUS_LABEL } from "@/lib/chapter-status";
+
+function translateAction(p: ChapterProgress | undefined): {
+  label: string;
+  done: boolean;
+  retry: boolean;
+} {
+  if (!p) return { label: "Translate chapter", done: false, retry: false };
+  if (p.error) return { label: "Try again", done: false, retry: true };
+  if (p.status === "done") return { label: "Translated", done: true, retry: false };
+  if (p.failed > 0) {
+    return { label: `Retry ${p.failed} failed`, done: false, retry: true };
+  }
+  if (p.done + p.flagged > 0) return { label: "Continue", done: false, retry: false };
+  return { label: "Translate chapter", done: false, retry: false };
+}
 
 function DownloadButton({
   href,
@@ -94,14 +119,27 @@ export function EditorToolbar({
   const ratio = totalChapters > 0 ? (translatedChapters / totalChapters) * 100 : 0;
   const segmentsDone = chapterProgress ? chapterProgress.done + chapterProgress.failed : 0;
 
+  const action = translateAction(chapterProgress);
   const translateButton = (
-    <Button size="sm" onClick={onTranslate} disabled={!canTranslate || busy || starting}>
-      {busy || starting ? <Loader2 className="animate-spin" /> : <Languages />}
+    <Button
+      size="sm"
+      onClick={onTranslate}
+      disabled={!canTranslate || busy || starting || action.done}
+    >
+      {busy || starting ? (
+        <Loader2 className="animate-spin" />
+      ) : action.done ? (
+        <Check />
+      ) : action.retry ? (
+        <RotateCcw />
+      ) : (
+        <Languages />
+      )}
       {busy
         ? chapterProgress?.status === "submitted"
           ? "Submitted"
           : "Translating…"
-        : "Translate chapter"}
+        : action.label}
     </Button>
   );
 

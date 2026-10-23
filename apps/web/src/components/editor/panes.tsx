@@ -60,7 +60,12 @@ function TargetCell({
           <Skeleton className="h-3 w-3/5" />
         </div>
       ) : block.status === "failed" ? (
-        <p className="text-sm text-destructive">This segment failed. Retry the chapter.</p>
+        <div className="text-sm text-destructive">
+          <p>{block.note ?? "This passage could not be translated."}</p>
+          <p className="text-destructive/75">
+            Use Translate chapter again to retry only failed passages, or pick another model.
+          </p>
+        </div>
       ) : firstPending ? (
         <p className="text-sm text-muted-foreground italic">Translation will appear here…</p>
       ) : null}

@@ -22,6 +22,7 @@ import { EditorHeader } from "@/components/editor/editor-header";
 import { resolveSelection, type Selection } from "@/components/editor/model-selection";
 import { EditorPanes } from "@/components/editor/panes";
 import { EditorToolbar } from "@/components/editor/toolbar";
+import { TranslationError } from "@/components/editor/translation-error";
 import {
   Sheet,
   SheetContent,
@@ -174,6 +175,7 @@ export function BookPage() {
             bilingualEpubHref={jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined}
             txtHref={jobId ? api.exportUrl(jobId, "txt") : undefined}
           />
+          <TranslationError chapterError={chapterProgress?.error} jobError={job.data?.error} />
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background">
             <EditorPanes
               view={chapter.data}
