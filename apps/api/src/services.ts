@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import type {
+  BatchTranslationProvider,
   BlobStore,
   ChapterRenderer,
   EpubAssets,
@@ -8,9 +9,10 @@ import type {
   TranslationProvider,
 } from "@et/core";
 import { JobRunner } from "@et/core";
-import { buildProviderRegistry } from "@et/providers";
+import { buildProviderRegistry, FakeBatchProvider } from "@et/providers";
 import {
   openDatabase,
+  SqliteBatchRepository,
   SqliteBookRepository,
   SqliteBookSettingsRepository,
   SqliteJobRepository,
@@ -35,6 +37,7 @@ export interface ServiceOptions {
   env: Record<string, string | undefined>;
   epub: EpubAdapters;
   fakeProvider?: TranslationProvider;
+  fakeBatchProvider?: BatchTranslationProvider;
   discoverModels?: boolean;
 }
 
@@ -46,6 +49,7 @@ export function createServices(options: ServiceOptions) {
   if (options.fakeProvider) {
     registry.set("fake", {
       provider: options.fakeProvider,
+      batch: options.fakeBatchProvider ?? registry.get("fake")?.batch ?? new FakeBatchProvider(),
       configured: true,
       defaultModel: "fake-echo",
     });
@@ -55,6 +59,7 @@ export function createServices(options: ServiceOptions) {
   const settings = new SqliteBookSettingsRepository(db);
   const jobs = new SqliteJobRepository(db);
   const translations = new SqliteTranslationRepository(db);
+  const batches = new SqliteBatchRepository(db);
   const events = new JobEventBus();
   const runner = new JobRunner({
     books,
@@ -64,11 +69,18 @@ export function createServices(options: ServiceOptions) {
     providers: (id) => providers.provider(id),
     events,
     sleep: nodeSleep,
+    batch: {
+      repo: batches,
+      provider: (id) => providers.batchProvider(id),
+      ids: uuidGenerator,
+      clock: systemClock,
+    },
   });
   return {
     db,
     blobs,
     books,
+    batches,
     settings,
     jobs,
     translations,
