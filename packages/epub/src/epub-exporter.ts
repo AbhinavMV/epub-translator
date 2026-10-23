@@ -5,7 +5,12 @@ import { isUsable } from "./apply-translation.ts";
 import { isContentDocument, NCX_SEGMENT_PREFIX, TITLE_SEGMENT_ID } from "./book-layout.ts";
 import { readNcxLabels } from "./chapters.ts";
 import { loadDocument } from "./doc-blocks.ts";
-import { hasTranslation, translateContentDocument, translateNcx } from "./document-export.ts";
+import {
+  applyHorizontalLayout,
+  hasTranslation,
+  translateContentDocument,
+  translateNcx,
+} from "./document-export.ts";
 import { relativeHref } from "./hrefs.ts";
 import { editPackageDocument } from "./opf-export.ts";
 import { OVERRIDE_CSS, OVERRIDE_CSS_NAME } from "./override-css.ts";
@@ -48,10 +53,15 @@ export class YazlEpubExporter implements EpubExporter {
 
     const translate = (href: string, isNav: boolean) => {
       const count = counts.get(href) ?? 0;
-      if (!hasTranslation(href, count, translations)) return;
+      if (count === 0) return;
       const path = entryPath(pkg, href);
       const doc = loadDocument(entries, pkg, href);
-      translateContentDocument(doc, href, isNav, translations, target, relativeHref(path, cssPath));
+      const css = relativeHref(path, cssPath);
+      if (hasTranslation(href, count, translations)) {
+        translateContentDocument(doc, href, isNav, translations, target, css);
+      } else {
+        applyHorizontalLayout(doc, css);
+      }
       replaced.set(path, encode(serializeXml(doc)));
     };
 

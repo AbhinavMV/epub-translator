@@ -43,6 +43,12 @@ export function translateContentDocument(
   const root = doc.documentElement;
   root.setAttribute("lang", target.code);
   root.setAttributeNS(XML_NS, "xml:lang", target.code);
+  applyHorizontalLayout(doc, cssHref);
+}
+
+/** Untranslated pages still need horizontal layout once the spine direction flips to the target's. */
+export function applyHorizontalLayout(doc: Document, cssHref: string): void {
+  const root = doc.documentElement;
   dropVerticalClass(root);
   dropVerticalClass(descendants(root, "body")[0]);
 

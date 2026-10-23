@@ -106,13 +106,13 @@ describe("YazlEpubExporter", () => {
     ]);
   });
 
-  it("export leaves documents without translations untouched", async () => {
-    const { bytes, entries } = await (async () => {
-      const r = await exportPrefixed((id) => id === "ch-1");
-      return { bytes: r.bytes, entries: r.entries };
-    })();
-    const before = await readZip(bytes);
-    expect(entries.get("item/xhtml/p-010.xhtml")).toEqual(before.get("item/xhtml/p-010.xhtml"));
+  it("export makes untranslated text documents horizontal but keeps their language", async () => {
+    const { entries } = await exportPrefixed((id) => id === "ch-1");
+    const untranslated = text(entries.get("item/xhtml/p-010.xhtml"));
+    expect(untranslated).not.toContain("EN:");
+    expect(untranslated).toContain('xml:lang="ja"');
+    expect(untranslated).not.toContain("vrtl");
+    expect(untranslated).toContain("et-override.css");
     expect(text(entries.get("item/xhtml/p-005.xhtml"))).toContain("EN:");
   });
 
