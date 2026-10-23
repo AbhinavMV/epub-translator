@@ -190,6 +190,33 @@ describe("JobRunner", () => {
     expect(runner.summary("j1").progress.find((p) => p.chapterId === "ch-1")?.status).toBe("done");
   });
 
+  it("starts the next queued chapter as soon as a running one is cleared", async () => {
+    const single = new JobRunner(
+      {
+        books,
+        jobs,
+        translations,
+        settings,
+        providers: () => provider,
+        events: { publish: () => {} },
+        sleep: async () => {},
+      },
+      { chapterConcurrency: 1, contextSize: 8, maxChars: 4000, maxCount: 40 },
+    );
+    let release = () => {};
+    provider.gate = new Promise((r) => {
+      release = r;
+    });
+    single.translateChapter("j1", "ch-0", body);
+    single.translateChapter("j1", "ch-1", body);
+    await Promise.resolve();
+    single.clearChapter("j1", "ch-0");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(provider.requests.map((r) => r.segments[0]?.id)).toEqual(["a.xhtml#0", "b.xhtml#0"]);
+    release();
+    await single.whenIdle();
+  });
+
   it("clearChapter removes that chapter's translations", () => {
     translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
     translations.put("j1", "b.xhtml#0", { text: "Three", status: "done" });

@@ -26,6 +26,8 @@ function toBook(row: BookRow): StoredBook {
 }
 
 export class SqliteBookRepository implements BookRepository {
+  private readonly parsedCache = new Map<string, ParsedBook>();
+
   constructor(private readonly db: Database) {}
 
   insert(book: StoredBook, parsed: ParsedBook): void {
@@ -58,10 +60,15 @@ export class SqliteBookRepository implements BookRepository {
   }
 
   getParsed(id: string): ParsedBook | null {
+    const cached = this.parsedCache.get(id);
+    if (cached) return cached;
     const row = this.db.prepare("SELECT parsed_json FROM books WHERE id = ?").get(id) as
       | { parsed_json: string }
       | undefined;
-    return row ? (JSON.parse(row.parsed_json) as ParsedBook) : null;
+    if (!row) return null;
+    const parsed = JSON.parse(row.parsed_json) as ParsedBook;
+    this.parsedCache.set(id, parsed);
+    return parsed;
   }
 
   list(): StoredBook[] {
@@ -72,6 +79,7 @@ export class SqliteBookRepository implements BookRepository {
   }
 
   delete(id: string): void {
+    this.parsedCache.delete(id);
     this.db.prepare("DELETE FROM books WHERE id = ?").run(id);
   }
 }

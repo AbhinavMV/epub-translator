@@ -176,6 +176,7 @@ export class JobRunner {
         this.runtime.delete(k);
       }
     }
+    this.pump();
     this.notifyIdle();
   }
 

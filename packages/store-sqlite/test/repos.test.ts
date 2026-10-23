@@ -42,6 +42,14 @@ describe("SqliteBookRepository", () => {
     expect(repo.list()).toEqual([book]);
   });
 
+  it("caches the parsed structure and forgets it on delete", () => {
+    const repo = new SqliteBookRepository(db);
+    repo.insert(book, parsed);
+    expect(repo.getParsed("b1")).toBe(repo.getParsed("b1"));
+    repo.delete("b1");
+    expect(repo.getParsed("b1")).toBeNull();
+  });
+
   it("delete cascades to jobs and translations", () => {
     const books = new SqliteBookRepository(db);
     const jobs = new SqliteJobRepository(db);
