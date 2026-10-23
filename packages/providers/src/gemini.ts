@@ -25,7 +25,7 @@ export function mapGeminiError(err: unknown): SegmentBatchResult & { kind: "retr
   return { kind: "fatal", cause: messageOf(err) };
 }
 
-function toCompletion(response: GenerateContentResponse): RawCompletion {
+export function toCompletion(response: GenerateContentResponse): RawCompletion {
   const usage = {
     inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
     outputTokens:

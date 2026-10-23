@@ -8,7 +8,7 @@ import type {
   TranslationProvider,
 } from "@et/core";
 import { JobRunner } from "@et/core";
-import { buildProviderRegistry } from "@et/providers";
+import { buildProviderRegistry, FakeTermExtractor } from "@et/providers";
 import {
   openDatabase,
   SqliteBookRepository,
@@ -48,6 +48,8 @@ export function createServices(options: ServiceOptions) {
       provider: options.fakeProvider,
       configured: true,
       defaultModel: "fake-echo",
+      terms: new FakeTermExtractor(),
+      termsModel: "fake-echo",
     });
   }
   const providers = new ProviderCatalog(registry, options.discoverModels ?? false);

@@ -8,11 +8,15 @@ import {
   BookSummarySchema,
   type ChapterView,
   ChapterViewSchema,
+  type GlossaryEntry,
+  GlossaryEntrySchema,
   type JobSummary,
   JobSummarySchema,
   type ProviderInfo,
   ProviderInfoSchema,
+  type SuggestGlossaryBody,
   type TranslateBody,
+  type Usage,
 } from "@et/contracts";
 
 export interface EventSourceLike {
@@ -23,12 +27,18 @@ export interface EventSourceLike {
 
 export type ExportKind = "epub" | "txt";
 
+export interface GlossarySuggestion {
+  terms: GlossaryEntry[];
+  usage: Usage | null;
+}
+
 export interface Api {
   listBooks(): Promise<BookSummary[]>;
   uploadBook(file: File): Promise<BookSummary>;
   getBook(id: string): Promise<BookDetail>;
   deleteBook(id: string): Promise<void>;
   saveSettings(id: string, settings: BookSettings): Promise<BookSettings>;
+  suggestGlossary(bookId: string, body: SuggestGlossaryBody): Promise<GlossarySuggestion>;
   getWorkspace(bookId: string, targetLang: string): Promise<JobSummary>;
   getChapter(bookId: string, chapterId: string, jobId: string): Promise<ChapterView>;
   listProviders(): Promise<ProviderInfo[]>;
@@ -130,6 +140,21 @@ export function createHttpApi(
         headers: { "content-type": "application/json" },
         body: JSON.stringify(settings),
       }),
+    async suggestGlossary(bookId, body) {
+      const res = await raw(`/books/${enc(bookId)}/glossary/suggest`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const terms = list(GlossaryEntrySchema).parse(await res.json());
+      const input = res.headers.get("x-usage-input-tokens");
+      const output = res.headers.get("x-usage-output-tokens");
+      const usage =
+        input !== null && output !== null
+          ? { inputTokens: Number(input), outputTokens: Number(output) }
+          : null;
+      return { terms, usage };
+    },
     getWorkspace: (bookId, lang) =>
       json(`/books/${enc(bookId)}/workspace?targetLang=${enc(lang)}`, JobSummarySchema),
     getChapter: (bookId, chapterId, jobId) =>

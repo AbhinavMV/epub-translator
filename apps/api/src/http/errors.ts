@@ -1,5 +1,10 @@
 import { UnknownLanguageError } from "@et/contracts";
-import { InvalidEpubError, NotFoundError, ProviderNotConfiguredError } from "@et/core";
+import {
+  FatalProviderError,
+  InvalidEpubError,
+  NotFoundError,
+  ProviderNotConfiguredError,
+} from "@et/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
@@ -7,6 +12,7 @@ export function errorStatus(err: unknown): ContentfulStatusCode {
   if (err instanceof NotFoundError) return 404;
   if (err instanceof InvalidEpubError) return 422;
   if (err instanceof ProviderNotConfiguredError || err instanceof UnknownLanguageError) return 400;
+  if (err instanceof FatalProviderError) return 502;
   return 500;
 }
 

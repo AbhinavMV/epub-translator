@@ -1,5 +1,5 @@
 import type { ProviderId, ProviderInfo } from "@et/contracts";
-import type { TranslationProvider } from "@et/core";
+import type { TermExtractor, TranslationProvider } from "@et/core";
 import { type ProviderRegistry, resolveDefaultModel } from "@et/providers";
 
 const LABELS: Record<ProviderId, string> = {
@@ -23,6 +23,10 @@ export class ProviderCatalog {
 
   provider(id: ProviderId): TranslationProvider | null {
     return this.registry.get(id)?.provider ?? null;
+  }
+
+  termExtractor(id: ProviderId): TermExtractor | null {
+    return this.registry.get(id)?.terms ?? null;
   }
 
   list(): Promise<ProviderInfo[]> {
@@ -51,7 +55,14 @@ export class ProviderCatalog {
             ...entry,
             defaultModel: entry.defaultModel || (models[0] ?? ""),
           })) || "";
-        return { id, label: LABELS[id], configured: true, models, defaultModel };
+        return {
+          id,
+          label: LABELS[id],
+          configured: true,
+          models,
+          defaultModel,
+          ...(entry.terms && entry.termsModel ? { termsModel: entry.termsModel } : {}),
+        };
       }),
     );
   }

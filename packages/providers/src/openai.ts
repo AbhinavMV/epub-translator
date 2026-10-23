@@ -32,7 +32,7 @@ function hasRefusal(response: Response): boolean {
   );
 }
 
-function toCompletion(response: Response): RawCompletion {
+export function toCompletion(response: Response): RawCompletion {
   const usage = {
     inputTokens: response.usage?.input_tokens ?? 0,
     outputTokens: response.usage?.output_tokens ?? 0,

@@ -1,4 +1,4 @@
-import type { BookSettings, JobSummary, TranslateBody } from "@et/contracts";
+import type { BookSettings, JobSummary, SuggestGlossaryBody, TranslateBody } from "@et/contracts";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "./api-context";
 import { keys } from "./keys";
@@ -94,6 +94,13 @@ type JobAction =
   | { kind: "retry"; chapterId: string; body: TranslateBody }
   | { kind: "clear"; chapterId: string }
   | { kind: "cancel" };
+
+export function useSuggestGlossary(bookId: string) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (body: SuggestGlossaryBody) => api.suggestGlossary(bookId, body),
+  });
+}
 
 export function useJobAction(jobId: string | undefined) {
   const api = useApi();

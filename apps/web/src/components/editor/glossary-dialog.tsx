@@ -1,4 +1,4 @@
-import type { BookSettings, GlossaryEntry } from "@et/contracts";
+import type { BookSettings, GlossaryEntry, ProviderInfo } from "@et/contracts";
 import { BookA, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { GlossarySuggestions } from "./glossary-suggestions";
+import type { Selection } from "./model-selection";
 
 interface Row {
   key: number;
@@ -27,10 +29,18 @@ const toRows = (entries: GlossaryEntry[]): Row[] =>
   entries.map((e) => ({ key: rowKey++, source: e.source, target: e.target, note: e.note ?? "" }));
 
 export function GlossaryDialog({
+  bookId,
+  targetLang,
+  providers,
+  selection,
   settings,
   saving,
   onSave,
 }: {
+  bookId: string;
+  targetLang: string;
+  providers: ProviderInfo[] | undefined;
+  selection: Selection | null;
   settings: BookSettings | undefined;
   saving: boolean;
   onSave: (glossary: GlossaryEntry[]) => Promise<unknown>;
@@ -41,6 +51,13 @@ export function GlossaryDialog({
   const count = settings?.glossary.length ?? 0;
   const update = (key: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+
+  const addSuggestions = (entries: GlossaryEntry[]) =>
+    setRows((rs) => {
+      const known = new Set(rs.map((r) => r.source.trim()));
+      const fresh = entries.filter((e) => !known.has(e.source.trim()));
+      return [...rs, ...toRows(fresh)].slice(0, MAX_ENTRIES);
+    });
 
   const submit = async () => {
     const glossary = rows
@@ -80,6 +97,13 @@ export function GlossaryDialog({
             Terms the model must translate consistently. Applied only when the source term appears.
           </DialogDescription>
         </DialogHeader>
+        <GlossarySuggestions
+          bookId={bookId}
+          targetLang={targetLang}
+          providers={providers}
+          selection={selection}
+          onAdd={addSuggestions}
+        />
         <ScrollArea className="max-h-[50vh] pr-3">
           <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
             <span>Source</span>

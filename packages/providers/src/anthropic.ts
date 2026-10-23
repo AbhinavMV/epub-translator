@@ -24,7 +24,7 @@ export function mapAnthropicError(
   return { kind: "fatal", cause: messageOf(err) };
 }
 
-function toCompletion(message: Anthropic.Message): RawCompletion {
+export function toCompletion(message: Anthropic.Message): RawCompletion {
   const usage = {
     inputTokens:
       message.usage.input_tokens +

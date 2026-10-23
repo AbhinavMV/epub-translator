@@ -2,6 +2,7 @@ import {
   BookDetailSchema,
   BookSummarySchema,
   ChapterViewSchema,
+  GlossaryEntrySchema,
   JobSummarySchema,
   ProviderInfoSchema,
 } from "@et/contracts";
@@ -15,6 +16,7 @@ import {
 } from "@et/core";
 import { FakeProvider } from "@et/providers";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { createApp } from "../src/app.ts";
 import { createServices } from "../src/services.ts";
 
@@ -172,6 +174,72 @@ describe("books api", () => {
     const book = BookSummarySchema.parse(await (await upload(app)).json());
     expect((await app.request(`/api/books/${book.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await app.request(`/api/books/${book.id}`)).status).toBe(404);
+  });
+});
+
+describe("glossary suggestion api", () => {
+  const latin: ParsedBook = {
+    ...parsed,
+    segments: [{ id: "a.xhtml#0", chapterId: "ch-0", ordinal: 0, sourceText: "Alice met Bob." }],
+  };
+  const post = (app: ReturnType<typeof createApp>, id: string, body: unknown) =>
+    app.request(`/api/books/${id}/glossary/suggest`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "content-type": "application/json" },
+    });
+
+  async function setupLatin() {
+    const services = createServices({
+      dataDir: ":memory:",
+      env: {},
+      epub: { parser: { parse: async () => latin }, assets, renderer, exporter },
+      fakeProvider: new FakeProvider(),
+    });
+    const app = createApp(services);
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    return { app, book };
+  }
+
+  it("returns unsaved suggestions that skip existing glossary sources, with usage headers", async () => {
+    const { app, book } = await setupLatin();
+    await app.request(`/api/books/${book.id}/settings`, {
+      method: "PUT",
+      body: JSON.stringify({
+        customPrompt: "",
+        glossary: [{ source: "Alice", target: "Alicia" }],
+        provider: null,
+        model: null,
+      }),
+      headers: { "content-type": "application/json" },
+    });
+
+    const res = await post(app, book.id, { provider: "fake", model: "fake-echo" });
+
+    expect(res.status).toBe(200);
+    expect(
+      z
+        .array(GlossaryEntrySchema)
+        .parse(await res.json())
+        .map((t) => t.source),
+    ).toEqual(["Bob"]);
+    expect(Number(res.headers.get("x-usage-input-tokens"))).toBeGreaterThan(0);
+    const detail = BookDetailSchema.parse(
+      await (await app.request(`/api/books/${book.id}`)).json(),
+    );
+    expect(detail.settings.glossary).toHaveLength(1);
+  });
+
+  it("returns 400 for a provider that is not configured", async () => {
+    const { app, book } = await setupLatin();
+    const res = await post(app, book.id, { provider: "openai", model: "x" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for an invalid body and 404 for an unknown book", async () => {
+    const { app, book } = await setupLatin();
+    expect((await post(app, book.id, { provider: "fake" })).status).toBe(400);
+    expect((await post(app, "nope", { provider: "fake", model: "m" })).status).toBe(404);
   });
 });
 
