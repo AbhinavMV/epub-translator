@@ -1,5 +1,7 @@
 # EPUB Translator
 
+[![CI](https://github.com/AbhinavMV/epub-translator/actions/workflows/ci.yml/badge.svg)](https://github.com/AbhinavMV/epub-translator/actions/workflows/ci.yml)
+
 A local web app that takes an EPUB and translates it chapter by chapter into English (or another of 13 target languages) with an LLM (Claude, OpenAI or Gemini). You can read the result side by side with the original, and export it as a valid translated EPUB or as plain text.
 
 - **Formatting is preserved.** Inline formatting (`<em>`, `<span class="tcy">`, links and so on) survives translation as numbered placeholders, which are checked before anything is written.
