@@ -1,0 +1,24 @@
+{
+  "name": "@et/epub",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@et/core": "workspace:*",
+    "@et/contracts": "workspace:*",
+    "@et/segmenter": "workspace:*",
+    "@xmldom/xmldom": "0.9.12",
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1"
+  },
+  "devDependencies": {
+    "@types/yauzl": "3.4.0",
+    "@types/yazl": "3.3.1"
+  }
+}

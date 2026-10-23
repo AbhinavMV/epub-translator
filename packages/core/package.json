@@ -1,0 +1,17 @@
+{
+  "name": "@et/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@et/contracts": "workspace:*",
+    "@et/segmenter": "workspace:*"
+  },
+  "devDependencies": {}
+}

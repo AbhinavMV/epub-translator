@@ -1,0 +1,20 @@
+{
+  "name": "@et/providers",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@et/core": "workspace:*",
+    "@et/contracts": "workspace:*",
+    "@anthropic-ai/sdk": "1.2.0",
+    "openai": "7.43.0",
+    "@google/genai": "2.31.0"
+  },
+  "devDependencies": {}
+}
