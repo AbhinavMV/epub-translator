@@ -66,10 +66,24 @@ describe("importBook", () => {
 });
 
 describe("deleteBook", () => {
+  it("cancels the book's translation jobs before deleting", async () => {
+    const deps = libraryDeps();
+    const book = await importBook(deps, bytes);
+    const jobs = new MemoryJobs();
+    const job = getOrCreateWorkspace(
+      { books: deps.books, jobs, ids: counterIds("j"), clock: fixedClock },
+      book.id,
+      "en",
+    );
+    const cancelled: string[] = [];
+    await deleteBook({ ...deps, jobs, runner: { cancel: (id) => cancelled.push(id) } }, book.id);
+    expect(cancelled).toEqual([job.id]);
+  });
+
   it("removes the row and the blob", async () => {
     const deps = libraryDeps();
     const book = await importBook(deps, bytes);
-    await deleteBook(deps, book.id);
+    await deleteBook({ ...deps, jobs: new MemoryJobs(), runner: { cancel: () => {} } }, book.id);
     expect(deps.books.get(book.id)).toBeNull();
     expect(deps.blobs.rows.size).toBe(0);
   });
