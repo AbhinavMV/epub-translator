@@ -1,5 +1,6 @@
 import type { ChapterBlock, ChapterView } from "@et/contracts";
 import { Html } from "@/components/html";
+import { languageAttrs } from "@/lib/language-attrs";
 import type { ViewMode } from "@/lib/reader-settings-store";
 import { cn } from "@/lib/utils";
 
@@ -43,12 +44,17 @@ export function ChapterContent({
   view,
   mode,
   running,
+  targetLang,
 }: {
   view: ChapterView;
   mode: ViewMode;
   running: boolean;
+  targetLang?: string | undefined;
 }) {
   const dropId = firstParagraphId(view);
+  const targetLanguage = languageAttrs(targetLang);
+  const targetOf = (block: SegmentBlock) =>
+    block.targetHtml === null ? undefined : targetLanguage;
 
   if (mode === "side-by-side") {
     return (
@@ -79,6 +85,7 @@ export function ChapterContent({
               >
                 <Html
                   html={block.targetHtml ?? block.sourceHtml}
+                  language={targetOf(block)}
                   className={block.targetHtml === null ? "opacity-50" : ""}
                 />
                 {block.targetHtml === null && <Pending running={running} />}
@@ -111,7 +118,7 @@ export function ChapterContent({
             >
               <Html html={block.sourceHtml} className="text-[0.82em] text-muted-foreground" />
               {block.targetHtml !== null ? (
-                <Html html={block.targetHtml} />
+                <Html html={block.targetHtml} language={targetLanguage} />
               ) : (
                 <Pending running={running} />
               )}
@@ -130,6 +137,7 @@ export function ChapterContent({
           >
             <Html
               html={block.targetHtml ?? block.sourceHtml}
+              language={targetOf(block)}
               className={block.targetHtml === null ? "opacity-50" : ""}
             />
             {block.targetHtml === null && <Pending running={running} />}

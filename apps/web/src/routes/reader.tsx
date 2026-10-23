@@ -156,7 +156,12 @@ export function ReaderPage() {
         <div ref={scrollRef} onScroll={onScroll} className="min-w-0 flex-1 overflow-y-auto">
           <article className="reader-prose mx-auto px-5 py-10 md:px-8" style={proseStyle}>
             {view ? (
-              <ChapterContent view={view} mode={prefs.viewMode} running={running} />
+              <ChapterContent
+                view={view}
+                mode={prefs.viewMode}
+                running={running}
+                targetLang={job.data?.targetLang}
+              />
             ) : (
               <div className="space-y-4">
                 <Skeleton className="h-8 w-2/3" />
