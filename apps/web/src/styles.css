@@ -133,9 +133,13 @@
 }
 .book-html img,
 .book-html svg {
+  display: block;
   max-width: 100%;
+  max-height: 70vh;
+  width: auto;
   height: auto;
   margin-inline: auto;
+  object-fit: contain;
 }
 .book-html :is(h1, h2, h3, h4) {
   font-weight: 600;
