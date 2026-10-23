@@ -1,0 +1,218 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/literata";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --ff-serif:
+    "Literata Variable", "Hiragino Mincho ProN", "Noto Serif JP", "Yu Mincho", Georgia, serif;
+  --ff-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --radius: 0.5rem;
+  --background: #f7f3ec;
+  --foreground: #2b2620;
+  --card: #fbf8f3;
+  --card-foreground: #2b2620;
+  --popover: #fbf8f3;
+  --popover-foreground: #2b2620;
+  --primary: #b4532a;
+  --primary-foreground: #fffaf5;
+  --secondary: #ece5d8;
+  --secondary-foreground: #2b2620;
+  --muted: #efe9dd;
+  --muted-foreground: #6f665a;
+  --accent: #ece5d8;
+  --accent-foreground: #2b2620;
+  --destructive: #b3261e;
+  --border: #ded5c4;
+  --input: #d6ccb9;
+  --ring: #b4532a;
+  --rail-active: #2b2620;
+  --rail-active-foreground: #f7f3ec;
+  --flag: #c98a1b;
+  color-scheme: light;
+}
+
+[data-theme="sepia"] {
+  --background: #efe4cf;
+  --foreground: #3a2f20;
+  --card: #f4ebd9;
+  --card-foreground: #3a2f20;
+  --popover: #f4ebd9;
+  --popover-foreground: #3a2f20;
+  --secondary: #e5d8bd;
+  --secondary-foreground: #3a2f20;
+  --muted: #e8dbc2;
+  --muted-foreground: #6b5b43;
+  --accent: #e5d8bd;
+  --accent-foreground: #3a2f20;
+  --border: #d4c4a4;
+  --input: #cdbb97;
+  --rail-active: #3a2f20;
+  --rail-active-foreground: #efe4cf;
+}
+
+[data-theme="dark"] {
+  --background: #16140f;
+  --foreground: #e9e2d4;
+  --card: #1d1a14;
+  --card-foreground: #e9e2d4;
+  --popover: #1d1a14;
+  --popover-foreground: #e9e2d4;
+  --primary: #d9794c;
+  --primary-foreground: #16140f;
+  --secondary: #272319;
+  --secondary-foreground: #e9e2d4;
+  --muted: #221f17;
+  --muted-foreground: #a39a89;
+  --accent: #2a261c;
+  --accent-foreground: #e9e2d4;
+  --destructive: #ef6a60;
+  --border: #302b20;
+  --input: #3a3427;
+  --ring: #d9794c;
+  --rail-active: #e9e2d4;
+  --rail-active-foreground: #16140f;
+  --flag: #e0a93b;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif:
+    "Literata Variable", "Hiragino Mincho ProN", "Noto Serif JP", "Yu Mincho", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-rail-active: var(--rail-active);
+  --color-rail-active-foreground: var(--rail-active-foreground);
+  --color-flag: var(--flag);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--ff-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+.book-html {
+  font-family: var(--ff-serif);
+  overflow-wrap: anywhere;
+}
+.book-html img,
+.book-html svg {
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+.book-html :is(h1, h2, h3, h4) {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.6em 0;
+}
+.book-html h1 {
+  font-size: 1.6em;
+}
+.book-html h2 {
+  font-size: 1.35em;
+}
+.book-html p {
+  margin: 0 0 0.9em;
+}
+.book-html ruby rt {
+  font-size: 0.5em;
+}
+
+.editor-text .book-html {
+  font-size: 15px;
+  line-height: 1.75;
+}
+.editor-text .book-html p {
+  margin: 0;
+}
+
+.reader-prose {
+  font-family: var(--reader-font);
+  font-size: var(--reader-size);
+  line-height: var(--reader-lh);
+  max-width: var(--reader-width);
+}
+.reader-prose .book-html {
+  font-family: inherit;
+}
+.reader-prose .dropcap::first-letter {
+  float: left;
+  color: var(--primary);
+  font-size: 3.6em;
+  line-height: 0.85;
+  padding: 0.06em 0.1em 0 0;
+  font-weight: 600;
+}
+
+.segment-flagged {
+  box-shadow: inset 3px 0 0 var(--flag);
+  padding-left: 0.75rem;
+}
+
+.segment-pending[data-running] {
+  position: relative;
+  overflow: hidden;
+}
+.segment-pending[data-running]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--primary) 14%, transparent) 50%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment-pending[data-running]::after {
+    animation: none;
+  }
+}
