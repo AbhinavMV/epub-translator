@@ -8,6 +8,7 @@ import {
   BookSummarySchema,
   type ChapterView,
   ChapterViewSchema,
+  type ExportLayout,
   type JobSummary,
   JobSummarySchema,
   type ProviderInfo,
@@ -43,7 +44,7 @@ export interface Api {
   clearChapter(jobId: string, chapterId: string): Promise<JobSummary | null>;
   cancelJob(jobId: string): Promise<JobSummary | null>;
   openJobEvents(jobId: string): EventSourceLike;
-  exportUrl(jobId: string, kind: ExportKind): string;
+  exportUrl(jobId: string, kind: ExportKind, layout?: ExportLayout): string;
 }
 
 export class ApiRequestError extends Error {
@@ -148,6 +149,9 @@ export function createHttpApi(
       jobOrNull(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/clear`),
     cancelJob: (jobId) => jobOrNull(`/jobs/${enc(jobId)}/cancel`),
     openJobEvents: (jobId) => makeEventSource(`/api/jobs/${enc(jobId)}/events`),
-    exportUrl: (jobId, kind) => `/api/jobs/${enc(jobId)}/export${kind === "txt" ? ".txt" : ""}`,
+    exportUrl: (jobId, kind, layout = "translation") =>
+      kind === "txt"
+        ? `/api/jobs/${enc(jobId)}/export.txt`
+        : `/api/jobs/${enc(jobId)}/export${layout === "bilingual" ? "?layout=bilingual" : ""}`,
   };
 }
