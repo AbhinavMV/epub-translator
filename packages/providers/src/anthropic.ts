@@ -50,7 +50,9 @@ export function toCompletion(message: Anthropic.Message): RawCompletion {
     outputTokens: message.usage.output_tokens,
   };
   if (message.stop_reason === "max_tokens") return { kind: "truncated", usage };
-  if (message.stop_reason === "refusal") return { kind: "refused", usage };
+  if (message.stop_reason === "refusal") {
+    return { kind: "refused", usage, category: message.stop_details?.category ?? null };
+  }
   const text = message.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
   return { kind: "text", text, usage };
 }

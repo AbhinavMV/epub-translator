@@ -71,9 +71,10 @@ export function toCompletion(response: Response): RawCompletion {
   if (response.incomplete_details?.reason === "max_output_tokens") {
     return { kind: "truncated", usage };
   }
-  if (response.incomplete_details?.reason === "content_filter" || hasRefusal(response)) {
-    return { kind: "refused", usage };
+  if (response.incomplete_details?.reason === "content_filter") {
+    return { kind: "refused", usage, category: "content_filter" };
   }
+  if (hasRefusal(response)) return { kind: "refused", usage, category: "refusal" };
   return { kind: "text", text: outputTextOf(response), usage };
 }
 

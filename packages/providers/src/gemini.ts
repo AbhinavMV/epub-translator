@@ -60,9 +60,12 @@ export function toCompletion(response: GenerateContentResponse): RawCompletion {
       (response.usageMetadata?.thoughtsTokenCount ?? 0),
   };
   const finish = response.candidates?.[0]?.finishReason;
-  if (response.promptFeedback?.blockReason) return { kind: "refused", usage };
+  const blocked = response.promptFeedback?.blockReason;
+  if (blocked) return { kind: "refused", usage, category: String(blocked) };
   if (finish === "MAX_TOKENS") return { kind: "truncated", usage };
-  if (finish && REFUSAL_FINISH_REASONS.has(finish)) return { kind: "refused", usage };
+  if (finish && REFUSAL_FINISH_REASONS.has(finish)) {
+    return { kind: "refused", usage, category: String(finish) };
+  }
   return { kind: "text", text: textOf(response), usage };
 }
 
