@@ -71,6 +71,11 @@ export class SqliteBookRepository implements BookRepository {
     return parsed;
   }
 
+  updateParsed(id: string, parsed: ParsedBook): void {
+    this.db.prepare("UPDATE books SET parsed_json = ? WHERE id = ?").run(JSON.stringify(parsed), id);
+    this.parsedCache.set(id, parsed);
+  }
+
   list(): StoredBook[] {
     const rows = this.db
       .prepare(`SELECT ${COLUMNS} FROM books ORDER BY created_at DESC`)
