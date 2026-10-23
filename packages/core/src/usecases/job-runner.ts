@@ -185,15 +185,21 @@ export class JobRunner {
       const k = key(task.jobId, task.chapterId);
       this.active.set(k, task);
       this.runtime.set(k, { status: "running" });
-      void this.runTask(task).finally(() => {
-        if (this.active.get(k) === task) {
-          this.active.delete(k);
-          this.runtime.delete(k);
-        }
-        this.safePublish(task);
-        this.pump();
-        this.notifyIdle();
-      });
+      void this.runTask(task)
+        .catch((err: unknown) => {
+          if (!task.controller.signal.aborted) {
+            this.errors.set(k, err instanceof Error ? err.message : String(err));
+          }
+        })
+        .finally(() => {
+          if (this.active.get(k) === task) {
+            this.active.delete(k);
+            this.runtime.delete(k);
+          }
+          this.safePublish(task);
+          this.pump();
+          this.notifyIdle();
+        });
     }
   }
 

@@ -224,6 +224,18 @@ describe("JobRunner", () => {
     expect(events.some((e) => e.type === "job.status")).toBe(true);
   });
 
+  it("fails the chapter instead of crashing when storage throws mid-task", async () => {
+    settings.get = () => {
+      throw new Error("disk I/O error");
+    };
+    runner.translateChapter("j1", "ch-0", body);
+    await runner.whenIdle();
+    expect(runner.summary("j1").progress.find((p) => p.chapterId === "ch-0")).toMatchObject({
+      status: "failed",
+      error: "disk I/O error",
+    });
+  });
+
   it("rejects unconfigured providers and unknown chapters", () => {
     expect(() =>
       runner.translateChapter("j1", "ch-0", { provider: "anthropic", model: "m" }),
