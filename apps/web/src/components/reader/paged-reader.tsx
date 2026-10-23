@@ -227,25 +227,30 @@ export function PagedReader({
         }}
       >
         <div
-          ref={columnsRef}
-          data-testid="paged-columns"
-          className="reader-prose reader-columns"
-          style={{
-            ...style,
-            position: "absolute",
-            top: PAD_Y,
-            left,
-            width: pageWidth,
-            height: pageHeight,
-            maxWidth: "none",
-            columnWidth: pageWidth,
-            columnGap: GAP,
-            columnFill: "auto",
-            transform: `translateX(${-page * step}px)`,
-            ["--page-h" as string]: `${pageHeight}px`,
-          }}
+          className="absolute overflow-clip"
+          style={{ top: PAD_Y, left, width: pageWidth, height: pageHeight }}
         >
-          {children}
+          <div
+            ref={columnsRef}
+            data-testid="paged-columns"
+            className="reader-prose reader-columns"
+            style={{
+              ...style,
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: pageWidth,
+              height: pageHeight,
+              maxWidth: "none",
+              columnWidth: pageWidth,
+              columnGap: GAP,
+              columnFill: "auto",
+              transform: `translateX(${-page * step}px)`,
+              ["--page-h" as string]: `${pageHeight}px`,
+            }}
+          >
+            {children}
+          </div>
         </div>
       </section>
       <footer className="flex items-center justify-center gap-3 border-t bg-card/60 px-3 py-1.5 font-sans text-sm">
