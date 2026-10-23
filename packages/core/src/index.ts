@@ -7,3 +7,7 @@ export * from "./ports/events.ts";
 export * from "./ports/stores.ts";
 export * from "./ports/system.ts";
 export * from "./ports/translation-provider.ts";
+export * from "./translation/batcher.ts";
+export * from "./translation/placeholders.ts";
+export * from "./translation/prompt.ts";
+export * from "./translation/translate-segments.ts";
