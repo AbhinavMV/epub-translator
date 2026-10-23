@@ -2,7 +2,7 @@ import { posix } from "node:path";
 import { InvalidEpubError } from "@et/core";
 import { decodeHref } from "./hrefs.ts";
 import { childElements, descendants, normalizedText, parseXml } from "./xml.ts";
-import type { ZipEntries } from "./zip-reader.ts";
+import { readZip, type ZipEntries, type ZipLimits } from "./zip-reader.ts";
 
 export const XHTML_MEDIA_TYPE = "application/xhtml+xml";
 export const NCX_MEDIA_TYPE = "application/x-dtbncx+xml";
@@ -53,6 +53,23 @@ function firstText(parent: Element, localName: string): string | null {
   const el = descendants(parent, localName)[0];
   const text = el ? normalizedText(el) : "";
   return text === "" ? null : text;
+}
+
+/** Inflates only the container and OPF first, so callers can pick further entries by OPF directory. */
+export async function openPackage(
+  bytes: Uint8Array,
+  limits: ZipLimits,
+  alsoWanted: (opfDir: string) => (name: string) => boolean,
+): Promise<{ entries: ZipEntries; pkg: PackageDoc }> {
+  const first = await readZip(bytes, limits, (n) => n === "META-INF/container.xml");
+  const opfPath = locateOpf(first);
+  const wantMore = alsoWanted(posix.dirname(opfPath));
+  const entries = await readZip(
+    bytes,
+    limits,
+    (n) => n === "META-INF/container.xml" || n === opfPath || wantMore(n),
+  );
+  return { entries, pkg: loadPackage(entries) };
 }
 
 export function loadPackage(entries: ZipEntries): PackageDoc {

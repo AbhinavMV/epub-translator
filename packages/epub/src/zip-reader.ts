@@ -15,6 +15,9 @@ export const DEFAULT_ZIP_LIMITS: ZipLimits = {
 
 export type ZipEntries = Map<string, Uint8Array>;
 
+export const isMarkupEntry = (name: string): boolean =>
+  /\.(opf|xml|xhtml|html|htm|ncx)$/i.test(name);
+
 function openZip(bytes: Uint8Array): Promise<yauzl.ZipFile> {
   return new Promise((resolve, reject) => {
     yauzl.fromBuffer(
