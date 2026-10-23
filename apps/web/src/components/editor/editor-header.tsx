@@ -50,7 +50,7 @@ export function EditorHeader({
   onOpenRail: () => void;
 }) {
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:flex-nowrap md:px-4">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4 lg:flex-nowrap">
       <Button
         variant="ghost"
         size="icon-sm"
@@ -69,7 +69,7 @@ export function EditorHeader({
         </TooltipTrigger>
         {title && <TooltipContent>{title}</TooltipContent>}
       </Tooltip>
-      <div className="order-last flex w-full flex-wrap items-center gap-2 md:order-none md:w-auto md:shrink-0 md:flex-nowrap">
+      <div className="order-last flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:flex-nowrap">
         <ProviderSelect providers={providers} selection={selection} onChange={onSelection} />
         <Select value={targetLang} onValueChange={onTargetLang}>
           <SelectTrigger size="sm" className="w-[7.5rem]" aria-label="Target language">
@@ -103,7 +103,7 @@ export function EditorHeader({
           </Button>
         ) : null}
       </div>
-      <div className="ml-auto shrink-0 md:ml-0">
+      <div className="ml-auto shrink-0 lg:ml-0">
         <ThemeToggle />
       </div>
     </header>

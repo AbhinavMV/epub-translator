@@ -44,7 +44,7 @@ function TargetCell({
       data-flagged={flagged ? "" : undefined}
       title={flagged ? "Formatting couldn't be preserved" : undefined}
       className={cn(
-        "min-w-0 px-5 py-3 md:border-l",
+        "min-w-0 px-5 py-3 lg:border-l",
         pending && "segment-pending",
         flagged && "segment-flagged",
       )}
@@ -101,8 +101,8 @@ export function EditorPanes({
 
   return (
     <div className="editor-text min-w-0">
-      <div className="sticky top-0 z-10 grid grid-cols-1 border-b bg-card/90 backdrop-blur md:grid-cols-2">
-        <div className="flex items-center gap-2 px-5 py-2">
+      <div className="sticky top-0 z-10 grid grid-cols-1 border-b bg-card/90 backdrop-blur lg:grid-cols-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2">
           <LangTag code={sourceLang} />
           <span className="text-sm font-medium">Source</span>
           <span className="font-mono text-xs text-muted-foreground">
@@ -112,7 +112,7 @@ export function EditorPanes({
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden"
+              className="lg:hidden"
               aria-expanded={showSource}
               onClick={() => setShowSource((v) => !v)}
             >
@@ -129,7 +129,7 @@ export function EditorPanes({
             </Button>
           </div>
         </div>
-        <div className="flex items-center gap-2 border-t px-5 py-2 md:border-t-0 md:border-l">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-5 py-2 lg:border-t-0 lg:border-l">
           <LangTag code={targetLang} />
           <span className="text-sm font-medium">Translation</span>
           <span className="font-mono text-xs text-muted-foreground">
@@ -170,12 +170,12 @@ export function EditorPanes({
           ) : (
             <div
               key={block.id}
-              className="grid grid-cols-1 border-b border-border/50 md:grid-cols-2"
+              className="grid grid-cols-1 border-b border-border/50 lg:grid-cols-2"
             >
               <div
                 className={cn(
                   "min-w-0 px-5 py-3 text-foreground/90",
-                  !showSource && "hidden md:block",
+                  !showSource && "hidden lg:block",
                 )}
               >
                 <Html html={block.sourceHtml} />
