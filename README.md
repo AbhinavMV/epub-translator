@@ -25,12 +25,23 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
 
 1. **Library:** drop an `.epub` file.
 2. **Editor:**
-   1. Pick a provider and model.
-   2. Use **Translate chapter** (or **Translate all**) and watch the paragraphs fill in.
-   3. Use **Glossary** to pin names, and **Edit prompt** for style notes.
-   4. Use **Retry** or **Clear** to redo a chapter.
-3. **Reader:** choose Translation, Interleaved or Side-by-side view, with font, size, width and theme settings. Move between chapters with ←/→.
-4. **Export EPUB** downloads the translated book. Untranslated chapters stay in the source language. **Export TXT** gives plain text.
+   - **Choosing how to translate:**
+     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h.
+     - **Glossary → Suggest from book** proposes names and terms using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
+   - **Translating:**
+     - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Title & contents** (book title, author, publisher, TOC labels), so translated titles appear early. **Translate title & contents** does just that part.
+     - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
+   - **When something fails:**
+     - A failed passage says why, for example that the model declined it and under which policy category.
+     - Errors that stop a chapter (bad key, rate limits) appear in a banner with a fix hint. A fatal error also stops the rest of that job's queue.
+3. **Reader:**
+   - Views: Translation, Interleaved or Side-by-side.
+   - Layouts: **Scroll** or **Paged** (←/→, Space, tap or swipe).
+   - Settings: font, size, width and theme.
+4. **Export:**
+   - **Export EPUB** (translation only or **Bilingual**) downloads the book with translated metadata. The originals are kept as `alternate-script` entries.
+   - **Export TXT** gives plain text.
+   - Untranslated chapters stay in the source language.
 
 ## Architecture
 
