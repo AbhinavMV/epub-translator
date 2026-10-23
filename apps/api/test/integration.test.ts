@@ -9,7 +9,7 @@ describe("api with real epub adapters", () => {
   it("imports, translates a chapter, renders it and exports a valid english epub", async () => {
     const services = composeServices({
       dataDir: ":memory:",
-      env: { FAKE_PROVIDER_DELAY_MS: "0" },
+      env: { ENABLE_FAKE_PROVIDER: "1", FAKE_PROVIDER_DELAY_MS: "0" },
       discoverModels: false,
     });
     const app = createApp(services);

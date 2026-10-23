@@ -1,6 +1,6 @@
 # EPUB Translator
 
-A local web app that takes an EPUB and translates it into English chapter by chapter with an LLM (Claude, OpenAI or Gemini). You can read the result side by side with the original, and export it as a valid translated EPUB or as plain text.
+A local web app that takes an EPUB and translates it chapter by chapter into English (or another of 13 target languages) with an LLM (Claude, OpenAI or Gemini). You can read the result side by side with the original, and export it as a valid translated EPUB or as plain text.
 
 - **Formatting is preserved.** Inline formatting (`<em>`, `<span class="tcy">`, links and so on) survives translation as numbered placeholders, which are checked before anything is written.
 - **Japanese books work.** Vertical (`vertical-rl`), right-to-left books come out horizontal and left-to-right. Ruby readings (furigana) are never sent to the model.
@@ -19,7 +19,7 @@ pnpm dev                                 # api on 127.0.0.1:8787, web on http://
 
 Keys stay in `apps/api/.env` on your machine. The browser only sees whether a provider is configured. Data (the SQLite database and uploaded books) lives in `apps/api/data/`.
 
-**Without a key:** the provider "Offline test (no translation)" echoes the source with an `[en]` prefix, so you can try the whole flow for free.
+**Without a key:** set `ENABLE_FAKE_PROVIDER=1` in `apps/api/.env` to get "Offline test (no translation)", which echoes the source with a `[en]` prefix so you can try the whole flow for free.
 
 ## Using it
 

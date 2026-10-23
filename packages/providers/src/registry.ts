@@ -29,15 +29,22 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
   const anthropicModel = env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL;
   const openaiModel = env.OPENAI_MODEL || "";
   const geminiModel = env.GEMINI_MODEL || "";
-  return new Map<ProviderId, ProviderEntry>([
+  const registry = new Map<ProviderId, ProviderEntry>([
     [
       "anthropic",
       entry(env.ANTHROPIC_API_KEY, anthropicModel, (k) => new AnthropicProvider(k, anthropicModel)),
     ],
     ["openai", entry(env.OPENAI_API_KEY, openaiModel, (k) => new OpenAIProvider(k, openaiModel))],
     ["gemini", entry(env.GEMINI_API_KEY, geminiModel, (k) => new GeminiProvider(k, geminiModel))],
-    ["fake", { provider: new FakeProvider(), configured: true, defaultModel: "fake-echo" }],
   ]);
+  if (env.ENABLE_FAKE_PROVIDER === "1") {
+    registry.set("fake", {
+      provider: new FakeProvider(),
+      configured: true,
+      defaultModel: "fake-echo",
+    });
+  }
+  return registry;
 }
 
 export async function resolveDefaultModel(entry: ProviderEntry): Promise<string> {

@@ -66,12 +66,14 @@ describe("FakeProvider", () => {
 });
 
 describe("buildProviderRegistry", () => {
-  it("registry marks providers configured only when key present and always includes fake", () => {
+  it("registry marks providers configured only when key present and offers fake only when enabled", () => {
     const none = buildProviderRegistry({});
-    expect([...none.keys()]).toEqual(["anthropic", "openai", "gemini", "fake"]);
+    expect([...none.keys()]).toEqual(["anthropic", "openai", "gemini"]);
     expect(none.get("anthropic")).toMatchObject({ provider: null, configured: false });
-    expect(none.get("fake")).toMatchObject({ configured: true, defaultModel: "fake-echo" });
-    expect(none.get("fake")?.provider?.id).toBe("fake");
+
+    const withFake = buildProviderRegistry({ ENABLE_FAKE_PROVIDER: "1" });
+    expect(withFake.get("fake")).toMatchObject({ configured: true, defaultModel: "fake-echo" });
+    expect(withFake.get("fake")?.provider?.id).toBe("fake");
 
     const some = buildProviderRegistry({ ANTHROPIC_API_KEY: "k", OPENAI_API_KEY: "" });
     expect(some.get("anthropic")?.configured).toBe(true);

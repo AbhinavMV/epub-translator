@@ -15,7 +15,13 @@ export function composeServices(options: {
     dataDir: options.dataDir,
     env: options.env,
     discoverModels: options.discoverModels ?? true,
-    fakeProvider: new FakeProvider({ delayMs: Number.isFinite(fakeDelayMs) ? fakeDelayMs : 0 }),
+    ...(options.env.ENABLE_FAKE_PROVIDER === "1"
+      ? {
+          fakeProvider: new FakeProvider({
+            delayMs: Number.isFinite(fakeDelayMs) ? fakeDelayMs : 0,
+          }),
+        }
+      : {}),
     epub: {
       parser: new YauzlEpubParser(),
       assets: new YauzlEpubAssets(),
