@@ -15,7 +15,7 @@ describe("api with real epub adapters", () => {
     const app = createApp(services);
 
     const form = new FormData();
-    form.append("file", new File([await buildFixtureEpub()], "fixture.epub"));
+    form.append("file", new File([new Uint8Array(await buildFixtureEpub())], "fixture.epub"));
     const book = BookSummarySchema.parse(
       await (await app.request("/api/books", { method: "POST", body: form })).json(),
     );

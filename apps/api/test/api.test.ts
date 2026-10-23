@@ -81,7 +81,10 @@ function setup(env: Record<string, string | undefined> = {}) {
 
 async function upload(app: ReturnType<typeof createApp>, bytes: Uint8Array = EPUB_MAGIC) {
   const form = new FormData();
-  form.append("file", new File([bytes], "book.epub", { type: "application/epub+zip" }));
+  form.append(
+    "file",
+    new File([new Uint8Array(bytes)], "book.epub", { type: "application/epub+zip" }),
+  );
   return app.request("/api/books", { method: "POST", body: form });
 }
 

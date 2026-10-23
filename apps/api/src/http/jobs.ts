@@ -42,7 +42,7 @@ export function jobsRoutes(s: Services) {
     })
     .get("/:id/export", async (c) => {
       const { filename, bytes } = await exportEpub(s, c.req.param("id"));
-      return new Response(bytes, {
+      return new Response(new Uint8Array(bytes), {
         headers: {
           "content-type": "application/epub+zip",
           "content-disposition": attachment(filename),

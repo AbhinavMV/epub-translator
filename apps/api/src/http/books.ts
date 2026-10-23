@@ -93,7 +93,7 @@ async function serveAsset(s: Services, bookId: string, href: string): Promise<Re
   const { book } = requireBook(s.books, bookId);
   const asset = await s.assets.read(await loadBookBytes(s.blobs, book), href);
   if (!asset) throw new NotFoundError("Asset", href);
-  return new Response(asset.bytes, {
+  return new Response(new Uint8Array(asset.bytes), {
     headers: {
       "content-type": asset.mediaType,
       "cache-control": "private, max-age=86400",
