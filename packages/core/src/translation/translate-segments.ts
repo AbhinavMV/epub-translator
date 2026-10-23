@@ -79,10 +79,13 @@ export class SegmentTranslator {
 
     if (isRetry) {
       for (const r of rejected) {
-        outcome.results.set(r.id, {
-          text: stripTokens(r.received ?? r.text),
-          status: "flagged",
-        });
+        const received = r.received?.trim() ? r.received : null;
+        outcome.results.set(
+          r.id,
+          received === null
+            ? { text: "", status: "failed" }
+            : { text: stripTokens(received), status: "flagged" },
+        );
       }
       return;
     }

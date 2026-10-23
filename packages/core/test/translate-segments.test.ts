@@ -276,13 +276,25 @@ describe("SegmentTranslator", () => {
     expect(out.results.get("a")).toEqual({ text: "still bad", status: "flagged" });
   });
 
-  it("flags with stripped source text when a segment never comes back", async () => {
+  it("marks a segment failed when it never comes back, so it is retried later", async () => {
     const provider = new ScriptedProvider([ok([]), ok([])]);
     const out = await translator(provider).translateBatch(
       request([{ id: "a", text: "<1>x</1>y" }]),
       signal,
     );
-    expect(out.results.get("a")).toEqual({ text: "xy", status: "flagged" });
+    expect(out.results.get("a")).toEqual({ text: "", status: "failed" });
+  });
+
+  it("marks a segment failed when the translation is empty twice", async () => {
+    const provider = new ScriptedProvider([
+      ok([{ id: "a", text: "" }]),
+      ok([{ id: "a", text: " " }]),
+    ]);
+    const out = await translator(provider).translateBatch(
+      request([{ id: "a", text: "……" }]),
+      signal,
+    );
+    expect(out.results.get("a")).toEqual({ text: "", status: "failed" });
   });
 
   it("throws FatalProviderError on fatal", async () => {
