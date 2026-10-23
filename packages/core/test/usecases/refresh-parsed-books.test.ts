@@ -5,7 +5,7 @@ import {
   type ParsedBook,
   refreshParsedBooks,
 } from "../../src/index.ts";
-import { MemoryBlobs, MemoryBooks, sampleParsed, StubParser } from "./fakes.ts";
+import { MemoryBlobs, MemoryBooks, StubParser, sampleParsed } from "./fakes.ts";
 
 const stored = (id: string, sha256: string) => ({
   id,

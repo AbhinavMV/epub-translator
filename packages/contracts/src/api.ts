@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const CONTENTS_CHAPTER_ID = "ch-contents";
+
 export const ProviderIdSchema = z.enum(["anthropic", "openai", "gemini", "fake"]);
 export type ProviderId = z.infer<typeof ProviderIdSchema>;
 

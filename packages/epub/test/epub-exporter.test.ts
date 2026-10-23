@@ -321,9 +321,9 @@ describe("YazlEpubExporter metadata", () => {
   it("leaves metadata alone when the Contents chapter is not translated", async () => {
     const opf = await opfOf((id) => id !== "ch-contents");
     expect(dc(opf, "creator")).toEqual(["ネコクロ", "絵師"]);
-    expect(descendants(opf.documentElement, "meta").map((m) => m.getAttribute("property"))).not.toContain(
-      "alternate-script",
-    );
+    expect(
+      descendants(opf.documentElement, "meta").map((m) => m.getAttribute("property")),
+    ).not.toContain("alternate-script");
     expect(metas(opf, "creator01").map((m) => m[0])).toContain("file-as");
   });
 
@@ -347,7 +347,9 @@ describe("YazlEpubExporter metadata", () => {
   it("bilingual head titles read original then translation", async () => {
     const { entries } = await exportPrefixed(undefined, bilingual);
     const doc = xml(entries.get("item/xhtml/p-001.xhtml"), "p-001");
-    expect(descendants(doc.documentElement, "title")[0]?.textContent).toBe("迷子の本 / EN:迷子の本");
+    expect(descendants(doc.documentElement, "title")[0]?.textContent).toBe(
+      "迷子の本 / EN:迷子の本",
+    );
   });
 });
 

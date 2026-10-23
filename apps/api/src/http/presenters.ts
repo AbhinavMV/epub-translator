@@ -38,7 +38,11 @@ export function bookDetail(
   settings: BookDetail["settings"],
   translatedTitle: string | null = null,
 ): BookDetail {
-  return { ...bookSummary(book, parsed, translatedTitle), chapters: chapterSummaries(parsed), settings };
+  return {
+    ...bookSummary(book, parsed, translatedTitle),
+    chapters: chapterSummaries(parsed),
+    settings,
+  };
 }
 
 export function assetUrl(bookId: string): (href: string) => string {

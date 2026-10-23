@@ -1,4 +1,6 @@
-export const CONTENTS_CHAPTER_ID = "ch-contents";
+import { CONTENTS_CHAPTER_ID } from "@et/contracts";
+
+export { CONTENTS_CHAPTER_ID };
 export const TITLE_SEGMENT_ID = "opf#title";
 export const NCX_SEGMENT_PREFIX = "ncx#";
 export const OPF_SEGMENT_PREFIX = "opf#";

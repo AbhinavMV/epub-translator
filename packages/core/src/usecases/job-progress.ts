@@ -64,11 +64,7 @@ export function jobStatus(progress: readonly ChapterProgress[]): JobStatus {
   return "idle";
 }
 
-export function jobSummary(
-  job: Job,
-  progress: ChapterProgress[],
-  titles: JobTitles,
-): JobSummary {
+export function jobSummary(job: Job, progress: ChapterProgress[], titles: JobTitles): JobSummary {
   return {
     id: job.id,
     bookId: job.bookId,

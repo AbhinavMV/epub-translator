@@ -72,7 +72,9 @@ export class SqliteBookRepository implements BookRepository {
   }
 
   updateParsed(id: string, parsed: ParsedBook): void {
-    this.db.prepare("UPDATE books SET parsed_json = ? WHERE id = ?").run(JSON.stringify(parsed), id);
+    this.db
+      .prepare("UPDATE books SET parsed_json = ? WHERE id = ?")
+      .run(JSON.stringify(parsed), id);
     this.parsedCache.set(id, parsed);
   }
 

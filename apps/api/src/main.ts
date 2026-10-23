@@ -1,5 +1,5 @@
-import { serve } from "@hono/node-server";
 import { refreshParsedBooks } from "@et/core";
+import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { composeServices } from "./compose.ts";
 import { loadConfig } from "./config.ts";
