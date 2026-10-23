@@ -7,6 +7,18 @@ export interface TargetLanguage {
 
 export const TARGET_LANGUAGES: readonly TargetLanguage[] = [
   { code: "en", name: "English", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "es", name: "Spanish", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "fr", name: "French", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "de", name: "German", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "it", name: "Italian", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "pt-BR", name: "Brazilian Portuguese", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "ru", name: "Russian", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "zh-Hans", name: "Simplified Chinese", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "ko", name: "Korean", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "id", name: "Indonesian", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "vi", name: "Vietnamese", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "hi", name: "Hindi", dir: "ltr", writingMode: "horizontal-tb" },
+  { code: "ar", name: "Arabic", dir: "rtl", writingMode: "horizontal-tb" },
 ];
 
 export class UnknownLanguageError extends Error {

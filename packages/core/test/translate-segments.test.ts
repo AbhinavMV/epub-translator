@@ -103,6 +103,10 @@ describe("buildPrompt", () => {
     expect(system).toContain('{"segments":[{"id","text"}]}');
   });
 
+  it("leaves style choices like honorifics to the reader's instructions", () => {
+    expect(buildPrompt(request([{ id: "a", text: "x" }])).system).not.toMatch(/honorific/i);
+  });
+
   it("keeps the system prompt identical for different segments", () => {
     const a = buildPrompt(request([{ id: "a", text: "x" }])).system;
     const b = buildPrompt(request([{ id: "b", text: "y" }])).system;
