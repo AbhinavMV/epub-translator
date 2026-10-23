@@ -1,5 +1,5 @@
 import type { ChapterProgress } from "@et/contracts";
-import { ArrowLeft, ArrowRight, FileText, Languages, Loader2, Square } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Heading, Languages, Loader2, Square } from "lucide-react";
 import { ExportEpubMenu } from "@/components/editor/export-epub-menu";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -55,11 +55,13 @@ export function EditorToolbar({
   canTranslate,
   noProviderHint,
   starting,
+  titlesBusy,
   hasPrev,
   hasNext,
   hasTranslation,
   onTranslate,
   onTranslateAll,
+  onTranslateTitles,
   onPrev,
   onNext,
   onCancel,
@@ -74,11 +76,13 @@ export function EditorToolbar({
   canTranslate: boolean;
   noProviderHint: string;
   starting: boolean;
+  titlesBusy: boolean;
   hasPrev: boolean;
   hasNext: boolean;
   hasTranslation: boolean;
   onTranslate: () => void;
   onTranslateAll: () => void;
+  onTranslateTitles: () => void;
   onPrev: () => void;
   onNext: () => void;
   onCancel: () => void;
@@ -122,6 +126,17 @@ export function EditorToolbar({
       >
         <span className="hidden sm:inline">Translate all</span>
         <span className="sm:hidden">All</span>
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onTranslateTitles}
+        disabled={!canTranslate || starting || titlesBusy}
+        aria-label="Translate title & contents"
+      >
+        <Heading />
+        <span className="hidden xl:inline">Translate title & contents</span>
+        <span className="xl:hidden">Titles</span>
       </Button>
       <div className="flex items-center gap-1">
         <Button

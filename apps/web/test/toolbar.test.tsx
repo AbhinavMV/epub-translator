@@ -15,11 +15,13 @@ function renderToolbar(hasTranslation: boolean) {
         canTranslate
         noProviderHint=""
         starting={false}
+        titlesBusy={false}
         hasPrev={false}
         hasNext
         hasTranslation={hasTranslation}
         onTranslate={() => {}}
         onTranslateAll={() => {}}
+        onTranslateTitles={() => {}}
         onPrev={() => {}}
         onNext={() => {}}
         onCancel={() => {}}

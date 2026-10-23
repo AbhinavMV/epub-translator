@@ -195,7 +195,14 @@ export function createMockApi(): Api {
   const recompute = (job: JobSummary): JobSummary => {
     const running = job.progress.some((p) => ["running", "queued", "submitted"].includes(p.status));
     const allDone = job.progress.every((p) => p.status === "done");
-    return { ...job, status: running ? "running" : allDone ? "done" : "idle" };
+    const done = job.progress.filter((p) => p.status === "done");
+    const titles = {
+      book: done.length > 0 ? "The Angel Next Door (sample)" : null,
+      chapters: Object.fromEntries(
+        done.map((p) => [p.chapterId, `Chapter ${p.chapterId.replace(/\D+/g, "")} (translated)`]),
+      ),
+    };
+    return { ...job, titles, status: running ? "running" : allDone ? "done" : "idle" };
   };
 
   const progressFor = (jobId: string, c: MockChapter, status: ChapterProgress["status"]) => {
@@ -384,6 +391,7 @@ export function createMockApi(): Api {
             total: c.pairs.length,
             error: null,
           })),
+          titles: { book: null, chapters: {} },
           usage: { inputTokens: 0, outputTokens: 0 },
           createdAt: new Date().toISOString(),
         };
