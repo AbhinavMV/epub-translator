@@ -48,6 +48,20 @@ describe("XmlChapterRenderer", () => {
     expect(segments(view)).toHaveLength(6);
   });
 
+  it("passes the failure reason of a segment through to the view", async () => {
+    const { bytes, book } = await parsedFixture();
+    const translations = new Map([
+      ["xhtml/p-005.xhtml#1", { text: "", status: "failed" as const, note: "The model declined" }],
+    ]);
+    const view = await renderer.render(bytes, book, "ch-1", translations, assetUrl);
+    const failed = segments(view).find((s) => s.id === "xhtml/p-005.xhtml#1");
+    expect(failed).toMatchObject({
+      status: "failed",
+      note: "The model declined",
+      targetHtml: null,
+    });
+  });
+
   it("falls back to plain text when a translation breaks its tokens", async () => {
     const { bytes, book } = await parsedFixture();
     const translations = new Map([

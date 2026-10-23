@@ -139,6 +139,7 @@ export const ChapterBlockSchema = z.discriminatedUnion("kind", [
     sourceHtml: z.string(),
     targetHtml: z.string().nullable(),
     status: SegmentStatusSchema,
+    note: z.string().optional(),
   }),
   z.object({ kind: z.literal("static"), html: z.string() }),
 ]);

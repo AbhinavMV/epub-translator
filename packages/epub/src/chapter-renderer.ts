@@ -39,6 +39,7 @@ function segmentBlock(
     sourceHtml: htmlOf(source),
     targetHtml,
     status: translation?.status ?? "pending",
+    ...(translation?.note ? { note: translation.note } : {}),
   };
 }
 
@@ -79,6 +80,7 @@ function contentsBlocks(book: ParsedBook, translations: Translations): ChapterBl
         sourceHtml: plain(s.sourceText),
         targetHtml: isUsable(t) ? plain(t.text) : null,
         status: t?.status ?? ("pending" as const),
+        ...(t?.note ? { note: t.note } : {}),
       };
     });
 }
