@@ -27,7 +27,11 @@ function segmentCounts(book: ParsedBook): Map<string, number> {
 }
 
 export class YazlEpubExporter implements EpubExporter {
-  constructor(private readonly clock: Clock) {}
+  private readonly clock: Clock;
+
+  constructor(clock: Clock) {
+    this.clock = clock;
+  }
 
   async export(
     bytes: Uint8Array,
