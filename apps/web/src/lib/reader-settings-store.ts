@@ -5,6 +5,8 @@ export type FontName = "serif" | "sans" | "system";
 export type WidthName = "narrow" | "medium" | "wide";
 export type ViewMode = "translation" | "interleaved" | "side-by-side";
 
+export type Layout = "scroll" | "paged";
+
 export interface Prefs {
   theme: ThemeName;
   font: FontName;
@@ -12,6 +14,7 @@ export interface Prefs {
   lineHeight: number;
   width: WidthName;
   viewMode: ViewMode;
+  layout: Layout;
   railCollapsed: boolean;
 }
 
@@ -22,6 +25,7 @@ export const DEFAULT_PREFS: Prefs = {
   lineHeight: 1.7,
   width: "medium",
   viewMode: "translation",
+  layout: "scroll",
   railCollapsed: false,
 };
 
@@ -54,6 +58,7 @@ function normalize(raw: unknown): Prefs {
       ["translation", "interleaved", "side-by-side"],
       DEFAULT_PREFS.viewMode,
     ),
+    layout: pick(r.layout, ["scroll", "paged"], DEFAULT_PREFS.layout),
     railCollapsed: typeof r.railCollapsed === "boolean" ? r.railCollapsed : false,
   };
 }

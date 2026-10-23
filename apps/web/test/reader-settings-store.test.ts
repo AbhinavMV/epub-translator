@@ -49,4 +49,19 @@ describe("prefs store", () => {
     expect(calls).toBe(1);
     expect(JSON.parse(mem.get("et.prefs") ?? "{}").theme).toBe("dark");
   });
+
+  it("defaults to scroll layout and persists paged", () => {
+    const { mem, storage } = memory();
+    const store = createPrefsStore(storage);
+    expect(store.get().layout).toBe("scroll");
+    store.set({ layout: "paged" });
+    expect(JSON.parse(mem.get("et.prefs") ?? "{}").layout).toBe("paged");
+    expect(createPrefsStore(storage).get().layout).toBe("paged");
+  });
+
+  it("ignores an unknown stored layout", () => {
+    const { mem, storage } = memory();
+    mem.set("et.prefs", JSON.stringify({ layout: "carousel" }));
+    expect(createPrefsStore(storage).get().layout).toBe("scroll");
+  });
 });
