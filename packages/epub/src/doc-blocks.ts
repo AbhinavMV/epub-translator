@@ -1,3 +1,4 @@
+import { InvalidEpubError } from "@et/core";
 import { findSegmentBlocks, hasTranslatableText } from "@et/segmenter";
 import { entryPath, type PackageDoc, requireEntry } from "./package-doc.ts";
 import { descendants, parseXml } from "./xml.ts";
@@ -9,7 +10,7 @@ export function loadDocument(entries: ZipEntries, pkg: PackageDoc, href: string)
 
 export function bodyOf(doc: Document): Element {
   const body = descendants(doc.documentElement, "body")[0];
-  if (!body) throw new Error("document has no body");
+  if (!body) throw new InvalidEpubError("A content document has no <body>");
   return body;
 }
 

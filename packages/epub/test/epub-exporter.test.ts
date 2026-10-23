@@ -94,8 +94,6 @@ describe("YazlEpubExporter", () => {
       "item/style/book-style.css",
       "item/image/cover.png",
       "item/image/kuchie-001.png",
-      "item/xhtml/p-cover.xhtml",
-      "item/xhtml/p-011.xhtml",
     ]) {
       expect(after.get(name), name).toEqual(before.get(name));
     }
@@ -114,6 +112,20 @@ describe("YazlEpubExporter", () => {
     expect(untranslated).not.toContain("vrtl");
     expect(untranslated).toContain("et-override.css");
     expect(text(entries.get("item/xhtml/p-005.xhtml"))).toContain("EN:");
+  });
+
+  it("export makes image-only pages horizontal too", async () => {
+    const { entries } = await exportPrefixed();
+    for (const page of ["item/xhtml/p-cover.xhtml", "item/xhtml/p-011.xhtml"]) {
+      expect(text(entries.get(page)), page).toContain("et-override.css");
+    }
+  });
+
+  it("export rewrites the kindle writing mode and mirrors page spreads", async () => {
+    const { entries } = await exportPrefixed();
+    const opf = text(entries.get("item/standard.opf"));
+    expect(opf).toContain('<meta name="primary-writing-mode" content="horizontal-lr"/>');
+    expect(opf).toContain('<itemref idref="p-cover" properties="page-spread-right"/>');
   });
 
   it("export keeps source text for failed segments", async () => {

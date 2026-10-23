@@ -153,6 +153,7 @@ const OPF = `<?xml version='1.0' encoding='utf-8'?>
     <dc:identifier id="jdcn">08631644018188000000</dc:identifier>
     <meta property="dcterms:modified">2026-02-28T00:00:00Z</meta>
     <meta name="cover" content="cover"/>
+    <meta name="primary-writing-mode" content="vertical-rl"/>
   </metadata>
   <manifest>
     <item media-type="application/xhtml+xml" id="toc" href="navigation-documents.xhtml" properties="nav"/>
@@ -168,7 +169,7 @@ const OPF = `<?xml version='1.0' encoding='utf-8'?>
     <item media-type="application/xhtml+xml" id="p-011" href="xhtml/p-011.xhtml"/>
   </manifest>
   <spine toc="ncx" page-progression-direction="rtl">
-    <itemref idref="p-cover"/>
+    <itemref idref="p-cover" properties="page-spread-left"/>
     <itemref idref="p-001"/>
     <itemref idref="p-005"/>
     <itemref idref="p-006"/>

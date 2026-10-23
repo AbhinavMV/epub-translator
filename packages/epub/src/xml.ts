@@ -67,8 +67,22 @@ export function descendants(parent: Node, localName: string): Element[] {
   return out;
 }
 
+const RUBY_ANNOTATIONS = new Set(["rt", "rp", "rtc"]);
+
+function textWithoutRuby(node: Node): string {
+  if (node.nodeType === 3 || node.nodeType === 4) return node.nodeValue ?? "";
+  if (node.nodeType !== 1) return "";
+  const el = node as Element;
+  if (RUBY_ANNOTATIONS.has(el.localName ?? el.tagName)) return "";
+  let out = "";
+  for (let i = 0; i < el.childNodes.length; i++) out += textWithoutRuby(el.childNodes[i] as Node);
+  return out;
+}
+
 export function normalizedText(el: Element): string {
-  return (el.textContent ?? "").replace(/[ \t\r\n]+/g, " ").replace(/^ | $/g, "");
+  return textWithoutRuby(el)
+    .replace(/[ \t\r\n]+/g, " ")
+    .replace(/^ | $/g, "");
 }
 
 export function epubType(el: Element): string[] {

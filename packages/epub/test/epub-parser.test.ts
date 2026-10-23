@@ -1,6 +1,7 @@
 import { InvalidEpubError } from "@et/core";
 import { describe, expect, it } from "vitest";
 import { YauzlEpubParser } from "../src/index.ts";
+import { normalizedText, parseXml } from "../src/xml.ts";
 import {
   buildFixtureEpub,
   buildZip,
@@ -80,6 +81,22 @@ describe("YauzlEpubParser", () => {
   it("accepts mimetype-first input", async () => {
     const book = await parser.parse(await buildFixtureEpub({ mimetypeLast: false }));
     expect(book.chapters).toHaveLength(4);
+  });
+
+  it("rejects a content document without a body", async () => {
+    const bad = `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head></html>`;
+    const bytes = await buildFixtureEpub({ extra: { "item/xhtml/p-005.xhtml": bad } });
+    await expect(parser.parse(bytes)).rejects.toBeInstanceOf(InvalidEpubError);
+  });
+
+  it("chapter titles leave out ruby readings", () => {
+    const doc = parseXml(
+      new TextEncoder().encode(
+        '<a xmlns="http://www.w3.org/1999/xhtml">第<ruby>漢<rt>かん</rt></ruby>章</a>',
+      ),
+      "t.xhtml",
+    );
+    expect(normalizedText(doc.documentElement)).toBe("第漢章");
   });
 
   it("rejects entity declarations", async () => {

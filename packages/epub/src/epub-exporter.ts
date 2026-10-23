@@ -53,11 +53,11 @@ export class YazlEpubExporter implements EpubExporter {
 
     const translate = (href: string, isNav: boolean) => {
       const count = counts.get(href) ?? 0;
-      if (count === 0) return;
+      if (count === 0 && (isNav || target.writingMode !== "horizontal-tb")) return;
       const path = entryPath(pkg, href);
       const doc = loadDocument(entries, pkg, href);
       const css = relativeHref(path, cssPath);
-      if (hasTranslation(href, count, translations)) {
+      if (count > 0 && hasTranslation(href, count, translations)) {
         translateContentDocument(doc, href, isNav, translations, target, css);
       } else {
         applyHorizontalLayout(doc, css);

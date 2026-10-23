@@ -52,8 +52,17 @@ export function editPackageDocument(pkg: PackageDoc, edit: OpfEdit): void {
     metadata.appendChild(meta);
   }
 
+  const writingMode = descendants(metadata, "meta").find(
+    (m) => m.getAttribute("name") === "primary-writing-mode",
+  );
+  writingMode?.setAttribute("content", kindleWritingMode(edit.target));
+
   const spine = descendants(root, "spine")[0];
-  spine?.setAttribute("page-progression-direction", edit.target.dir);
+  if (spine) {
+    const previous = spine.getAttribute("page-progression-direction");
+    if (previous && previous !== edit.target.dir) mirrorPageSpreads(spine);
+    spine.setAttribute("page-progression-direction", edit.target.dir);
+  }
 
   const manifest = descendants(root, "manifest")[0];
   if (manifest) {
@@ -62,5 +71,29 @@ export function editPackageDocument(pkg: PackageDoc, edit: OpfEdit): void {
     item.setAttribute("href", edit.cssPath);
     item.setAttribute("media-type", "text/css");
     manifest.appendChild(item);
+  }
+}
+
+function kindleWritingMode(target: TargetLanguage): string {
+  if (target.writingMode === "vertical-rl") return "vertical-rl";
+  return target.dir === "rtl" ? "horizontal-rl" : "horizontal-lr";
+}
+
+const MIRRORED: Record<string, string> = {
+  "page-spread-left": "page-spread-right",
+  "page-spread-right": "page-spread-left",
+};
+
+function mirrorPageSpreads(spine: Element): void {
+  for (const itemref of descendants(spine, "itemref")) {
+    const props = itemref.getAttribute("properties");
+    if (!props) continue;
+    itemref.setAttribute(
+      "properties",
+      props
+        .split(/\s+/)
+        .map((p) => MIRRORED[p] ?? p)
+        .join(" "),
+    );
   }
 }
