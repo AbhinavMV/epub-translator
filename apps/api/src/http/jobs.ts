@@ -1,4 +1,4 @@
-import { TranslateBodySchema } from "@et/contracts";
+import { ExportQuerySchema, TranslateBodySchema } from "@et/contracts";
 import { exportEpub, exportText } from "@et/core";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -40,8 +40,12 @@ export function jobsRoutes(s: Services) {
       s.runner.cancel(id);
       return c.json(s.runner.summary(id));
     })
-    .get("/:id/export", async (c) => {
-      const { filename, bytes } = await exportEpub(s, c.req.param("id"));
+    .get("/:id/export", validate("query", ExportQuerySchema), async (c) => {
+      const { filename, bytes } = await exportEpub(
+        s,
+        c.req.param("id"),
+        c.req.valid("query").layout,
+      );
       return new Response(new Uint8Array(bytes), {
         headers: {
           "content-type": "application/epub+zip",
