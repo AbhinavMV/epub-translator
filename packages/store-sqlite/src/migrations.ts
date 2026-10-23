@@ -35,6 +35,20 @@ const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (job_id, segment_id)
   );
   `,
+  `
+  CREATE TABLE provider_batches (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    chapter_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    vendor_batch_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    segment_ids_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX provider_batches_open ON provider_batches (status, job_id, chapter_id);
+  `,
 ];
 
 export function migrate(db: BetterSqlite3.Database): void {

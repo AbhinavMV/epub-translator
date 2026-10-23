@@ -1,3 +1,4 @@
+export * from "./batch-repo.ts";
 export * from "./book-repo.ts";
 export * from "./book-settings-repo.ts";
 export * from "./db.ts";
