@@ -23,7 +23,7 @@ export function ProviderSelect({
     : [];
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex w-full items-center gap-1.5 sm:w-auto">
       <Select
         value={selection?.provider ?? ""}
         onValueChange={(id) => {
@@ -32,7 +32,11 @@ export function ProviderSelect({
         }}
         disabled={!providers}
       >
-        <SelectTrigger size="sm" className="w-[9.5rem]" aria-label="Provider">
+        <SelectTrigger
+          size="sm"
+          className="min-w-0 flex-1 sm:w-[9.5rem] sm:flex-none"
+          aria-label="Provider"
+        >
           <SelectValue placeholder="Provider" />
         </SelectTrigger>
         <SelectContent>
@@ -53,7 +57,11 @@ export function ProviderSelect({
         onValueChange={(model) => selection && onChange({ provider: selection.provider, model })}
         disabled={!selection}
       >
-        <SelectTrigger size="sm" className="w-[11rem] font-mono text-xs" aria-label="Model">
+        <SelectTrigger
+          size="sm"
+          className="min-w-0 flex-1 font-mono text-xs sm:w-[11rem] sm:flex-none"
+          aria-label="Model"
+        >
           <SelectValue placeholder="Model" />
         </SelectTrigger>
         <SelectContent>
