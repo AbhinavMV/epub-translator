@@ -10,6 +10,7 @@ export const ChapterStatusSchema = z.enum([
   "idle",
   "queued",
   "running",
+  "submitted",
   "done",
   "partial",
   "failed",
@@ -87,11 +88,15 @@ export const BookDetailSchema = BookSummarySchema.extend({
 });
 export type BookDetail = z.infer<typeof BookDetailSchema>;
 
+export const TranslateModeSchema = z.enum(["live", "batch"]);
+export type TranslateMode = z.infer<typeof TranslateModeSchema>;
+
 export const TranslateBodySchema = z.object({
   provider: ProviderIdSchema,
   model: z.string().min(1),
+  mode: TranslateModeSchema.default("live"),
 });
-export type TranslateBody = z.infer<typeof TranslateBodySchema>;
+export type TranslateBody = z.input<typeof TranslateBodySchema>;
 
 export const ProviderInfoSchema = z.object({
   id: ProviderIdSchema,
@@ -99,6 +104,7 @@ export const ProviderInfoSchema = z.object({
   configured: z.boolean(),
   models: z.array(z.string()),
   defaultModel: z.string(),
+  supportsBatch: z.boolean(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfoSchema>;
 
