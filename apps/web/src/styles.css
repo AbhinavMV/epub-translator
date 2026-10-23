@@ -185,6 +185,38 @@
   font-weight: 600;
 }
 
+.reader-columns {
+  transition: transform 0.22s ease-out;
+  will-change: transform;
+  overflow-wrap: anywhere;
+}
+.reader-columns img,
+.reader-columns svg,
+.reader-columns figure,
+.reader-columns table,
+.reader-columns pre,
+.reader-columns blockquote {
+  break-inside: avoid;
+}
+.reader-columns img,
+.reader-columns svg {
+  max-width: 100%;
+  max-height: var(--page-h);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.reader-columns h1,
+.reader-columns h2,
+.reader-columns h3 {
+  break-after: avoid;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-columns {
+    transition: none;
+  }
+}
+
 .segment-flagged {
   box-shadow: inset 3px 0 0 var(--flag);
   padding-left: 0.75rem;
