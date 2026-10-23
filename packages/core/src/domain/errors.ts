@@ -19,6 +19,13 @@ export class ProviderNotConfiguredError extends Error {
   }
 }
 
+export class BatchNotSupportedError extends Error {
+  constructor(provider: string) {
+    super(`Provider does not support batch mode: ${provider}`);
+    this.name = "BatchNotSupportedError";
+  }
+}
+
 export class FatalProviderError extends Error {
   constructor(message: string) {
     super(message);
