@@ -21,7 +21,8 @@ const REFUSAL_FINISH_REASONS = new Set([
 
 export function mapGeminiError(err: unknown): SegmentBatchResult & { kind: "retryable" | "fatal" } {
   if (err instanceof ApiError) return failureFromStatus(err.status, err.message);
-  return { kind: "retryable", cause: messageOf(err) };
+  if (err instanceof TypeError) return { kind: "retryable", cause: messageOf(err) };
+  return { kind: "fatal", cause: messageOf(err) };
 }
 
 function toCompletion(response: GenerateContentResponse): RawCompletion {

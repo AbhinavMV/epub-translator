@@ -5,6 +5,12 @@ type Failure = Extract<SegmentBatchResult, { kind: "retryable" | "fatal" }>;
 const RETRYABLE_STATUSES = new Set([408, 409, 425, 429]);
 
 export function failureFromStatus(status: number, message: string, retryAfterMs?: number): Failure {
+  if (status === 401 || status === 403) {
+    return {
+      kind: "fatal",
+      cause: `HTTP ${status}: authentication failed — check the provider API key in apps/api/.env`,
+    };
+  }
   const cause = `HTTP ${status}: ${message}`;
   if (RETRYABLE_STATUSES.has(status) || status >= 500) {
     return retryAfterMs === undefined

@@ -118,4 +118,32 @@ describe("mapGeminiError", () => {
   it("maps network failures to retryable", () => {
     expect(mapGeminiError(new TypeError("fetch failed")).kind).toBe("retryable");
   });
+
+  it("maps programming errors to fatal instead of retrying them", () => {
+    expect(mapGeminiError(new RangeError("bad index")).kind).toBe("fatal");
+  });
+});
+
+describe("auth failures", () => {
+  it("never echo the provider's message, which can contain a masked key", () => {
+    const results = [
+      mapOpenAIError(
+        new OpenAI.AuthenticationError(
+          401,
+          undefined,
+          "Incorrect API key provided: sk-…abcd",
+          headers(),
+        ),
+      ),
+      mapAnthropicError(
+        new Anthropic.AuthenticationError(401, undefined, "invalid x-api-key sk-ant-…", headers()),
+      ),
+      mapGeminiError(new ApiError({ message: "API key not valid: AIza…", status: 403 })),
+    ];
+    for (const r of results) {
+      expect(r).toMatchObject({ kind: "fatal" });
+      expect(r.cause).not.toMatch(/sk-|AIza/);
+      expect(r.cause).toMatch(/API key/);
+    }
+  });
 });
