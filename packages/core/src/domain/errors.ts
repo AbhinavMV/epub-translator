@@ -26,6 +26,27 @@ export class BatchNotSupportedError extends Error {
   }
 }
 
+export class LeaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LeaseError";
+  }
+}
+
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
+export class InvalidWorkResultError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidWorkResultError";
+  }
+}
+
 export class FatalProviderError extends Error {
   constructor(message: string) {
     super(message);
