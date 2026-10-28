@@ -24,7 +24,8 @@ export interface WorkApi {
   getConfig(): Promise<PublicConfig>;
   lease(jobId: string, chapterId: string, after?: string): Promise<WorkUnitDto | null>;
   postResults(jobId: string, body: WorkResultBody): Promise<ChapterProgress>;
-  batchPlan(jobId: string, chapterId: string): Promise<BatchPlan>;
+  deleteLease(jobId: string, leaseId: string): Promise<void>;
+  batchPlan(jobId: string, chapterId: string, offset?: number): Promise<BatchPlan>;
   listBatches(jobId: string): Promise<RecordedBatch[]>;
   recordBatch(jobId: string, body: RecordBatchBody): Promise<RecordedBatch>;
   postBatchResults(
@@ -80,8 +81,15 @@ export function createWorkApi(fetchFn: typeof fetch = (...args) => fetch(...args
     },
     postResults: (jobId, body) =>
       json(ChapterProgressSchema, `/jobs/${enc(jobId)}/results`, "POST", body),
-    batchPlan: (jobId, chapterId) =>
-      json(BatchPlanSchema, `/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/batch-plan`, "POST"),
+    async deleteLease(jobId, leaseId) {
+      await raw(`/jobs/${enc(jobId)}/leases/${enc(leaseId)}`, "DELETE");
+    },
+    batchPlan: (jobId, chapterId, offset = 0) =>
+      json(
+        BatchPlanSchema,
+        `/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/batch-plan?offset=${offset}`,
+        "POST",
+      ),
     listBatches: (jobId) => json(OpenBatchesSchema, `/jobs/${enc(jobId)}/batches`, "GET"),
     recordBatch: (jobId, body) =>
       json(RecordedBatchSchema, `/jobs/${enc(jobId)}/batches`, "POST", body),

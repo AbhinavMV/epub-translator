@@ -39,28 +39,24 @@ function setup() {
     ],
   });
   api.plan = {
+    shared: {
+      sourceLang: "ja",
+      target: getTargetLanguage("en"),
+      bookTitle: "B",
+      context: [],
+      instructions: "terse",
+    },
     units: [
       {
         customId: "0",
-        sourceLang: "ja",
-        target: getTargetLanguage("en"),
-        bookTitle: "B",
-        context: [],
         segments: [
           { id: "s0", text: "a" },
           { id: "s1", text: "b" },
         ],
-        instructions: "terse",
       },
-      {
-        customId: "1",
-        sourceLang: "ja",
-        target: getTargetLanguage("en"),
-        bookTitle: "B",
-        context: [],
-        segments: [{ id: "s2", text: "c" }],
-      },
+      { customId: "1", segments: [{ id: "s2", text: "c" }] },
     ],
+    nextOffset: null,
   };
   const batch = new FakeBatch();
   const deps = {
@@ -87,9 +83,19 @@ describe("batch flow", () => {
     });
   });
 
+  it("follows every page of the plan and shares the prompt fields across units", async () => {
+    const { api, batch, deps } = setup();
+    api.planPageSize = 1;
+    await submitChapterBatch(deps, "j1", "ch", { provider: "anthropic", model: "m" });
+    expect(api.planOffsets).toEqual([0, 1]);
+    expect(batch.submitted[0]?.map((r) => r.customId)).toEqual(["0", "1"]);
+    expect(batch.submitted[0]?.map((r) => r.request.instructions)).toEqual(["terse", "terse"]);
+    expect(api.batches[0]?.segmentIds).toEqual([["s0", "s1"], ["s2"]]);
+  });
+
   it("does nothing when there is nothing left to plan", async () => {
     const { api, batch, deps } = setup();
-    api.plan = { units: [] };
+    api.plan = { ...api.plan, units: [] };
     expect(await submitChapterBatch(deps, "j1", "ch", { provider: "anthropic", model: "m" })).toBe(
       false,
     );
@@ -134,6 +140,36 @@ describe("batch flow", () => {
       ["s2", "failed"],
     ]);
     expect(posted[2]?.note).toContain("policy");
+  });
+
+  it("posts finished results in chunks and closes the batch on the last one only", async () => {
+    const { api, batch, deps } = setup();
+    const ids = Array.from({ length: 1200 }, (_, i) => `x${i}`);
+    api.batches.push({
+      id: "batch-big",
+      chapterId: "ch",
+      provider: "anthropic",
+      model: "m",
+      vendorBatchId: "vendor-1",
+      segmentIds: [ids],
+      status: "submitted",
+      createdAt: "t",
+    });
+    batch.next = {
+      status: "ended",
+      results: new Map<string, SegmentBatchResult>([
+        ["0", { kind: "ok", segments: ids.map((id) => ({ id, text: "t" })), usage }],
+      ]),
+    };
+    await pollClientBatches(deps, "j1", (_p, t) => t);
+    expect(api.batchPosts.map((p) => p.segments.length)).toEqual([500, 500, 200]);
+    expect(api.batchPosts.map((p) => p.final)).toEqual([false, false, true]);
+    expect(api.batchPosts.map((p) => p.usage)).toEqual([
+      { inputTokens: 0, outputTokens: 0 },
+      { inputTokens: 0, outputTokens: 0 },
+      usage,
+    ]);
+    expect(api.batches[0]?.status).toBe("ended");
   });
 
   it("reports a failed batch with a redacted reason", async () => {
