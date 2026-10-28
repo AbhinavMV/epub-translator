@@ -1,0 +1,23 @@
+{
+  "name": "@et/store-postgres",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json",
+    "db:migrate": "node scripts/migrate.ts",
+    "db:bundle": "node scripts/bundle.ts"
+  },
+  "dependencies": {
+    "@et/contracts": "workspace:*",
+    "@et/core": "workspace:*",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.12",
+    "@electric-sql/pglite-socket": "0.2.15"
+  }
+}
