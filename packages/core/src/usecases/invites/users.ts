@@ -1,5 +1,6 @@
+import type { AppRole } from "@et/contracts";
 import { ConflictError, NotFoundError } from "../../domain/errors.ts";
-import type { AppRole, AppUserRepository, AuthAdmin } from "../../ports/auth.ts";
+import type { AppUserRepository, AuthAdmin } from "../../ports/auth.ts";
 
 export interface UserDeps {
   users: AppUserRepository;
