@@ -86,6 +86,32 @@ describe("sign-in", () => {
     expect(cookieCall?.authorization).toBe(`Bearer ${SESSION.accessToken}`);
   });
 
+  it("sets the image session cookie before showing signed-in pages", async () => {
+    const client = new FakeAuthClient(null);
+    const { fetchFn: base } = recordingFetch();
+    let releaseCookie = () => {};
+    const cookieSet = new Promise<void>((r) => {
+      releaseCookie = r;
+    });
+    const fetchFn: typeof fetch = async (input, init) => {
+      if (String(input) === "/api/session" && init?.method === "POST") await cookieSet;
+      return base(input, init);
+    };
+    renderApp({
+      path: "/signin",
+      client,
+      fetchFn,
+      routes: { "/": Library, "/signin": SignInPage },
+    });
+    await userEvent.type(await screen.findByLabelText("Email"), "me@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "right-password");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText("Library page")).not.toBeInTheDocument();
+    releaseCookie();
+    expect(await screen.findByText("Library page")).toBeInTheDocument();
+  });
+
   it("shows a generic error on bad credentials", async () => {
     const client = new FakeAuthClient(null);
     renderApp({ path: "/signin", client, routes: { "/": Library, "/signin": SignInPage } });

@@ -93,11 +93,12 @@ export function AuthProvider({
         return;
       }
       const parsed = MeSchema.safeParse(await res.json());
+      // Book images authenticate with this cookie; set it before anything renders an <img>.
+      await syncSessionCookie(fetchFn, next.accessToken);
       setSession(next);
       setMe(parsed.success ? parsed.data : null);
       setError(null);
       setStatus("signedIn");
-      await syncSessionCookie(fetchFn, next.accessToken);
     },
     [client, drop, fetchFn],
   );
