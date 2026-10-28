@@ -569,3 +569,33 @@ The user asked for the deferred items now. Each runs as a parallel Sonnet track 
 | **Glossary** | "Suggest from book": extracts names and recurring terms with a cheap model | Port `TermExtractor { extractTerms(req): Promise<TermResult> }` in its own provider files. Use case `suggestGlossary`. `POST /api/books/:id/glossary/suggest {provider, model}` → `GlossaryEntry[]`. A Glossary dialog button merges the suggestions for review. |
 | **Bilingual + RTL** | Export layout `translation \| bilingual` and correct RTL output | `GET /api/jobs/:id/export?layout=bilingual`. Bilingual inserts the translated block after the source, with target `lang`/`dir` and ids stripped. RTL targets get `dir="rtl"` on documents, in the editor panes and in the reader. |
 | **Paged reader** | Page-by-page reading mode in the web reader | CSS multi-column pagination; ←/→, tap zones and a page x/y indicator; scroll and paged modes. |
+
+## Amendment E (2026-10-28): hosted mode on Vercel Hobby + Supabase Free
+
+Spec: `docs/research/2026-10-28-vercel-supabase-byok.md` (§1 architecture, §5 work protocol, §6 invites, §7 data model, §8 phases). User decisions: invite **link** only; email + password; **private library per user**; BYOK keys stored **only in the browser, encrypted with a passphrase**, never stored or logged server-side.
+
+Main-session rulings on the research's open decisions:
+- **D1:** resolved by a CORS probe. All three providers accept direct browser calls, so there is **no proxy fallback**, and keys never transit our servers.
+- **D2:** PBKDF2-SHA256 with 600k iterations into AES-GCM-256, using native WebCrypto.
+- **D3:** memory-only unlock per tab. There is no "stay unlocked" option.
+- **D4:** an HttpOnly, Secure, SameSite=Strict session cookie for GET asset, cover and chapter routes only.
+- **D5:** a per-instance LRU cache of EPUB bytes. There is no `book_chapters` table yet.
+- **D6:** admin-generated recovery links only, with no SMTP.
+- **D7:** previews share production, protected by Standard Deployment Protection.
+
+Supabase project: `epub-translator`, ref `rydwdjnioblhlrlezwrc`, ap-south-1. "Allow new users to sign up" is off, "Confirm email" is off, automatic RLS is on, and new tables are not auto-exposed. Secrets (secret key, DB password) are pasted only by the user.
+
+**Contract for all tracks: async, owner-scoped ports (Phase 1)**
+- All repository ports in `packages/core/src/ports/stores.ts` (`BookRepository`, `BookSettingsRepository`, `JobRepository`, `TranslationRepository`, `BatchRepository`) return `Promise`s. Method names and arguments stay the same.
+- Repositories are owner-scoped by construction: a `StoreFactory` port, `forOwner(ownerId: string): Repositories`, returns `{ books, settings, jobs, translations, batches }` bound to that owner.
+- Local mode uses `LOCAL_OWNER_ID = "00000000-0000-0000-0000-000000000000"` from `@et/contracts`.
+- Use cases and `JobRunner` take repositories from the factory, either per request or per job (the job's `ownerId` is passed in).
+
+**Tracks:**
+- **T1:** Phase 1 (async ports, `StoreFactory`, compose split into `compose-local.ts` and `compose-hosted.ts`, `apps/api/src/index.ts` default-exporting the hosted app). Local behaviour unchanged.
+- **T2:** Phase 2 (`packages/store-postgres`: postgres.js, migrations with RLS, `withOwner` transaction, contract tests on PGlite).
+- **T3:** Phase 3 + Phase 8 (Supabase JWT auth middleware, `AUTH_MODE`, `ALLOWED_HOSTS`, session cookie, invites and admin API, plus web sign-in, `/invite` and `/admin`).
+- **T4:** Phases 5 + 6 (lease and results protocol, client work loop, browser providers, key vault UI).
+- **T5:** Phase 4 + Phase 9 (`SupabaseBlobStore`, signed upload/import/export, egress LRU, Vercel `services` config, security headers/CSP, deploy docs).
+
+T1 and T2 run first. T3, T4 and T5 start once T1 is merged.
