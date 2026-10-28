@@ -218,6 +218,7 @@ describe("client batches", () => {
           { id: "a.xhtml#1", text: "x", status: "failed", note: "refused" },
         ],
         usage: { inputTokens: 1, outputTokens: 1 },
+        final: true,
       }),
     );
     expect(ChapterProgressSchema.parse(await res.json())).toMatchObject({ done: 1, failed: 1 });

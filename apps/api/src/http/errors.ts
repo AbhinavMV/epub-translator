@@ -1,6 +1,7 @@
 import { UnknownLanguageError } from "@et/contracts";
 import {
   AccountCreationError,
+  AssetTooLargeError,
   BatchNotSupportedError,
   ConflictError,
   FatalProviderError,
@@ -22,6 +23,7 @@ export function errorStatus(err: unknown): ContentfulStatusCode {
   if (err instanceof UnauthorizedError) return 401;
   if (err instanceof ForbiddenError) return 403;
   if (err instanceof NotFoundError) return 404;
+  if (err instanceof AssetTooLargeError) return 413;
   if (err instanceof ConflictError) return 409;
   if (err instanceof RateLimitedError) return 429;
   if (err instanceof InviteInvalidError) return 400;

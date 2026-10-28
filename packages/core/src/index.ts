@@ -20,6 +20,7 @@ export * from "./translation/settle.ts";
 export * from "./translation/terms-prompt.ts";
 export * from "./translation/translate-segments.ts";
 export * from "./usecases/batch-runner.ts";
+export * from "./usecases/chapter-parts.ts";
 export * from "./usecases/delete-book.ts";
 export * from "./usecases/export-epub.ts";
 export * from "./usecases/export-text.ts";

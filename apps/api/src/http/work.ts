@@ -1,4 +1,5 @@
 import {
+  BatchPlanQuerySchema,
   BatchResultsBodySchema,
   BatchStatusBodySchema,
   GlossarySampleQuerySchema,
@@ -77,14 +78,19 @@ export function workRoutes(s: Services) {
         }),
       );
     })
-    .post("/:id/chapters/:chapterId/batch-plan", async (c) => {
-      const units = await planBatchUnits(c.var.repos, {
-        jobId: c.req.param("id"),
-        chapterId: c.req.param("chapterId"),
-        ...WORK_LIMITS,
-      });
-      return c.json({ units });
-    })
+    .post(
+      "/:id/chapters/:chapterId/batch-plan",
+      validate("query", BatchPlanQuerySchema),
+      async (c) =>
+        c.json(
+          await planBatchUnits(c.var.repos, {
+            jobId: c.req.param("id"),
+            chapterId: c.req.param("chapterId"),
+            offset: c.req.valid("query").offset,
+            ...WORK_LIMITS,
+          }),
+        ),
+    )
     .get("/:id/batches", async (c) => {
       const open = await c.var.repos.batches.openForJob(c.req.param("id"));
       return c.json(open.map(presentBatch));
@@ -106,6 +112,7 @@ export function workRoutes(s: Services) {
           batchId: c.req.param("batchId"),
           results: toResults(body.segments),
           usage: body.usage,
+          final: body.final,
           events: s.events,
         }),
       );

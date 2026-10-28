@@ -13,28 +13,63 @@ import { recordResults } from "./record-results.ts";
 import { segmentRequest } from "./request.ts";
 import { vetClientResults } from "./vet-results.ts";
 
-export type BatchUnit = Omit<WorkUnit, "leaseId" | "jobId" | "chapterId" | "model"> & {
+export type BatchSharedRequest = Omit<
+  WorkUnit,
+  "leaseId" | "jobId" | "chapterId" | "model" | "segments"
+>;
+
+export interface BatchUnit {
   customId: string;
-};
+  segments: { id: string; text: string }[];
+}
+
+export interface BatchPlanPage {
+  shared: BatchSharedRequest;
+  units: BatchUnit[];
+  nextOffset: number | null;
+}
+
+export const BATCH_PLAN_PAGE_CHARS = 800_000;
 
 export async function planBatchUnits(
   repos: Repositories,
-  input: { jobId: string; chapterId: string } & WorkLimits,
-): Promise<BatchUnit[]> {
+  input: {
+    jobId: string;
+    chapterId: string;
+    offset?: number;
+    pageChars?: number;
+  } & WorkLimits,
+): Promise<BatchPlanPage> {
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
-  if (await repos.batches.openForChapter(job.id, input.chapterId)) return [];
   const settings = await repos.settings.get(job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
   const { pending, context } = chapterWork(segments, await repos.translations.forJob(job.id));
-  return batchSegments(pending, input.maxChars, input.maxCount).map((split, i) => {
-    const { model: _model, ...request } = segmentRequest(
-      { job, parsed, settings, contextSize: input.contextSize },
-      "",
-      split,
-      context,
-    );
-    return { customId: String(i), ...request };
-  });
+  const {
+    model: _model,
+    segments: _segments,
+    ...shared
+  } = segmentRequest({ job, parsed, settings, contextSize: input.contextSize }, "", [], context);
+  if (await repos.batches.openForChapter(job.id, input.chapterId)) {
+    return { shared, units: [], nextOffset: null };
+  }
+
+  const splits = batchSegments(pending, input.maxChars, input.maxCount);
+  const budget = input.pageChars ?? BATCH_PLAN_PAGE_CHARS;
+  const start = input.offset ?? 0;
+  const units: BatchUnit[] = [];
+  let used = 0;
+  let next = start;
+  for (; next < splits.length; next++) {
+    const split = splits[next] ?? [];
+    const size = split.reduce((n, s) => n + s.sourceText.length, 0);
+    if (units.length > 0 && used + size > budget) break;
+    units.push({
+      customId: String(next),
+      segments: split.map((s) => ({ id: s.id, text: s.sourceText })),
+    });
+    used += size;
+  }
+  return { shared, units, nextOffset: next < splits.length ? next : null };
 }
 
 export interface RecordBatchInput {
@@ -97,6 +132,7 @@ export async function applyBatchResult(
     batchId: string;
     results: ReadonlyMap<string, SegmentTranslation>;
     usage: Usage;
+    final: boolean;
     events?: JobEventSink;
   },
 ): Promise<ChapterProgress> {
@@ -117,7 +153,7 @@ export async function applyBatchResult(
     },
     entries: [...vetClientResults(sources, input.results)],
   });
-  await repos.batches.setStatus(batch.id, "ended");
+  if (input.final) await repos.batches.setStatus(batch.id, "ended");
   const progress = await chapterProgressOf(repos, input.jobId, batch.chapterId);
   input.events?.publish({ type: "chapter.progress", jobId: input.jobId, progress });
   return progress;
