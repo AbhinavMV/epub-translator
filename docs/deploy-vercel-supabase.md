@@ -10,6 +10,7 @@ Architecture in one paragraph: Vercel serves the Vite build as the `web` service
 2. Paste the whole of `packages/store-postgres/migrations/all.sql` and run it. It creates the tables, row-level security, the private `books` and `exports` buckets with per-user folder policies, and the rate-limit table.
 3. Re-run is safe for the storage parts; for the tables, apply it once. After later migrations, regenerate the bundle with `pnpm --filter @et/store-postgres db:bundle` and paste only the new files.
 4. If the project already ran migrations 0001 to 0006, paste `packages/store-postgres/migrations/apply-0007.sql` (safe to run more than once). It creates the private `et_owner` role that the server assumes for every library query, revokes the library tables from `anon` and `authenticated`, drops the `storage.objects` policies and locks down `schema_migrations`.
+5. If the project already ran migrations up to 0007, paste `packages/store-postgres/migrations/apply-0008.sql` (safe to run more than once). It adds the `proofreads` table that stores AI proofreading suggestions, owner-scoped for `et_owner` like the other library tables.
 
 The Data API (PostgREST) and direct Storage access are therefore no longer usable for the library tables by design: a user's JWT plus the public publishable key reach nothing but their own `app_users` row. All reads and writes go through this app's API, and the browser only uses signed upload URLs.
 
