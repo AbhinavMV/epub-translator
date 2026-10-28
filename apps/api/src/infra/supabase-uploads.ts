@@ -1,3 +1,4 @@
+import type { Clock } from "@et/core";
 import { assertOwner } from "./owner-keys.ts";
 import { BlobStorageError, type StorageClient } from "./storage-client.ts";
 import { BOOKS_BUCKET, type SupabaseBlobStore } from "./supabase-blob-store.ts";
@@ -14,7 +15,10 @@ export interface SignedUploads {
   read(ownerId: string, path: string): Promise<Uint8Array>;
   promote(ownerId: string, path: string, destination: string, bytes: Uint8Array): Promise<void>;
   discard(ownerId: string, path: string): Promise<void>;
+  sweep(ownerId: string): Promise<void>;
 }
+
+export const INCOMING_MAX_AGE_MS = 2 * 3_600_000;
 
 const INCOMING_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.epub$/i;
 
@@ -23,6 +27,7 @@ export class SupabaseSignedUploads implements SignedUploads {
     private readonly storage: StorageClient,
     private readonly blobs: SupabaseBlobStore,
     private readonly newId: () => string,
+    private readonly clock: Clock = { now: () => new Date() },
   ) {}
 
   async create(ownerId: string): Promise<{ path: string; token: string }> {
@@ -61,5 +66,21 @@ export class SupabaseSignedUploads implements SignedUploads {
   async discard(ownerId: string, path: string): Promise<void> {
     this.check(ownerId, path);
     await this.storage.from(BOOKS_BUCKET).remove([path]);
+  }
+
+  async sweep(ownerId: string): Promise<void> {
+    assertOwner(ownerId);
+    try {
+      const bucket = this.storage.from(BOOKS_BUCKET);
+      const folder = `${ownerId}/incoming`;
+      const { data } = await bucket.list(folder, { limit: 100 });
+      const cutoff = this.clock.now().getTime() - INCOMING_MAX_AGE_MS;
+      const stale = (data ?? [])
+        .filter((o) => o.created_at && Date.parse(o.created_at) < cutoff)
+        .map((o) => `${folder}/${o.name}`);
+      if (stale.length > 0) await bucket.remove(stale);
+    } catch {
+      // Cleanup is opportunistic; the import itself must not depend on it.
+    }
   }
 }

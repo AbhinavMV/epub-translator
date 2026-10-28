@@ -63,6 +63,7 @@ export function booksRoutes(s: Services) {
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       } finally {
         await uploads.discard(ownerId, path).catch(() => undefined);
+        await uploads.sweep(ownerId);
       }
     })
     .post(

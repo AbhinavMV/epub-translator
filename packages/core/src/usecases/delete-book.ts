@@ -12,6 +12,6 @@ export interface DeleteBookDeps {
 export async function deleteBook(deps: DeleteBookDeps, bookId: string): Promise<void> {
   const { book } = await requireBook(deps.books, bookId);
   for (const job of await deps.jobs.listByBook(bookId)) await deps.runner.cancel(job.id);
-  await deps.books.delete(bookId);
   await deps.blobs.delete(bookBlobKey(book.sha256));
+  await deps.books.delete(bookId);
 }

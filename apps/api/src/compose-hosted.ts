@@ -23,6 +23,7 @@ import { SupabaseSignedUploads } from "./infra/supabase-uploads.ts";
 import { ProviderCatalog } from "./provider-catalog.ts";
 import type { EpubAdapters, Services } from "./services.ts";
 
+const UPLOAD_TICKETS_PER_HOUR = 30;
 export const HOSTED_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const HostedEnvSchema = z.object({ DATABASE_URL: z.string().min(1) });
@@ -65,7 +66,8 @@ export function composeHosted(
     },
     blobs,
     blobsFor: (ownerId) => new OwnerScopedBlobs(blobs, ownerId),
-    uploads: new SupabaseSignedUploads(storage, blobs, () => uuidGenerator.next()),
+    uploads: new SupabaseSignedUploads(storage, blobs, () => uuidGenerator.next(), systemClock),
+    uploadLimiter: new PostgresRateLimiter(sql, systemClock, UPLOAD_TICKETS_PER_HOUR, 3_600_000),
     exports: new SupabaseExportStore(storage, systemClock),
     events,
     runner: new JobRunner({

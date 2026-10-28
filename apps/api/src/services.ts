@@ -8,6 +8,7 @@ import type {
   Hasher,
   IdGenerator,
   JobRunner,
+  RateLimiter,
   Repositories,
   StoreFactory,
   WorkLeaseFactory,
@@ -32,6 +33,7 @@ export interface Services extends EpubAdapters {
   blobs: BlobStore;
   blobsFor(ownerId: string): BlobStore;
   uploads?: SignedUploads;
+  uploadLimiter?: RateLimiter;
   exports?: ExportStore;
   events: JobEventBus;
   runner: JobRunner;
