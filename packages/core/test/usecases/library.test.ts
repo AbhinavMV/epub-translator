@@ -46,7 +46,7 @@ describe("importBook", () => {
       sha256: "sha-3-1",
     });
     expect(deps.blobs.rows.get("books/sha-3-1.epub")).toEqual(bytes);
-    expect(deps.books.getParsed("b1")?.segments).toHaveLength(3);
+    expect((await deps.books.getParsed("b1"))?.segments).toHaveLength(3);
   });
 
   it("is idempotent by sha256", async () => {
@@ -61,7 +61,7 @@ describe("importBook", () => {
     const deps = libraryDeps(new StubParser(new InvalidEpubError("bad")));
     await expect(importBook(deps, bytes)).rejects.toBeInstanceOf(InvalidEpubError);
     expect(deps.blobs.rows.size).toBe(0);
-    expect(deps.books.list()).toHaveLength(0);
+    expect(await deps.books.list()).toHaveLength(0);
   });
 });
 
@@ -70,21 +70,27 @@ describe("deleteBook", () => {
     const deps = libraryDeps();
     const book = await importBook(deps, bytes);
     const jobs = new MemoryJobs();
-    const job = getOrCreateWorkspace(
+    const job = await getOrCreateWorkspace(
       { books: deps.books, jobs, ids: counterIds("j"), clock: fixedClock },
       book.id,
       "en",
     );
     const cancelled: string[] = [];
-    await deleteBook({ ...deps, jobs, runner: { cancel: (id) => cancelled.push(id) } }, book.id);
+    await deleteBook(
+      { ...deps, jobs, runner: { cancel: async (id) => void cancelled.push(id) } },
+      book.id,
+    );
     expect(cancelled).toEqual([job.id]);
   });
 
   it("removes the row and the blob", async () => {
     const deps = libraryDeps();
     const book = await importBook(deps, bytes);
-    await deleteBook({ ...deps, jobs: new MemoryJobs(), runner: { cancel: () => {} } }, book.id);
-    expect(deps.books.get(book.id)).toBeNull();
+    await deleteBook(
+      { ...deps, jobs: new MemoryJobs(), runner: { cancel: async () => {} } },
+      book.id,
+    );
+    expect(await deps.books.get(book.id)).toBeNull();
     expect(deps.blobs.rows.size).toBe(0);
   });
 });
@@ -99,21 +105,21 @@ describe("getOrCreateWorkspace", () => {
       ids: counterIds("j"),
       clock: fixedClock,
     };
-    const a = getOrCreateWorkspace(deps, book.id, "en");
-    const b = getOrCreateWorkspace(deps, book.id, "en");
+    const a = await getOrCreateWorkspace(deps, book.id, "en");
+    const b = await getOrCreateWorkspace(deps, book.id, "en");
     expect(a.id).toBe("j1");
     expect(b.id).toBe("j1");
     expect(a).toMatchObject({ bookId: book.id, targetLang: "en", sourceLang: "ja" });
   });
 
-  it("rejects unknown books", () => {
+  it("rejects unknown books", async () => {
     const deps = {
       books: new MemoryBooks(),
       jobs: new MemoryJobs(),
       ids: counterIds(),
       clock: fixedClock,
     };
-    expect(() => getOrCreateWorkspace(deps, "nope", "en")).toThrow(NotFoundError);
+    await expect(getOrCreateWorkspace(deps, "nope", "en")).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -122,7 +128,7 @@ describe("renderChapter", () => {
     const lib = libraryDeps();
     const book = await importBook(lib, bytes);
     const translations = new MemoryTranslations();
-    translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
+    await translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
     const renderer = new RecordingRenderer();
     const view = await renderChapter(
       { books: lib.books, blobs: lib.blobs, translations, renderer },
@@ -165,7 +171,7 @@ describe("exportEpub", () => {
     const lib = libraryDeps();
     const book = await importBook(lib, bytes);
     const jobs = new MemoryJobs();
-    const job = getOrCreateWorkspace(
+    const job = await getOrCreateWorkspace(
       { books: lib.books, jobs, ids: counterIds("j"), clock: fixedClock },
       book.id,
       "en",
@@ -191,13 +197,13 @@ describe("exportEpub", () => {
     const lib = libraryDeps();
     const book = await importBook(lib, bytes);
     const jobs = new MemoryJobs();
-    const job = getOrCreateWorkspace(
+    const job = await getOrCreateWorkspace(
       { books: lib.books, jobs, ids: counterIds("j"), clock: fixedClock },
       book.id,
       "en",
     );
     const translations = new MemoryTranslations();
-    translations.put(job.id, "opf#title", { text: "A <1>Lost</1> Book", status: "done" });
+    await translations.put(job.id, "opf#title", { text: "A <1>Lost</1> Book", status: "done" });
     const out = await exportEpub(
       { books: lib.books, jobs, blobs: lib.blobs, translations, exporter: new RecordingExporter() },
       job.id,
@@ -209,7 +215,7 @@ describe("exportEpub", () => {
     const lib = libraryDeps();
     const book = await importBook(lib, bytes);
     const jobs = new MemoryJobs();
-    const job = getOrCreateWorkspace(
+    const job = await getOrCreateWorkspace(
       { books: lib.books, jobs, ids: counterIds("j"), clock: fixedClock },
       book.id,
       "en",

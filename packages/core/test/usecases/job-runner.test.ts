@@ -1,4 +1,4 @@
-import type { JobEvent } from "@et/contracts";
+import { type JobEvent, LOCAL_OWNER_ID } from "@et/contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   JobRunner,
@@ -10,10 +10,11 @@ import {
 } from "../../src/index.ts";
 import {
   fixedClock,
-  MemoryBooks,
-  MemoryJobs,
-  MemorySettings,
-  MemoryTranslations,
+  type MemoryBooks,
+  type MemoryJobs,
+  type MemorySettings,
+  MemoryStoreFactory,
+  type MemoryTranslations,
   sampleParsed,
 } from "./fakes.ts";
 
@@ -42,8 +43,10 @@ class EchoProvider implements TranslationProvider {
   }
 }
 
+const OWNER = LOCAL_OWNER_ID;
 const body = { provider: "fake" as const, model: "echo" };
 
+let factory: MemoryStoreFactory;
 let books: MemoryBooks;
 let jobs: MemoryJobs;
 let translations: MemoryTranslations;
@@ -52,9 +55,12 @@ let provider: EchoProvider;
 let events: JobEvent[];
 let runner: JobRunner;
 
-beforeEach(() => {
-  books = new MemoryBooks();
-  books.insert(
+const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+beforeEach(async () => {
+  factory = new MemoryStoreFactory();
+  ({ books, jobs, translations, settings } = factory.forOwner(OWNER));
+  await books.insert(
     {
       id: "b1",
       sha256: "s",
@@ -66,8 +72,7 @@ beforeEach(() => {
     },
     sampleParsed,
   );
-  jobs = new MemoryJobs();
-  jobs.insert({
+  await jobs.insert({
     id: "j1",
     bookId: "b1",
     targetLang: "en",
@@ -76,16 +81,11 @@ beforeEach(() => {
     usage: { inputTokens: 0, outputTokens: 0 },
     createdAt: fixedClock.now().toISOString(),
   });
-  translations = new MemoryTranslations();
-  settings = new MemorySettings();
   provider = new EchoProvider();
   events = [];
   runner = new JobRunner(
     {
-      books,
-      jobs,
-      translations,
-      settings,
+      factory,
       providers: (id) => (id === "fake" ? provider : null),
       events: { publish: (e) => events.push(e) },
       sleep: async () => {},
@@ -96,37 +96,40 @@ beforeEach(() => {
 
 describe("JobRunner", () => {
   it("translates every segment of a chapter and marks it done", async () => {
-    runner.translateChapter("j1", "ch-0", body);
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
-    expect(translations.get("j1", "a.xhtml#1")).toEqual({ text: "EN:二<1>!?</1>", status: "done" });
-    expect(translations.get("j1", "b.xhtml#0")).toBeNull();
-    const ch0 = runner.summary("j1").progress.find((p) => p.chapterId === "ch-0");
+    expect(await translations.get("j1", "a.xhtml#1")).toEqual({
+      text: "EN:二<1>!?</1>",
+      status: "done",
+    });
+    expect(await translations.get("j1", "b.xhtml#0")).toBeNull();
+    const ch0 = (await runner.summary(OWNER, "j1")).progress.find((p) => p.chapterId === "ch-0");
     expect(ch0).toMatchObject({ status: "done", done: 2, total: 2 });
-    expect(jobs.get("j1")?.usage).toEqual({ inputTokens: 20, outputTokens: 10 });
+    expect((await jobs.get("j1"))?.usage).toEqual({ inputTokens: 20, outputTokens: 10 });
   });
 
   it("resume skips done segments", async () => {
-    translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
-    runner.translateChapter("j1", "ch-0", body);
+    await translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
     expect(provider.requests.flatMap((r) => r.segments.map((s) => s.id))).toEqual(["a.xhtml#1"]);
   });
 
   it("sends earlier translated segments as context", async () => {
-    translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
-    runner.translateChapter("j1", "ch-0", body);
+    await translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
     expect(provider.requests[0]?.context).toEqual([{ source: "一", target: "One" }]);
   });
 
   it("passes custom prompt, glossary and book metadata to the provider", async () => {
-    settings.put("b1", {
+    await settings.put("b1", {
       customPrompt: "Use British spelling",
       glossary: [{ source: "シャル", target: "Charlotte" }],
       provider: null,
       model: null,
     });
-    runner.translateChapter("j1", "ch-1", body);
+    await runner.translateChapter(OWNER, "j1", "ch-1", body);
     await runner.whenIdle();
     expect(provider.requests[0]).toMatchObject({
       model: "echo",
@@ -143,21 +146,23 @@ describe("JobRunner", () => {
     provider.gate = new Promise((r) => {
       release = r;
     });
-    runner.translateChapter("j1", "ch-0", body);
-    await Promise.resolve();
-    runner.cancel("j1");
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
+    await tick();
+    await runner.cancel(OWNER, "j1");
     release();
     await runner.whenIdle();
     expect(provider.requests).toHaveLength(1);
-    expect(translations.forJob("j1").size).toBe(0);
-    expect(runner.summary("j1").progress.find((p) => p.chapterId === "ch-0")?.status).toBe("idle");
+    expect((await translations.forJob("j1")).size).toBe(0);
+    expect(
+      (await runner.summary(OWNER, "j1")).progress.find((p) => p.chapterId === "ch-0")?.status,
+    ).toBe("idle");
   });
 
   it("fatal provider error fails the chapter with the message", async () => {
     provider.failWith = "invalid x-api-key";
-    runner.translateChapter("j1", "ch-0", body);
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
-    const summary = runner.summary("j1");
+    const summary = await runner.summary(OWNER, "j1");
     expect(summary.progress.find((p) => p.chapterId === "ch-0")).toMatchObject({
       status: "failed",
       error: "invalid x-api-key",
@@ -168,10 +173,7 @@ describe("JobRunner", () => {
   it("stops the queued chapters of the job after a fatal provider error", async () => {
     const single = new JobRunner(
       {
-        books,
-        jobs,
-        translations,
-        settings,
+        factory,
         providers: () => provider,
         events: { publish: () => {} },
         sleep: async () => {},
@@ -179,31 +181,31 @@ describe("JobRunner", () => {
       { chapterConcurrency: 1, contextSize: 8, maxChars: 4000, maxCount: 40 },
     );
     provider.failWith = "HTTP 401: authentication failed";
-    single.translateAll("j1", body);
+    await single.translateAll(OWNER, "j1", body);
     await single.whenIdle();
     expect(provider.requests).toHaveLength(1);
-    const summary = single.summary("j1");
+    const summary = await single.summary(OWNER, "j1");
     expect(summary.error).toBe("HTTP 401: authentication failed");
     expect(summary.progress.find((p) => p.chapterId === "ch-1")?.status).toBe("idle");
   });
 
   it("clears the job error when translation starts again", async () => {
     provider.failWith = "HTTP 401: authentication failed";
-    runner.translateChapter("j1", "ch-0", body);
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
     provider.failWith = null;
-    runner.translateChapter("j1", "ch-0", body);
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
-    expect(runner.summary("j1").error).toBeNull();
+    expect((await runner.summary(OWNER, "j1")).error).toBeNull();
   });
 
   it("retryChapter clears and retranslates only that chapter", async () => {
-    translations.put("j1", "a.xhtml#0", { text: "Old", status: "flagged" });
-    translations.put("j1", "b.xhtml#0", { text: "Keep", status: "done" });
-    runner.retryChapter("j1", "ch-0", body);
+    await translations.put("j1", "a.xhtml#0", { text: "Old", status: "flagged" });
+    await translations.put("j1", "b.xhtml#0", { text: "Keep", status: "done" });
+    await runner.retryChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
-    expect(translations.get("j1", "a.xhtml#0")?.text).toBe("EN:一");
-    expect(translations.get("j1", "b.xhtml#0")?.text).toBe("Keep");
+    expect((await translations.get("j1", "a.xhtml#0"))?.text).toBe("EN:一");
+    expect((await translations.get("j1", "b.xhtml#0"))?.text).toBe("Keep");
   });
 
   it("retryChapter while running restarts the chapter", async () => {
@@ -211,24 +213,23 @@ describe("JobRunner", () => {
     provider.gate = new Promise((r) => {
       release = r;
     });
-    runner.translateChapter("j1", "ch-1", body);
-    await Promise.resolve();
-    runner.retryChapter("j1", "ch-1", body);
+    await runner.translateChapter(OWNER, "j1", "ch-1", body);
+    await tick();
+    await runner.retryChapter(OWNER, "j1", "ch-1", body);
     provider.gate = null;
     release();
     await runner.whenIdle();
     expect(provider.requests).toHaveLength(2);
-    expect(translations.get("j1", "b.xhtml#0")?.text).toBe("EN:三");
-    expect(runner.summary("j1").progress.find((p) => p.chapterId === "ch-1")?.status).toBe("done");
+    expect((await translations.get("j1", "b.xhtml#0"))?.text).toBe("EN:三");
+    expect(
+      (await runner.summary(OWNER, "j1")).progress.find((p) => p.chapterId === "ch-1")?.status,
+    ).toBe("done");
   });
 
   it("starts the next queued chapter as soon as a running one is cleared", async () => {
     const single = new JobRunner(
       {
-        books,
-        jobs,
-        translations,
-        settings,
+        factory,
         providers: () => provider,
         events: { publish: () => {} },
         sleep: async () => {},
@@ -239,37 +240,36 @@ describe("JobRunner", () => {
     provider.gate = new Promise((r) => {
       release = r;
     });
-    single.translateChapter("j1", "ch-0", body);
-    single.translateChapter("j1", "ch-1", body);
-    await Promise.resolve();
-    single.clearChapter("j1", "ch-0");
+    await single.translateChapter(OWNER, "j1", "ch-0", body);
+    await single.translateChapter(OWNER, "j1", "ch-1", body);
+    await single.clearChapter(OWNER, "j1", "ch-0");
     await new Promise((r) => setTimeout(r, 0));
     expect(provider.requests.map((r) => r.segments[0]?.id)).toEqual(["a.xhtml#0", "b.xhtml#0"]);
     release();
     await single.whenIdle();
   });
 
-  it("clearChapter removes that chapter's translations", () => {
-    translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
-    translations.put("j1", "b.xhtml#0", { text: "Three", status: "done" });
-    runner.clearChapter("j1", "ch-0");
-    expect(translations.get("j1", "a.xhtml#0")).toBeNull();
-    expect(translations.get("j1", "b.xhtml#0")).not.toBeNull();
+  it("clearChapter removes that chapter's translations", async () => {
+    await translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
+    await translations.put("j1", "b.xhtml#0", { text: "Three", status: "done" });
+    await runner.clearChapter(OWNER, "j1", "ch-0");
+    expect(await translations.get("j1", "a.xhtml#0")).toBeNull();
+    expect(await translations.get("j1", "b.xhtml#0")).not.toBeNull();
   });
 
   it("translateAll translates every incomplete chapter and the job becomes done", async () => {
-    translations.put("j1", "b.xhtml#0", { text: "Three", status: "done" });
-    runner.translateAll("j1", body);
+    await translations.put("j1", "b.xhtml#0", { text: "Three", status: "done" });
+    await runner.translateAll(OWNER, "j1", body);
     await runner.whenIdle();
     expect(provider.requests.flatMap((r) => r.segments.map((s) => s.id)).sort()).toEqual([
       "a.xhtml#0",
       "a.xhtml#1",
     ]);
-    expect(runner.summary("j1").status).toBe("done");
+    expect((await runner.summary(OWNER, "j1")).status).toBe("done");
   });
 
   it("emits segment.done and chapter.progress events", async () => {
-    runner.translateChapter("j1", "ch-1", body);
+    await runner.translateChapter(OWNER, "j1", "ch-1", body);
     await runner.whenIdle();
     expect(events.some((e) => e.type === "segment.done" && e.segmentId === "b.xhtml#0")).toBe(true);
     expect(
@@ -284,23 +284,27 @@ describe("JobRunner", () => {
   });
 
   it("fails the chapter instead of crashing when storage throws mid-task", async () => {
-    settings.get = () => {
+    settings.get = async () => {
       throw new Error("disk I/O error");
     };
-    runner.translateChapter("j1", "ch-0", body);
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
-    expect(runner.summary("j1").progress.find((p) => p.chapterId === "ch-0")).toMatchObject({
+    expect(
+      (await runner.summary(OWNER, "j1")).progress.find((p) => p.chapterId === "ch-0"),
+    ).toMatchObject({
       status: "failed",
       error: "disk I/O error",
     });
   });
 
-  it("rejects unconfigured providers and unknown chapters", () => {
-    expect(() =>
-      runner.translateChapter("j1", "ch-0", { provider: "anthropic", model: "m" }),
-    ).toThrow(ProviderNotConfiguredError);
-    expect(() => runner.translateChapter("j1", "ch-9", body)).toThrow(NotFoundError);
-    expect(() => runner.translateChapter("nope", "ch-0", body)).toThrow(NotFoundError);
+  it("rejects unconfigured providers and unknown chapters", async () => {
+    await expect(
+      runner.translateChapter(OWNER, "j1", "ch-0", { provider: "anthropic", model: "m" }),
+    ).rejects.toThrow(ProviderNotConfiguredError);
+    await expect(runner.translateChapter(OWNER, "j1", "ch-9", body)).rejects.toThrow(NotFoundError);
+    await expect(runner.translateChapter(OWNER, "nope", "ch-0", body)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   describe("with a Contents chapter", () => {
@@ -320,10 +324,7 @@ describe("JobRunner", () => {
       books.rows.set("b1", { book: books.rows.get("b1")?.book as never, parsed: withContents });
       runner = new JobRunner(
         {
-          books,
-          jobs,
-          translations,
-          settings,
+          factory,
           providers: (id) => (id === "fake" ? provider : null),
           events: { publish: (e) => events.push(e) },
           sleep: async () => {},
@@ -333,15 +334,15 @@ describe("JobRunner", () => {
     });
 
     it("translateAll starts with the Contents chapter so titles appear first", async () => {
-      runner.translateAll("j1", body);
+      await runner.translateAll(OWNER, "j1", body);
       await runner.whenIdle();
       expect(provider.requests[0]?.segments.map((s) => s.id)).toEqual(["opf#title", "nav.xhtml#0"]);
     });
 
     it("summary carries translated book and chapter titles", async () => {
-      runner.translateChapter("j1", "ch-contents", body);
+      await runner.translateChapter(OWNER, "j1", "ch-contents", body);
       await runner.whenIdle();
-      expect(runner.summary("j1").titles).toEqual({
+      expect((await runner.summary(OWNER, "j1")).titles).toEqual({
         book: "EN:本",
         chapters: { "ch-0": "EN:第一章" },
       });

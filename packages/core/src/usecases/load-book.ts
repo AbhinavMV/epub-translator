@@ -3,12 +3,12 @@ import { NotFoundError } from "../domain/errors.ts";
 import type { BlobStore, BookRepository } from "../ports/stores.ts";
 import { bookBlobKey } from "./import-book.ts";
 
-export function requireBook(
+export async function requireBook(
   books: BookRepository,
   bookId: string,
-): { book: StoredBook; parsed: ParsedBook } {
-  const book = books.get(bookId);
-  const parsed = book ? books.getParsed(bookId) : null;
+): Promise<{ book: StoredBook; parsed: ParsedBook }> {
+  const book = await books.get(bookId);
+  const parsed = book ? await books.getParsed(bookId) : null;
   if (!book || !parsed) throw new NotFoundError("Book", bookId);
   return { book, parsed };
 }

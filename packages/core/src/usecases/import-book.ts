@@ -18,7 +18,7 @@ export function bookBlobKey(sha256: string): string {
 
 export async function importBook(deps: ImportBookDeps, bytes: Uint8Array): Promise<StoredBook> {
   const sha256 = await deps.hasher.sha256(bytes);
-  const existing = deps.books.findBySha256(sha256);
+  const existing = await deps.books.findBySha256(sha256);
   if (existing) return existing;
 
   const parsed = await deps.parser.parse(bytes);
@@ -32,6 +32,6 @@ export async function importBook(deps: ImportBookDeps, bytes: Uint8Array): Promi
     createdAt: deps.clock.now().toISOString(),
   };
   await deps.blobs.put(bookBlobKey(sha256), bytes);
-  deps.books.insert(book, parsed);
+  await deps.books.insert(book, parsed);
   return book;
 }

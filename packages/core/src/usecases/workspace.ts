@@ -11,10 +11,14 @@ export interface WorkspaceDeps {
   clock: Clock;
 }
 
-export function getOrCreateWorkspace(deps: WorkspaceDeps, bookId: string, targetLang: string): Job {
-  const { book } = requireBook(deps.books, bookId);
+export async function getOrCreateWorkspace(
+  deps: WorkspaceDeps,
+  bookId: string,
+  targetLang: string,
+): Promise<Job> {
+  const { book } = await requireBook(deps.books, bookId);
   const target = getTargetLanguage(targetLang);
-  const existing = deps.jobs.findByBookAndLang(bookId, target.code);
+  const existing = await deps.jobs.findByBookAndLang(bookId, target.code);
   if (existing) return existing;
   const job: Job = {
     id: deps.ids.next(),
@@ -25,6 +29,6 @@ export function getOrCreateWorkspace(deps: WorkspaceDeps, bookId: string, target
     usage: { inputTokens: 0, outputTokens: 0 },
     createdAt: deps.clock.now().toISOString(),
   };
-  deps.jobs.insert(job);
+  await deps.jobs.insert(job);
   return job;
 }
