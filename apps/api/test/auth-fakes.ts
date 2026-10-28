@@ -49,7 +49,7 @@ export class MemoryInviteRepo implements InviteRepository {
   readonly rows = new Map<string, Invite>();
   private seq = 0;
   async create(invite: NewInvite) {
-    const row: Invite = { ...invite, id: `inv-${++this.seq}`, createdAt: new Date(), usedAt: null };
+    const row: Invite = { ...invite, id: `cccccccc-cccc-4ccc-8ccc-${String(++this.seq).padStart(12, "0")}`, createdAt: new Date(), usedAt: null };
     this.rows.set(row.id, row);
     return { ...row };
   }
@@ -176,11 +176,11 @@ export function authHarness(now = new Date("2026-10-28T00:00:00Z")) {
       supabasePublishableKey: "sb_publishable_x",
     },
   };
-  verifier.tokens.set("admin-token", { userId: "admin-id", email: ADMIN_EMAIL });
-  verifier.tokens.set("user-token", { userId: "user-id", email: "reader@example.com" });
-  users.rows.set("admin-id", { id: "admin-id", role: "admin", disabled: false });
-  users.rows.set("user-id", { id: "user-id", role: "user", disabled: false });
-  admin.accounts.set("admin-id", { email: ADMIN_EMAIL, banned: false });
-  admin.accounts.set("user-id", { email: "reader@example.com", banned: false });
+  verifier.tokens.set("admin-token", { userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", email: ADMIN_EMAIL });
+  verifier.tokens.set("user-token", { userId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", email: "reader@example.com" });
+  users.rows.set("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", role: "admin", disabled: false });
+  users.rows.set("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", role: "user", disabled: false });
+  admin.accounts.set("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", { email: ADMIN_EMAIL, banned: false });
+  admin.accounts.set("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", { email: "reader@example.com", banned: false });
   return { auth, verifier, users, invites, admin };
 }
