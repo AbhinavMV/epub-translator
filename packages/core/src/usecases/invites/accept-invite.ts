@@ -15,6 +15,7 @@ export interface AcceptInviteDeps {
   hasher: Hasher;
   clock: Clock;
   rateLimiter: RateLimiter;
+  adminEmails: ReadonlySet<string>;
 }
 
 export interface AcceptInviteInput {
@@ -40,6 +41,7 @@ export async function acceptInvite(
     throw new RateLimitedError();
   }
   const email = normalizeEmail(input.email);
+  if (deps.adminEmails.has(email)) throw new InviteInvalidError();
   const tokenHash = await hashToken(deps.hasher, input.token);
   const invite = await deps.invites.consume(tokenHash, email, deps.clock.now());
   if (!invite) throw new InviteInvalidError();

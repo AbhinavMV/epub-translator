@@ -140,7 +140,7 @@ describe("auth bridging on postgres", () => {
 
   const accept = (token: string, admin: AuthAdmin) =>
     acceptInvite(
-      { invites, users, admin, hasher, clock, rateLimiter: allow },
+      { invites, users, admin, hasher, clock, rateLimiter: allow, adminEmails: new Set() },
       { token, email: "New@Example.com", password: "p".repeat(12), clientKey: "k" },
     );
 
