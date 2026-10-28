@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ProviderId } from "@et/contracts";
-import type { BatchTranslationProvider, TermExtractor, TranslationProvider } from "@et/core";
+import type {
+  BatchTranslationProvider,
+  Proofreader,
+  TermExtractor,
+  TranslationProvider,
+} from "@et/core";
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import { AnthropicProvider } from "./anthropic.ts";
@@ -11,6 +16,10 @@ import { OpenAIBatchProvider } from "./batch/openai.ts";
 import { FakeProvider } from "./fake.ts";
 import { GeminiProvider } from "./gemini.ts";
 import { OpenAIProvider } from "./openai.ts";
+import { AnthropicProofreader } from "./proofread/anthropic.ts";
+import { FakeProofreader } from "./proofread/fake.ts";
+import { GeminiProofreader } from "./proofread/gemini.ts";
+import { OpenAIProofreader } from "./proofread/openai.ts";
 import { AnthropicTermExtractor } from "./terms/anthropic.ts";
 import { FakeTermExtractor } from "./terms/fake.ts";
 import { GeminiTermExtractor } from "./terms/gemini.ts";
@@ -23,6 +32,7 @@ export interface ProviderEntry {
   defaultModel: string;
   terms?: TermExtractor | null;
   termsModel?: string;
+  proofreader?: Proofreader | null;
 }
 
 export type ProviderRegistry = Map<ProviderId, ProviderEntry>;
@@ -40,6 +50,7 @@ function entry(
     provider: TranslationProvider;
     terms: TermExtractor;
     batch: BatchTranslationProvider;
+    proofreader: Proofreader;
   },
 ): ProviderEntry {
   if (!key) {
@@ -50,10 +61,11 @@ function entry(
       defaultModel,
       terms: null,
       termsModel,
+      proofreader: null,
     };
   }
-  const { provider, terms, batch } = create(key);
-  return { provider, batch, configured: true, defaultModel, terms, termsModel };
+  const { provider, terms, batch, proofreader } = create(key);
+  return { provider, batch, configured: true, defaultModel, terms, termsModel, proofreader };
 }
 
 export function buildProviderRegistry(env: Record<string, string | undefined>): ProviderRegistry {
@@ -71,6 +83,7 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
           provider: new AnthropicProvider(k, anthropicModel),
           terms: new AnthropicTermExtractor(k, anthropicModel),
           batch: new AnthropicBatchProvider(anthropicModel, new Anthropic({ apiKey: k })),
+          proofreader: new AnthropicProofreader(k, anthropicModel),
         }),
       ),
     ],
@@ -84,6 +97,7 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
           provider: new OpenAIProvider(k, openaiModel),
           terms: new OpenAITermExtractor(k, openaiModel),
           batch: new OpenAIBatchProvider(openaiModel, new OpenAI({ apiKey: k })),
+          proofreader: new OpenAIProofreader(k, openaiModel),
         }),
       ),
     ],
@@ -97,6 +111,7 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
           provider: new GeminiProvider(k, geminiModel),
           terms: new GeminiTermExtractor(k, geminiModel),
           batch: new GeminiBatchProvider(geminiModel, new GoogleGenAI({ apiKey: k })),
+          proofreader: new GeminiProofreader(k, geminiModel),
         }),
       ),
     ],
@@ -112,6 +127,7 @@ export function buildProviderRegistry(env: Record<string, string | undefined>): 
       defaultModel: "fake-echo",
       terms: new FakeTermExtractor(),
       termsModel: "fake-echo",
+      proofreader: new FakeProofreader(),
     });
   }
   return registry;

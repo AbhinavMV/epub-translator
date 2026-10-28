@@ -4,6 +4,9 @@ import type {
   BatchFetch,
   BatchRequest,
   BatchTranslationProvider,
+  Proofreader,
+  ProofreadRequest,
+  ProofreadResult,
   SegmentBatchRequest,
   SegmentBatchResult,
   TermExtractionRequest,
@@ -19,6 +22,9 @@ import { GeminiBatchProvider } from "./batch/gemini.ts";
 import { OpenAIBatchProvider } from "./batch/openai.ts";
 import { GeminiProvider } from "./gemini.ts";
 import { OpenAIProvider } from "./openai.ts";
+import { AnthropicProofreader } from "./proofread/anthropic.ts";
+import { GeminiProofreader } from "./proofread/gemini.ts";
+import { OpenAIProofreader } from "./proofread/openai.ts";
 import { redactKey } from "./redact.ts";
 import { AnthropicTermExtractor } from "./terms/anthropic.ts";
 import { GeminiTermExtractor } from "./terms/gemini.ts";
@@ -32,6 +38,7 @@ export interface BrowserProvider {
   provider: TranslationProvider;
   batch: BatchTranslationProvider;
   terms: TermExtractor;
+  proofreader: Proofreader;
 }
 
 const SERVER_ONLY_HINT = " in apps/api/.env";
@@ -43,7 +50,7 @@ class Redactor {
     return redactKey(value, this.key).replace(SERVER_ONLY_HINT, "");
   }
 
-  result<T extends SegmentBatchResult | TermExtractionResult>(result: T): T {
+  result<T extends SegmentBatchResult | TermExtractionResult | ProofreadResult>(result: T): T {
     return "cause" in result ? { ...result, cause: this.text(result.cause) } : result;
   }
 
@@ -135,6 +142,19 @@ class RedactedTerms implements TermExtractor {
   }
 }
 
+class RedactedProofreader implements Proofreader {
+  constructor(
+    private readonly inner: Proofreader,
+    private readonly redact: Redactor,
+  ) {}
+
+  async proofread(req: ProofreadRequest, signal: AbortSignal): Promise<ProofreadResult> {
+    return this.redact.result(
+      await this.redact.guard(() => this.inner.proofread(req, signal), signal),
+    );
+  }
+}
+
 export function createBrowserProvider(
   id: BrowserProviderId,
   key: string,
@@ -145,10 +165,12 @@ export function createBrowserProvider(
     provider: TranslationProvider,
     batch: BatchTranslationProvider,
     terms: TermExtractor,
+    proofreader: Proofreader,
   ): BrowserProvider => ({
     provider: new RedactedProvider(provider, redact),
     batch: new RedactedBatch(batch, redact),
     terms: new RedactedTerms(terms, redact),
+    proofreader: new RedactedProofreader(proofreader, redact),
   });
 
   switch (id) {
@@ -164,6 +186,7 @@ export function createBrowserProvider(
         new AnthropicProvider(key, defaultModel, client),
         new AnthropicBatchProvider(defaultModel, client),
         new AnthropicTermExtractor(key, defaultModel, client),
+        new AnthropicProofreader(key, defaultModel, client),
       );
     }
     case "openai": {
@@ -177,6 +200,7 @@ export function createBrowserProvider(
         new OpenAIProvider(key, defaultModel, client),
         new OpenAIBatchProvider(defaultModel, client),
         new OpenAITermExtractor(key, defaultModel, client),
+        new OpenAIProofreader(key, defaultModel, client),
       );
     }
     case "gemini": {
@@ -185,6 +209,7 @@ export function createBrowserProvider(
         new GeminiProvider(key, defaultModel, client),
         new GeminiBatchProvider(defaultModel, client),
         new GeminiTermExtractor(key, defaultModel, client),
+        new GeminiProofreader(key, defaultModel, client),
       );
     }
   }

@@ -7,6 +7,11 @@ export { type BrowserProvider, type BrowserProviderId, createBrowserProvider } f
 export { FakeProvider } from "./fake.ts";
 export { GeminiProvider, mapGeminiError } from "./gemini.ts";
 export { mapOpenAIError, OpenAIProvider } from "./openai.ts";
+export { AnthropicProofreader } from "./proofread/anthropic.ts";
+export { FakeProofreader } from "./proofread/fake.ts";
+export { GeminiProofreader } from "./proofread/gemini.ts";
+export { OpenAIProofreader } from "./proofread/openai.ts";
+export { PROOFREAD_JSON_SCHEMA, parseProofreadJson } from "./proofread/schema.ts";
 export { redactKey } from "./redact.ts";
 export {
   buildProviderRegistry,
