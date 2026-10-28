@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { useBooks, useDeleteBook, useUploadBook } from "@/api/queries";
+import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
 import { BookCard } from "@/components/book-card";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -30,6 +31,7 @@ export function LibraryPage() {
           </p>
         </div>
         <ThemeToggle />
+        <UserMenu />
       </header>
 
       <UploadDropzone onUpload={onUpload} busy={upload.isPending} />
