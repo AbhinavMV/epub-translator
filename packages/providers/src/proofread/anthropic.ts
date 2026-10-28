@@ -21,19 +21,22 @@ export class AnthropicProofreader implements Proofreader {
   async proofread(req: ProofreadRequest, signal: AbortSignal): Promise<ProofreadResult> {
     const { system, user } = buildProofreadPrompt(req);
     try {
-      const message = await this.client.messages.create(
-        {
-          model: req.model || this.defaultModel,
-          max_tokens: MAX_OUTPUT_TOKENS,
-          system,
-          messages: [{ role: "user", content: user }],
-          output_config: {
-            effort: "medium",
-            format: { type: "json_schema", schema: PROOFREAD_JSON_SCHEMA },
+      // Streaming lifts the SDK's 10-minute cap on non-streaming calls, which this output budget exceeds.
+      const message = await this.client.messages
+        .stream(
+          {
+            model: req.model || this.defaultModel,
+            max_tokens: MAX_OUTPUT_TOKENS,
+            system,
+            messages: [{ role: "user", content: user }],
+            output_config: {
+              effort: "medium",
+              format: { type: "json_schema", schema: PROOFREAD_JSON_SCHEMA },
+            },
           },
-        },
-        { signal },
-      );
+          { signal },
+        )
+        .finalMessage();
       return proofreadResult(toCompletion(message));
     } catch (err) {
       if (signal.aborted) throw err;

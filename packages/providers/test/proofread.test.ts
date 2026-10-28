@@ -68,18 +68,75 @@ describe("proofreadResult", () => {
   });
 });
 
+function sse(text: string): Response {
+  const events = [
+    [
+      "message_start",
+      {
+        type: "message_start",
+        message: {
+          id: "m",
+          type: "message",
+          role: "assistant",
+          model: "m",
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 3, output_tokens: 0 },
+        },
+      },
+    ],
+    [
+      "content_block_start",
+      { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+    ],
+    [
+      "content_block_delta",
+      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } },
+    ],
+    ["content_block_stop", { type: "content_block_stop", index: 0 }],
+    [
+      "message_delta",
+      {
+        type: "message_delta",
+        delta: { stop_reason: "end_turn", stop_sequence: null },
+        usage: { output_tokens: 4 },
+      },
+    ],
+    ["message_stop", { type: "message_stop" }],
+  ] as const;
+  const body = events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join("");
+  return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+}
+
 describe("AnthropicProofreader", () => {
+  it("streams, so a long proofreading answer is not refused by the SDK", async () => {
+    const requests: { stream?: boolean; max_tokens?: number }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init?: RequestInit) => {
+        requests.push(JSON.parse(String(init?.body ?? "{}")));
+        return sse(payload);
+      }),
+    );
+    const { proofreader } = createBrowserProvider("anthropic", "sk-ant-test-0123456789abcdef", "m");
+    expect(await proofreader.proofread(request, signal)).toEqual(expected);
+    expect(requests[0]).toMatchObject({ stream: true });
+    expect(requests[0]?.max_tokens).toBeGreaterThan(21_333);
+  });
+
   it("returns edits and notes using a JSON schema output", async () => {
     const calls: Record<string, unknown>[] = [];
+    const reply = {
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: payload }],
+      usage: { input_tokens: 3, output_tokens: 4 },
+    };
     const fake = {
       messages: {
-        create: async (params: Record<string, unknown>) => {
+        stream: (params: Record<string, unknown>) => {
           calls.push(params);
-          return {
-            stop_reason: "end_turn",
-            content: [{ type: "text", text: payload }],
-            usage: { input_tokens: 3, output_tokens: 4 },
-          };
+          return { finalMessage: async () => reply };
         },
       },
     } as unknown as Anthropic;
