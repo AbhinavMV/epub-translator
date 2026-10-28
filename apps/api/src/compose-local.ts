@@ -7,6 +7,7 @@ import { XmlChapterRenderer, YauzlEpubAssets, YauzlEpubParser, YazlEpubExporter 
 import {
   buildProviderRegistry,
   FakeBatchProvider,
+  FakeProofreader,
   FakeProvider,
   FakeTermExtractor,
 } from "@et/providers";
@@ -41,6 +42,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
       defaultModel: "fake-echo",
       terms: new FakeTermExtractor(),
       termsModel: "fake-echo",
+      proofreader: new FakeProofreader(),
     });
   }
   const providers = new ProviderCatalog(registry, options.discoverModels ?? false);
@@ -74,6 +76,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
     hasher: new NodeHasher(),
     ids: uuidGenerator,
     clock: systemClock,
+    sleep: nodeSleep,
   };
 }
 

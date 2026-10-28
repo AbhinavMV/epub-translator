@@ -10,6 +10,7 @@ import type {
   JobRunner,
   RateLimiter,
   Repositories,
+  Sleep,
   StoreFactory,
   WorkLeaseFactory,
 } from "@et/core";
@@ -41,6 +42,7 @@ export interface Services extends EpubAdapters {
   hasher: Hasher;
   ids: IdGenerator;
   clock: Clock;
+  sleep: Sleep;
 }
 
 export interface LocalServices extends Services {

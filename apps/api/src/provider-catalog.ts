@@ -1,5 +1,10 @@
 import type { ProviderId, ProviderInfo } from "@et/contracts";
-import type { BatchTranslationProvider, TermExtractor, TranslationProvider } from "@et/core";
+import type {
+  BatchTranslationProvider,
+  Proofreader,
+  TermExtractor,
+  TranslationProvider,
+} from "@et/core";
 import { type ProviderRegistry, resolveDefaultModel } from "@et/providers";
 
 const LABELS: Record<ProviderId, string> = {
@@ -28,6 +33,10 @@ export class ProviderCatalog {
 
   termExtractor(id: ProviderId): TermExtractor | null {
     return this.registry.get(id)?.terms ?? null;
+  }
+
+  proofreader(id: ProviderId): Proofreader | null {
+    return this.registry.get(id)?.proofreader ?? null;
   }
 
   batchProvider(id: ProviderId): BatchTranslationProvider | null {

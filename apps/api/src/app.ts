@@ -9,6 +9,7 @@ import { configRoutes, LOCAL_PUBLIC_CONFIG, publicConfig } from "./http/config.t
 import { handleError } from "./http/errors.ts";
 import { invitesRoutes } from "./http/invites.ts";
 import { jobsRoutes } from "./http/jobs.ts";
+import { proofreadRoutes } from "./http/proofread.ts";
 import { providersRoutes } from "./http/providers.ts";
 import { type AppEnv, requestContext } from "./http/request-context.ts";
 import { sessionRoutes } from "./http/session.ts";
@@ -79,6 +80,7 @@ export function createApp(services: Services, options: AppOptions = {}) {
     .route("/api/books", glossarySampleRoutes())
     .route("/api/jobs", jobsRoutes(services, { events: options.events ?? true }))
     .route("/api/jobs", workRoutes(services))
+    .route("/api/jobs", proofreadRoutes(services))
     .route("/api/providers", providersRoutes(services))
     .notFound((c) => c.json({ error: "Not found" }, 404));
 }

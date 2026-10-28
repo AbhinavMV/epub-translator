@@ -92,6 +92,7 @@ export function composeHosted(
     hasher,
     ids: uuidGenerator,
     clock: systemClock,
+    sleep: nodeSleep,
   };
 
   return {
