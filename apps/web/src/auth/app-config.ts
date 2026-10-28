@@ -6,6 +6,8 @@ export const LOCAL_CONFIG: PublicConfig = {
   supabaseUrl: null,
   supabasePublishableKey: null,
   clientExecution: false,
+  uploadMode: "multipart",
+  maxUploadBytes: 200 * 1024 * 1024,
 };
 
 export async function fetchAppConfig(

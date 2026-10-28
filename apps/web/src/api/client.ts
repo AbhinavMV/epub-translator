@@ -28,6 +28,19 @@ export interface EventSourceLike {
 
 export type ExportKind = "epub" | "txt";
 
+export interface UploadPolicy {
+  mode: "multipart" | "signed";
+  maxBytes: number;
+}
+
+export type SignedUploader = (path: string, token: string, file: File) => Promise<void>;
+
+export interface HttpApiOptions {
+  upload?: UploadPolicy;
+  uploader?: SignedUploader;
+  navigate?: (url: string) => void;
+}
+
 export interface GlossarySuggestion {
   terms: GlossaryEntry[];
   usage: Usage | null;
@@ -55,6 +68,18 @@ export interface Api {
   cancelJob(jobId: string): Promise<JobSummary | null>;
   openJobEvents(jobId: string): EventSourceLike;
   exportUrl(jobId: string, kind: ExportKind, layout?: ExportLayout): string;
+  upload: UploadPolicy;
+  signedExports: boolean;
+  openExport(href: string): Promise<void>;
+}
+
+export const LOCAL_UPLOAD_POLICY: UploadPolicy = { mode: "multipart", maxBytes: 200 * 1024 * 1024 };
+
+function field(value: unknown, name: string): string {
+  const found = (value as Record<string, unknown> | null)?.[name];
+  if (typeof found !== "string" || found === "")
+    throw new ApiRequestError("Unexpected response", 0);
+  return found;
 }
 
 export class ApiRequestError extends Error {
@@ -82,7 +107,11 @@ function browserEventSource(url: string): EventSourceLike {
 export function createHttpApi(
   fetchFn: typeof fetch = (...args) => fetch(...args),
   makeEventSource: (url: string) => EventSourceLike = browserEventSource,
+  options: HttpApiOptions = {},
 ): Api {
+  const upload = options.upload ?? LOCAL_UPLOAD_POLICY;
+  const signed = upload.mode === "signed";
+  const navigate = options.navigate ?? ((url: string) => window.location.assign(url));
   async function raw(path: string, init?: RequestInit): Promise<Response> {
     let res: Response;
     try {
@@ -126,7 +155,23 @@ export function createHttpApi(
 
   return {
     listBooks: () => json("/books", list(BookSummarySchema)),
-    uploadBook(file) {
+    async uploadBook(file) {
+      if (signed) {
+        const uploader = options.uploader;
+        if (!uploader) throw new ApiRequestError("Uploads are not configured", 0);
+        const ticket = await (await raw("/uploads", { method: "POST" })).json();
+        const path = field(ticket, "path");
+        try {
+          await uploader(path, field(ticket, "token"), file);
+        } catch {
+          throw new ApiRequestError("Upload to storage failed", 0);
+        }
+        return json("/books/import", BookSummarySchema, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path }),
+        });
+      }
       const form = new FormData();
       form.append("file", file);
       return json("/books", BookSummarySchema, { method: "POST", body: form });
@@ -174,6 +219,13 @@ export function createHttpApi(
       jobOrNull(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/clear`),
     cancelJob: (jobId) => jobOrNull(`/jobs/${enc(jobId)}/cancel`),
     openJobEvents: (jobId) => makeEventSource(`/api/jobs/${enc(jobId)}/events`),
+    upload,
+    signedExports: signed,
+    async openExport(href) {
+      const res = await fetchFn(href);
+      if (!res.ok) throw new ApiRequestError(`Export failed (${res.status})`, res.status);
+      navigate(field(await res.json().catch(() => null), "url"));
+    },
     exportUrl: (jobId, kind, layout = "translation") =>
       kind === "txt"
         ? `/api/jobs/${enc(jobId)}/export.txt`
