@@ -100,6 +100,30 @@ describe("planWorkUnit", () => {
     expect(c).toBeNull();
   });
 
+  it("skips segments up to the cursor so a run never re-leases what it already tried", async () => {
+    await repos.translations.put("j1", "a.xhtml#0", { text: "", status: "failed", note: "no" });
+    const retried = await planWorkUnit(repos, leases, {
+      jobId: "j1",
+      chapterId: "ch-0",
+      ...limits,
+    });
+    expect(retried?.segments.map((s) => s.id)).toEqual(["a.xhtml#0", "a.xhtml#1"]);
+    const past = await planWorkUnit(repos, leases, {
+      jobId: "j1",
+      chapterId: "ch-0",
+      after: "a.xhtml#1",
+      ...limits,
+    });
+    expect(past).toBeNull();
+  });
+
+  it("builds context only from segments before the leased ones", async () => {
+    await repos.translations.put("j1", "a.xhtml#1", done("two<1>!?</1>"));
+    const unit = await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...limits });
+    expect(unit?.segments.map((s) => s.id)).toEqual(["a.xhtml#0"]);
+    expect(unit?.context).toEqual([]);
+  });
+
   it("rejects an unknown chapter", async () => {
     await expect(
       planWorkUnit(repos, leases, { jobId: "j1", chapterId: "nope", ...limits }),

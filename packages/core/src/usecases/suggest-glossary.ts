@@ -69,6 +69,10 @@ export function buildSample(book: ParsedBook, maxChars: number): string {
   return `${header}\n\n${parts.join("\n")}`.slice(0, maxChars);
 }
 
+export function finalizeTerms(terms: GlossaryEntry[], known: GlossaryEntry[]): GlossaryEntry[] {
+  return dedupe(terms, known).slice(0, MAX_SUGGESTED_TERMS);
+}
+
 function dedupe(terms: GlossaryEntry[], known: GlossaryEntry[]): GlossaryEntry[] {
   const seen = new Set(known.map((t) => t.source.trim()));
   const out: GlossaryEntry[] = [];
@@ -108,7 +112,7 @@ export async function suggestGlossary(
   if (job) await deps.jobs.addUsage(job.id, result.usage);
 
   return {
-    terms: dedupe(result.terms, existing).slice(0, MAX_SUGGESTED_TERMS),
+    terms: finalizeTerms(result.terms, existing),
     usage: result.usage,
   };
 }

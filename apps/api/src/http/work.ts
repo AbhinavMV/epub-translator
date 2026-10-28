@@ -2,6 +2,7 @@ import {
   BatchResultsBodySchema,
   BatchStatusBodySchema,
   GlossarySampleQuerySchema,
+  LeaseBodySchema,
   RecordBatchBodySchema,
   type ResultSegment,
   WorkResultBodySchema,
@@ -41,6 +42,7 @@ function presentBatch(b: ProviderBatch) {
     provider: b.provider,
     model: b.model,
     vendorBatchId: b.vendorBatchId,
+    segmentIds: b.segmentIds,
     status: b.status,
     createdAt: b.createdAt,
   };
@@ -53,9 +55,12 @@ export function workRoutes(s: Services) {
       await next();
     })
     .post("/:id/chapters/:chapterId/lease", async (c) => {
+      const body = LeaseBodySchema.safeParse(await c.req.json().catch(() => ({})));
+      if (!body.success) return c.json({ error: "Invalid lease request" }, 400);
       const unit = await planWorkUnit(c.var.repos, s.leases.forOwner(c.var.ownerId), {
         jobId: c.req.param("id"),
         chapterId: c.req.param("chapterId"),
+        ...(body.data.after ? { after: body.data.after } : {}),
         ...WORK_LIMITS,
       });
       return unit ? c.json(unit) : c.body(null, 204);

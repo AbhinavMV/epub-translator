@@ -47,14 +47,17 @@ export async function loadChapterJob(
 export async function planWorkUnit(
   repos: Repositories,
   leases: WorkLeaseRepository,
-  input: { jobId: string; chapterId: string } & WorkLimits,
+  input: { jobId: string; chapterId: string; after?: string } & WorkLimits,
 ): Promise<WorkUnit | null> {
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
   const settings = await repos.settings.get(job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
-  const { pending, context } = chapterWork(segments, await repos.translations.forJob(job.id));
+  const translations = await repos.translations.forJob(job.id);
+  const { pending } = chapterWork(segments, translations);
+  const cursor = input.after ? segments.find((s) => s.id === input.after)?.ordinal : undefined;
+  const candidates = cursor === undefined ? pending : pending.filter((s) => s.ordinal > cursor);
 
-  for (const batch of batchSegments(pending, input.maxChars, input.maxCount)) {
+  for (const batch of batchSegments(candidates, input.maxChars, input.maxCount)) {
     const claimed = await leases.lease(
       job.id,
       input.chapterId,
@@ -63,10 +66,18 @@ export async function planWorkUnit(
     );
     if (!claimed) continue;
     const mine = new Set(claimed.segmentIds);
+    const leased = batch.filter((s) => mine.has(s.id));
+    const firstOrdinal = Math.min(...leased.map((s) => s.ordinal));
+    const context = segments.flatMap((s) => {
+      const t = translations.get(s.id);
+      return s.ordinal < firstOrdinal && t?.status === "done"
+        ? [{ source: s.sourceText, target: t.text }]
+        : [];
+    });
     const { model: _model, ...request } = segmentRequest(
       { job, parsed, settings, contextSize: input.contextSize },
       settings.model ?? "",
-      batch.filter((s) => mine.has(s.id)),
+      leased,
       context,
     );
     return {

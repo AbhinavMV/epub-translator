@@ -154,6 +154,19 @@ describe("lease and results", () => {
     }
   });
 
+  it("honours the cursor and rejects unknown lease fields", async () => {
+    const past = await app.request(
+      `/api/jobs/${jobId}/chapters/ch-0/lease`,
+      send("POST", { after: "a.xhtml#1" }),
+    );
+    expect(past.status).toBe(204);
+    const bad = await app.request(
+      `/api/jobs/${jobId}/chapters/ch-0/lease`,
+      send("POST", { apiKey: FAKE_KEY }),
+    );
+    expect(bad.status).toBe(400);
+  });
+
   it("404s for an unknown chapter", async () => {
     const res = await app.request(`/api/jobs/${jobId}/chapters/zzz/lease`, send("POST"));
     expect(res.status).toBe(404);

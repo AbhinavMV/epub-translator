@@ -49,6 +49,9 @@ const ClientUsageSchema = z
   .object({ inputTokens: nonNegativeInt, outputTokens: nonNegativeInt })
   .strict();
 
+export const LeaseBodySchema = z.object({ after: z.string().max(512).optional() }).strict();
+export type LeaseBody = z.infer<typeof LeaseBodySchema>;
+
 export const WorkResultBodySchema = z
   .object({
     leaseId: z.string().min(1).max(128),
@@ -75,6 +78,7 @@ export const RecordedBatchSchema = z.object({
   provider: ProviderIdSchema,
   model: z.string(),
   vendorBatchId: z.string(),
+  segmentIds: z.array(z.array(z.string())),
   status: z.enum(["submitted", "ended", "failed", "cancelled"]),
   createdAt: z.string(),
 });
