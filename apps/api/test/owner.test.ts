@@ -3,7 +3,6 @@ import type { ChapterRenderer, EpubAssets, EpubExporter, EpubParser, ParsedBook 
 import { FakeProvider } from "@et/providers";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
-import { composeHostedServices } from "../src/compose-hosted.ts";
 import { createLocalServices } from "../src/compose-local.ts";
 
 const parsed: ParsedBook = {
@@ -89,11 +88,5 @@ describe("local mode ownership", () => {
     await app.request("/api/books");
     await app.request("/api/providers");
     expect(seen).toEqual(["/api/books", "/api/providers"]);
-  });
-});
-
-describe("hosted composition", () => {
-  it("is a stub until the hosted adapters are wired in", () => {
-    expect(() => composeHostedServices({})).toThrow("hosted mode not configured");
   });
 });

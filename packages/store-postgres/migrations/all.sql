@@ -194,3 +194,21 @@ create policy et_objects_delete_own on storage.objects
     bucket_id in ('books', 'exports')
     and (storage.foldername(name))[1] = (select auth.uid()::text)
   );
+
+-- 0005_rate_limits.sql
+create table if not exists public.rate_limits (
+  key text not null,
+  window_start timestamptz not null,
+  count int not null default 0,
+  primary key (key, window_start)
+);
+
+alter table public.rate_limits enable row level security;
+revoke all on public.rate_limits from anon, authenticated;
+
+-- 0006_exports_text_supabase.sql
+-- Applies only on Supabase: needs the storage schema.
+
+update storage.buckets
+set allowed_mime_types = array['application/epub+zip', 'text/plain']
+where id = 'exports';

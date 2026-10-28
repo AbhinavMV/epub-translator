@@ -14,6 +14,8 @@ import type {
 } from "@et/core";
 import type { Database } from "@et/store-sqlite";
 import type { JobEventBus } from "./infra/job-event-bus.ts";
+import type { ExportStore } from "./infra/supabase-exports.ts";
+import type { SignedUploads } from "./infra/supabase-uploads.ts";
 import type { ProviderCatalog } from "./provider-catalog.ts";
 
 export interface EpubAdapters {
@@ -28,6 +30,9 @@ export interface Services extends EpubAdapters {
   leases: WorkLeaseFactory;
   ownerOf(request: Request): string | Promise<string>;
   blobs: BlobStore;
+  blobsFor(ownerId: string): BlobStore;
+  uploads?: SignedUploads;
+  exports?: ExportStore;
   events: JobEventBus;
   runner: JobRunner;
   providers: ProviderCatalog;

@@ -64,6 +64,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
     repos: factory.forOwner(LOCAL_OWNER_ID),
     ownerOf: () => LOCAL_OWNER_ID,
     blobs,
+    blobsFor: () => blobs,
     events,
     runner,
     providers,

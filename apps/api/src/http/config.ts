@@ -7,6 +7,8 @@ export const LOCAL_PUBLIC_CONFIG: PublicConfig = {
   supabaseUrl: null,
   supabasePublishableKey: null,
   clientExecution: false,
+  uploadMode: "multipart",
+  maxUploadBytes: 200 * 1024 * 1024,
 };
 
 export function publicConfig(base: PublicConfig, auth: AuthDeps | undefined): PublicConfig {
@@ -16,6 +18,8 @@ export function publicConfig(base: PublicConfig, auth: AuthDeps | undefined): Pu
     supabaseUrl: auth.publicConfig.supabaseUrl,
     supabasePublishableKey: auth.publicConfig.supabasePublishableKey,
     clientExecution: true,
+    uploadMode: base.uploadMode,
+    maxUploadBytes: base.maxUploadBytes,
   };
 }
 

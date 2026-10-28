@@ -1,5 +1,6 @@
 import { BookSettingsSchema, SuggestGlossaryBodySchema } from "@et/contracts";
 import {
+  type BlobStore,
   deleteBook,
   getOrCreateWorkspace,
   InvalidEpubError,
@@ -34,6 +35,7 @@ async function libraryTitle(
 }
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
+const ImportBodySchema = z.object({ path: z.string().min(1).max(300) });
 
 export function booksRoutes(s: Services) {
   return new Hono<AppEnv>()
@@ -50,6 +52,31 @@ export function booksRoutes(s: Services) {
       }
       return c.json(summaries);
     })
+    .post("/import", validate("json", ImportBodySchema), async (c) => {
+      const uploads = s.uploads;
+      if (!uploads) return c.json({ error: "Not found" }, 404);
+      const { ownerId, blobs } = c.var;
+      const { path } = c.req.valid("json");
+      const { books } = c.var.repos;
+      try {
+        const bytes = await uploads.read(ownerId, path);
+        const book = await importBook(
+          {
+            ...s,
+            books,
+            blobs: {
+              get: (key) => blobs.get(key),
+              delete: (key) => blobs.delete(key),
+              put: (key) => uploads.promote(ownerId, path, `${ownerId}/${key}`, bytes),
+            },
+          },
+          bytes,
+        );
+        return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
+      } finally {
+        await uploads.discard(ownerId, path).catch(() => undefined);
+      }
+    })
     .post(
       "/",
       bodyLimit({
@@ -57,11 +84,15 @@ export function booksRoutes(s: Services) {
         onError: (c) => c.json({ error: "File too large (max 200 MB)" }, 413),
       }),
       async (c) => {
+        if (s.uploads) return c.json({ error: "Not found" }, 404);
         const body = await c.req.parseBody();
         const file = body.file;
         if (!(file instanceof File)) throw new InvalidEpubError("Missing file field");
         const { books } = c.var.repos;
-        const book = await importBook({ ...s, books }, new Uint8Array(await file.arrayBuffer()));
+        const book = await importBook(
+          { ...s, books, blobs: c.var.blobs },
+          new Uint8Array(await file.arrayBuffer()),
+        );
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       },
     )
@@ -80,7 +111,12 @@ export function booksRoutes(s: Services) {
     .delete("/:id", async (c) => {
       const { ownerId } = c.var;
       await deleteBook(
-        { ...s, ...c.var.repos, runner: { cancel: (jobId) => s.runner.cancel(ownerId, jobId) } },
+        {
+          ...s,
+          ...c.var.repos,
+          blobs: c.var.blobs,
+          runner: { cancel: (jobId) => s.runner.cancel(ownerId, jobId) },
+        },
         c.req.param("id"),
       );
       return c.body(null, 204);
@@ -120,7 +156,7 @@ export function booksRoutes(s: Services) {
     .get("/:id/chapters/:chapterId", async (c) => {
       const bookId = c.req.param("id");
       const view = await renderChapter(
-        { ...s, ...c.var.repos },
+        { ...s, ...c.var.repos, blobs: c.var.blobs },
         {
           bookId,
           jobId: c.req.query("jobId") || null,
@@ -133,13 +169,13 @@ export function booksRoutes(s: Services) {
     .get("/:id/cover", async (c) => {
       const { book } = await requireBook(c.var.repos.books, c.req.param("id"));
       if (!book.coverHref) throw new NotFoundError("Cover", book.id);
-      return serveAsset(s, c.var.repos, book.id, book.coverHref);
+      return serveAsset(s, c.var.repos, c.var.blobs, book.id, book.coverHref);
     })
     .get("/:id/assets/*", async (c) => {
       const id = c.req.param("id");
       const prefix = `/api/books/${id}/assets/`;
       const href = decodeURIComponent(c.req.path.slice(c.req.path.indexOf(prefix) + prefix.length));
-      return serveAsset(s, c.var.repos, id, href);
+      return serveAsset(s, c.var.repos, c.var.blobs, id, href);
     });
 }
 
@@ -149,11 +185,12 @@ const ASSET_CSP = "sandbox; default-src 'none'; img-src 'self' data:; style-src 
 async function serveAsset(
   s: Services,
   repos: Repositories,
+  blobs: BlobStore,
   bookId: string,
   href: string,
 ): Promise<Response> {
   const { book } = await requireBook(repos.books, bookId);
-  const asset = await s.assets.read(await loadBookBytes(s.blobs, book), href);
+  const asset = await s.assets.read(await loadBookBytes(blobs, book), href);
   if (!asset) throw new NotFoundError("Asset", href);
   const inline = INLINE_MEDIA.test(asset.mediaType);
   const headers: Record<string, string> = {

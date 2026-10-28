@@ -58,5 +58,6 @@ export async function acceptInvite(
     await bestEffort(() => deps.invites.release(invite.id));
     throw new AccountCreationError();
   }
+  await bestEffort(() => deps.invites.markUsedBy?.(invite.id, created.id) ?? Promise.resolve());
   return created;
 }

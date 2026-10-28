@@ -1,5 +1,5 @@
 import type { AppRole } from "@et/contracts";
-import type { Repositories } from "@et/core";
+import type { BlobStore, Repositories } from "@et/core";
 import { createMiddleware } from "hono/factory";
 import type { Services } from "../services.ts";
 
@@ -13,6 +13,7 @@ export interface AppEnv {
   Variables: {
     ownerId: string;
     repos: Repositories;
+    blobs: BlobStore;
     user?: AuthedUser;
   };
 }
@@ -23,6 +24,7 @@ export function requestContext(services: Services, authEnabled = false) {
     const ownerId = c.var.user?.id ?? (await services.ownerOf(c.req.raw));
     c.set("ownerId", ownerId);
     c.set("repos", services.factory.forOwner(ownerId));
+    c.set("blobs", services.blobsFor(ownerId));
     await next();
   });
 }

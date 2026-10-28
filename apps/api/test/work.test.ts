@@ -79,6 +79,8 @@ describe("config", () => {
       authMode: "none",
       supabaseUrl: null,
       supabasePublishableKey: null,
+      uploadMode: "multipart",
+      maxUploadBytes: 200 * 1024 * 1024,
       clientExecution: true,
     });
   });

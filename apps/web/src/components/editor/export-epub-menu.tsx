@@ -1,4 +1,5 @@
 import { ChevronDown, Download } from "lucide-react";
+import { interceptExport } from "@/components/editor/intercept-export";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,11 +12,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 export function ExportEpubMenu({
   translationHref,
   bilingualHref,
+  onExport,
   disabled,
   hint,
 }: {
   translationHref: string | undefined;
   bilingualHref: string | undefined;
+  onExport?: ((href: string) => void) | undefined;
   disabled: boolean;
   hint: string;
 }) {
@@ -47,7 +50,12 @@ export function ExportEpubMenu({
   return (
     <div className="inline-flex">
       <Button variant="secondary" size="sm" asChild className="rounded-r-none">
-        <a href={translationHref} download aria-label="Export EPUB">
+        <a
+          href={translationHref}
+          download
+          aria-label="Export EPUB"
+          onClick={interceptExport(translationHref, onExport)}
+        >
           <Download />
           <span className="hidden sm:inline">Export EPUB</span>
         </a>
@@ -65,12 +73,12 @@ export function ExportEpubMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem asChild>
-            <a href={translationHref} download>
+            <a href={translationHref} download onClick={interceptExport(translationHref, onExport)}>
               Translation only
             </a>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <a href={bilingualHref} download>
+            <a href={bilingualHref} download onClick={interceptExport(bilingualHref, onExport)}>
               Bilingual
             </a>
           </DropdownMenuItem>

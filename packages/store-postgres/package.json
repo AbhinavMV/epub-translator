@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./test/harness.ts",
+    "./fixtures": "./test/fixtures.ts"
   },
   "scripts": {
     "test": "vitest run --fsModuleCachePath .vitest-cache --passWithNoTests",

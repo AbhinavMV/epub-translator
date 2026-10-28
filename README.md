@@ -45,6 +45,10 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
    - **Export TXT** gives plain text.
    - Untranslated chapters stay in the source language.
 
+## Hosted mode
+
+The same app can run invite-only on Vercel Hobby with Supabase Free: private library per user, translation in the browser with each user's own provider keys, EPUBs and exports through signed Storage URLs. See [docs/deploy-vercel-supabase.md](docs/deploy-vercel-supabase.md).
+
 ## Architecture
 
 ```mermaid

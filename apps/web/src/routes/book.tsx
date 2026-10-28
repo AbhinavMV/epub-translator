@@ -6,6 +6,7 @@ import {
 } from "@et/contracts";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useApi } from "@/api/api-context";
 import {
   useBook,
@@ -184,6 +185,13 @@ export function BookPage() {
             epubHref={jobId ? api.exportUrl(jobId, "epub") : undefined}
             bilingualEpubHref={jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined}
             txtHref={jobId ? api.exportUrl(jobId, "txt") : undefined}
+            onExport={
+              api.signedExports
+                ? (href) => {
+                    api.openExport(href).catch(() => toast.error("Could not prepare the export"));
+                  }
+                : undefined
+            }
           />
           <TranslationError chapterError={chapterProgress?.error} jobError={job.data?.error} />
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background">

@@ -59,4 +59,8 @@ export class PostgresAppUserRepository {
   async setRole(id: string, role: AppUserRole): Promise<void> {
     await this.sql.query("UPDATE app_users SET role = $2 WHERE id = $1", [id, role]);
   }
+
+  async delete(id: string): Promise<void> {
+    await this.sql.query("DELETE FROM app_users WHERE id = $1", [id]);
+  }
 }

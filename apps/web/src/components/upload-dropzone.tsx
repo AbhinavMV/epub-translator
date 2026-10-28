@@ -9,9 +9,13 @@ export function isEpub(file: File): boolean {
 export function UploadDropzone({
   onUpload,
   busy = false,
+  maxBytes,
+  hosted = false,
 }: {
   onUpload: (file: File) => void;
   busy?: boolean;
+  maxBytes?: number;
+  hosted?: boolean;
 }) {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +26,10 @@ export function UploadDropzone({
     if (!file) return;
     if (!isEpub(file)) {
       setError(`"${file.name}" is not an .epub file. Only .epub books are supported.`);
+      return;
+    }
+    if (maxBytes !== undefined && file.size > maxBytes) {
+      setError(`"${file.name}" is larger than ${Math.round(maxBytes / (1024 * 1024))} MB.`);
       return;
     }
     setError(null);
@@ -67,7 +75,8 @@ export function UploadDropzone({
             >
               browse your files
             </button>
-            . Books stay on this machine.
+            .{" "}
+            {hosted ? "Books are stored privately in your account." : "Books stay on this machine."}
           </p>
         </div>
         <input

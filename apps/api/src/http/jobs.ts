@@ -13,7 +13,14 @@ function attachment(filename: string): string {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
 
-export function jobsRoutes(s: Services) {
+const EPUB_TYPE = "application/epub+zip";
+const TEXT_TYPE = "text/plain; charset=utf-8";
+
+export interface JobsRouteOptions {
+  events?: boolean;
+}
+
+export function jobsRoutes(s: Services, options: JobsRouteOptions = {}) {
   return new Hono<AppEnv>()
     .get("/:id", async (c) => c.json(await s.runner.summary(c.var.ownerId, c.req.param("id"))))
     .post(
@@ -51,11 +58,22 @@ export function jobsRoutes(s: Services) {
       return c.json(await s.runner.summary(c.var.ownerId, id));
     })
     .get("/:id/export", validate("query", ExportQuerySchema), async (c) => {
+      const jobId = c.req.param("id");
+      const { layout } = c.req.valid("query");
       const { filename, bytes } = await exportEpub(
-        { ...s, ...c.var.repos },
-        c.req.param("id"),
-        c.req.valid("query").layout,
+        { ...s, ...c.var.repos, blobs: c.var.blobs },
+        jobId,
+        layout,
       );
+      if (s.exports) {
+        const url = await s.exports.publish(c.var.ownerId, {
+          name: `${jobId}-${layout}.epub`,
+          bytes,
+          contentType: EPUB_TYPE,
+          downloadName: filename,
+        });
+        return c.json(url);
+      }
       return new Response(new Uint8Array(bytes), {
         headers: {
           "content-type": "application/epub+zip",
@@ -64,7 +82,17 @@ export function jobsRoutes(s: Services) {
       });
     })
     .get("/:id/export.txt", async (c) => {
-      const { filename, text } = await exportText(c.var.repos, c.req.param("id"));
+      const jobId = c.req.param("id");
+      const { filename, text } = await exportText(c.var.repos, jobId);
+      if (s.exports) {
+        const url = await s.exports.publish(c.var.ownerId, {
+          name: `${jobId}-translation.txt`,
+          bytes: new TextEncoder().encode(text),
+          contentType: TEXT_TYPE,
+          downloadName: filename,
+        });
+        return c.json(url);
+      }
       return new Response(text, {
         headers: {
           "content-type": "text/plain; charset=utf-8",
@@ -73,6 +101,7 @@ export function jobsRoutes(s: Services) {
       });
     })
     .get("/:id/events", async (c) => {
+      if (options.events === false) return c.json({ error: "Not found" }, 404);
       const id = c.req.param("id");
       const initial = await s.runner.summary(c.var.ownerId, id);
       return streamSSE(c, async (stream) => {

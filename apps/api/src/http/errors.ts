@@ -16,6 +16,7 @@ import {
 } from "@et/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { InvalidUploadPathError } from "../infra/supabase-uploads.ts";
 
 export function errorStatus(err: unknown): ContentfulStatusCode {
   if (err instanceof UnauthorizedError) return 401;
@@ -26,6 +27,7 @@ export function errorStatus(err: unknown): ContentfulStatusCode {
   if (err instanceof InviteInvalidError) return 400;
   if (err instanceof AccountCreationError) return 422;
   if (err instanceof InvalidEpubError) return 422;
+  if (err instanceof InvalidUploadPathError) return 400;
   if (
     err instanceof InvalidWorkResultError ||
     err instanceof ProviderNotConfiguredError ||

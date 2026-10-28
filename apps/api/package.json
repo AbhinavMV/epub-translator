@@ -13,6 +13,7 @@
     "@et/core": "workspace:*",
     "@et/epub": "workspace:*",
     "@et/providers": "workspace:*",
+    "@et/store-postgres": "workspace:*",
     "@et/store-sqlite": "workspace:*",
     "@hono/node-server": "2.1.5",
     "@hono/zod-validator": "0.9.1",

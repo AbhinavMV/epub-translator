@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiProvider } from "@/api/api-context";
 import { type Api, createHttpApi } from "@/api/client";
+import { createSupabaseUploader } from "@/api/signed-upload";
 import { AdminApiProvider, createHttpAdminApi } from "@/auth/admin-api";
 import { fetchAppConfig, LOCAL_CONFIG } from "@/auth/app-config";
 import { type AuthClient, createSupabaseAuthClient } from "@/auth/auth-client";
@@ -39,7 +40,14 @@ async function boot() {
       : null;
   const fetchFn: FetchFn | undefined = client ? authedFetch(client) : undefined;
 
-  let api: Api = mock ? (await import("@/api/mock")).createMockApi() : createHttpApi(fetchFn);
+  let api: Api = mock
+    ? (await import("@/api/mock")).createMockApi()
+    : createHttpApi(fetchFn, undefined, {
+        upload: { mode: config.uploadMode, maxBytes: config.maxUploadBytes },
+        ...(config.uploadMode === "signed" && config.supabaseUrl && config.supabasePublishableKey
+          ? { uploader: createSupabaseUploader(config.supabaseUrl, config.supabasePublishableKey) }
+          : {}),
+      });
   let hosted: Hosted | null = null;
   if (!mock && isHostedConfig(config)) {
     const scope = client ? ((await client.getSession())?.userId ?? SIGNED_OUT_SCOPE) : "local";

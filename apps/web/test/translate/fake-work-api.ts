@@ -39,6 +39,8 @@ export class FakeWorkApi implements WorkApi {
       supabaseUrl: "https://example.supabase.co",
       supabasePublishableKey: "sb_publishable_test",
       clientExecution: true,
+      uploadMode: "signed" as const,
+      maxUploadBytes: 50 * 1024 * 1024,
     };
   }
 

@@ -28,4 +28,17 @@ describe("UploadDropzone", () => {
     fireEvent.drop(screen.getByTestId("dropzone"), { dataTransfer: { files: [epub] } });
     expect(onUpload).toHaveBeenCalledWith(epub);
   });
+
+  it("rejects a file above the size limit", () => {
+    const onUpload = vi.fn();
+    render(<UploadDropzone onUpload={onUpload} maxBytes={0} />);
+    fireEvent.drop(screen.getByTestId("dropzone"), { dataTransfer: { files: [epub] } });
+    expect(onUpload).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/larger than/i);
+  });
+
+  it("describes where hosted books live", () => {
+    render(<UploadDropzone onUpload={() => {}} hosted />);
+    expect(screen.getByText(/stored privately/i)).toBeInTheDocument();
+  });
 });

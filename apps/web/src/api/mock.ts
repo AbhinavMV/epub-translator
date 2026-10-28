@@ -480,6 +480,9 @@ export function createMockApi(): Api {
       set.add(source);
       return source;
     },
+    upload: { mode: "multipart", maxBytes: 200 * 1024 * 1024 },
+    signedExports: false,
+    openExport: async () => undefined,
     exportUrl: (_jobId, kind, layout = "translation") =>
       `data:text/plain;charset=utf-8,${encodeURIComponent(`mock ${kind} ${layout} export`)}`,
   };

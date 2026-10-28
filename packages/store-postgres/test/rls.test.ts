@@ -39,7 +39,7 @@ describe("row level security", () => {
     const rows = await sql.query<{ relname: string; relrowsecurity: boolean }>(
       "select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and relname <> 'schema_migrations'",
     );
-    expect(rows.length).toBe(OWNER_TABLES.length + 2);
+    expect(rows.length).toBe(OWNER_TABLES.length + 3);
     expect(rows.filter((r) => !r.relrowsecurity)).toEqual([]);
   });
 

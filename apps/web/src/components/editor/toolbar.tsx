@@ -11,6 +11,7 @@ import {
   Square,
 } from "lucide-react";
 import { ExportEpubMenu } from "@/components/editor/export-epub-menu";
+import { interceptExport } from "@/components/editor/intercept-export";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -33,6 +34,7 @@ function translateAction(p: ChapterProgress | undefined): {
 
 function DownloadButton({
   href,
+  onExport,
   disabled,
   label,
   icon,
@@ -40,6 +42,7 @@ function DownloadButton({
   hint,
 }: {
   href: string | undefined;
+  onExport: ((href: string) => void) | undefined;
   disabled: boolean;
   label: string;
   icon: React.ReactNode;
@@ -64,7 +67,7 @@ function DownloadButton({
   }
   return (
     <Button variant={variant} size="sm" asChild>
-      <a href={href} download aria-label={label}>
+      <a href={href} download aria-label={label} onClick={interceptExport(href, onExport)}>
         {icon}
         <span className="hidden sm:inline">{label}</span>
       </a>
@@ -94,6 +97,7 @@ export function EditorToolbar({
   epubHref,
   bilingualEpubHref,
   txtHref,
+  onExport,
 }: {
   chapterProgress: ChapterProgress | undefined;
   busyCount: number;
@@ -116,6 +120,7 @@ export function EditorToolbar({
   epubHref: string | undefined;
   bilingualEpubHref: string | undefined;
   txtHref: string | undefined;
+  onExport?: ((href: string) => void) | undefined;
 }) {
   const busy = isBusy(chapterProgress?.status);
   const ratio = totalChapters > 0 ? (translatedChapters / totalChapters) * 100 : 0;
@@ -201,6 +206,7 @@ export function EditorToolbar({
       <div className="flex items-center gap-2">
         <DownloadButton
           href={txtHref}
+          onExport={onExport}
           disabled={!hasTranslation}
           label="Export TXT"
           icon={<FileText />}
@@ -210,6 +216,7 @@ export function EditorToolbar({
         <ExportEpubMenu
           translationHref={epubHref}
           bilingualHref={bilingualEpubHref}
+          onExport={onExport}
           disabled={!hasTranslation}
           hint="Translate a chapter first"
         />

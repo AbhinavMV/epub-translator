@@ -12,6 +12,12 @@ export const AppConfigSchema = z.object({
   authMode: AuthModeSchema,
   supabaseUrl: z.string().nullable(),
   supabasePublishableKey: z.string().nullable(),
+  uploadMode: z.enum(["multipart", "signed"]).default("multipart"),
+  maxUploadBytes: z
+    .number()
+    .int()
+    .positive()
+    .default(200 * 1024 * 1024),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 

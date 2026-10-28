@@ -42,6 +42,10 @@ export class MemoryInvites implements InviteRepository {
     const row = this.rows.get(id);
     if (row) row.usedAt = null;
   }
+  readonly usedBy = new Map<string, string>();
+  async markUsedBy(id: string, userId: string) {
+    this.usedBy.set(id, userId);
+  }
 }
 
 export class MemoryAppUsers implements AppUserRepository {

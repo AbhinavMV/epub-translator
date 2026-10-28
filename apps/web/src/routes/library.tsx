@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { useApi } from "@/api/api-context";
 import { useBooks, useDeleteBook, useUploadBook } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
@@ -8,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UploadDropzone } from "@/components/upload-dropzone";
 
 export function LibraryPage() {
+  const api = useApi();
   const books = useBooks();
   const upload = useUploadBook();
   const remove = useDeleteBook();
@@ -34,7 +36,12 @@ export function LibraryPage() {
         <UserMenu />
       </header>
 
-      <UploadDropzone onUpload={onUpload} busy={upload.isPending} />
+      <UploadDropzone
+        onUpload={onUpload}
+        busy={upload.isPending}
+        maxBytes={api.upload.maxBytes}
+        hosted={api.upload.mode === "signed"}
+      />
 
       <section aria-labelledby="library-heading" className="flex flex-col gap-4">
         <h2

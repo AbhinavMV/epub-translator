@@ -12,6 +12,7 @@ import { jobsRoutes } from "./http/jobs.ts";
 import { providersRoutes } from "./http/providers.ts";
 import { type AppEnv, requestContext } from "./http/request-context.ts";
 import { sessionRoutes } from "./http/session.ts";
+import { uploadsRoutes } from "./http/uploads.ts";
 import { glossarySampleRoutes, workRoutes } from "./http/work.ts";
 import type { Services } from "./services.ts";
 
@@ -37,6 +38,7 @@ export interface AppOptions {
   allowHost?: (host: string) => boolean;
   auth?: AuthDeps;
   config?: PublicConfig;
+  events?: boolean;
 }
 
 export function createApp(services: Services, options: AppOptions = {}) {
@@ -72,9 +74,10 @@ export function createApp(services: Services, options: AppOptions = {}) {
       .route("/api/admin", adminRoutes(auth));
   }
   return app
+    .route("/api/uploads", uploadsRoutes(services))
     .route("/api/books", booksRoutes(services))
     .route("/api/books", glossarySampleRoutes())
-    .route("/api/jobs", jobsRoutes(services))
+    .route("/api/jobs", jobsRoutes(services, { events: options.events ?? true }))
     .route("/api/jobs", workRoutes(services))
     .route("/api/providers", providersRoutes(services))
     .notFound((c) => c.json({ error: "Not found" }, 404));
