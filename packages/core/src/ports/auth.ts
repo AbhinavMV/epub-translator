@@ -59,6 +59,7 @@ export interface InviteRepository {
   revoke(id: string): Promise<void>;
   consume(tokenHash: string, email: string, now: Date): Promise<Invite | null>;
   release(id: string): Promise<void>;
+  markUsedBy?(id: string, userId: string): Promise<void>;
 }
 
 export interface RandomSource {

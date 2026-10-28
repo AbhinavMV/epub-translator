@@ -122,6 +122,13 @@ describe("acceptInvite", () => {
     await expect(accept({ token, email: "BOUND@x.io", password })).resolves.toBeDefined();
   });
 
+  it("records which user consumed the invite", async () => {
+    const { create, accept, invites } = setup();
+    const { token } = await create();
+    const created = await accept({ token, email: "a@b.co", password });
+    expect([...invites.usedBy.values()]).toEqual([created.id]);
+  });
+
   it("releases the invite when createUser fails", async () => {
     const { create, accept, admin, invites } = setup();
     const { token } = await create();
