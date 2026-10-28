@@ -26,6 +26,48 @@ export class BatchNotSupportedError extends Error {
   }
 }
 
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("Unauthorized");
+    this.name = "UnauthorizedError";
+  }
+}
+
+export class ForbiddenError extends Error {
+  constructor(message = "Forbidden") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
+
+export class InviteInvalidError extends Error {
+  constructor() {
+    super("This invite is invalid or has expired");
+    this.name = "InviteInvalidError";
+  }
+}
+
+export class AccountCreationError extends Error {
+  constructor() {
+    super("Could not create the account");
+    this.name = "AccountCreationError";
+  }
+}
+
+export class RateLimitedError extends Error {
+  constructor() {
+    super("Too many attempts, try again later");
+    this.name = "RateLimitedError";
+  }
+}
+
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 export class FatalProviderError extends Error {
   constructor(message: string) {
     super(message);
