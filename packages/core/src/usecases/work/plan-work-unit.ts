@@ -57,8 +57,11 @@ export async function planWorkUnit(
     segments.map((s) => s.id),
   );
   const { pending } = chapterWork(segments, translations);
-  const cursor = input.after ? segments.find((s) => s.id === input.after)?.ordinal : undefined;
-  const candidates = cursor === undefined ? pending : pending.filter((s) => s.ordinal > cursor);
+  // Ordinals restart in every file of a chapter, so order by position in the chapter instead.
+  const position = new Map(segments.map((s, i) => [s.id, i]));
+  const at = (id: string) => position.get(id) ?? -1;
+  const cursor = input.after === undefined ? undefined : position.get(input.after);
+  const candidates = cursor === undefined ? pending : pending.filter((s) => at(s.id) > cursor);
 
   for (const batch of batchSegments(candidates, input.maxChars, input.maxCount)) {
     const claimed = await leases.lease(
@@ -70,10 +73,10 @@ export async function planWorkUnit(
     if (!claimed) continue;
     const mine = new Set(claimed.segmentIds);
     const leased = batch.filter((s) => mine.has(s.id));
-    const firstOrdinal = Math.min(...leased.map((s) => s.ordinal));
+    const first = Math.min(...leased.map((s) => at(s.id)));
     const context = segments.flatMap((s) => {
       const t = translations.get(s.id);
-      return s.ordinal < firstOrdinal && t?.status === "done"
+      return at(s.id) < first && t?.status === "done"
         ? [{ source: s.sourceText, target: t.text }]
         : [];
     });

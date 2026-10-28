@@ -119,6 +119,66 @@ describe("planWorkUnit", () => {
     expect(past).toBeNull();
   });
 
+  it("walks a chapter split across files in reading order", async () => {
+    await repos.books.insert(
+      {
+        id: "b2",
+        title: "本",
+        author: null,
+        sourceLang: "ja",
+        sha256: "y",
+        coverHref: null,
+        createdAt: "t",
+      } as never,
+      {
+        ...sampleParsed,
+        chapters: [{ id: "ch-0", index: 0, title: "第一章", docHrefs: ["p1.xhtml", "p2.xhtml"] }],
+        segments: [
+          { id: "p1.xhtml#0", chapterId: "ch-0", ordinal: 0, sourceText: "一" },
+          { id: "p1.xhtml#1", chapterId: "ch-0", ordinal: 1, sourceText: "二" },
+          { id: "p2.xhtml#0", chapterId: "ch-0", ordinal: 0, sourceText: "三" },
+          { id: "p2.xhtml#1", chapterId: "ch-0", ordinal: 1, sourceText: "四" },
+        ],
+      },
+    );
+    await repos.jobs.insert({
+      id: "j2",
+      bookId: "b2",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: "t",
+    });
+    const one = { ...limits, maxCount: 1 };
+    const seen: string[] = [];
+    let after: string | undefined;
+    for (;;) {
+      const unit = await planWorkUnit(repos, leases, {
+        jobId: "j2",
+        chapterId: "ch-0",
+        ...one,
+        ...(after ? { after } : {}),
+      });
+      if (!unit) break;
+      const id = unit.segments[0]?.id ?? "";
+      seen.push(id);
+      after = id;
+      await applyWorkResult(repos, leases, {
+        jobId: "j2",
+        leaseId: unit.leaseId,
+        results: new Map([[id, done(`t:${id}`)]]),
+        usage,
+      });
+    }
+    expect(seen).toEqual(["p1.xhtml#0", "p1.xhtml#1", "p2.xhtml#0", "p2.xhtml#1"]);
+
+    await repos.translations.deleteMany("j2", ["p2.xhtml#0", "p2.xhtml#1"]);
+    const unit = await planWorkUnit(repos, leases, { jobId: "j2", chapterId: "ch-0", ...limits });
+    expect(unit?.segments.map((s) => s.id)).toEqual(["p2.xhtml#0", "p2.xhtml#1"]);
+    expect(unit?.context.map((c) => c.source)).toEqual(["一", "二"]);
+  });
+
   it("builds context only from segments before the leased ones", async () => {
     await repos.translations.put("j1", "a.xhtml#1", done("two<1>!?</1>"));
     const unit = await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...limits });
