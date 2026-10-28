@@ -30,6 +30,13 @@ export class VaultError extends Error {
   }
 }
 
+export class VaultAlreadyInitializedError extends VaultError {
+  constructor() {
+    super("already-set-up", "A passphrase is already set");
+    this.name = "VaultAlreadyInitializedError";
+  }
+}
+
 export type VaultStatus = "empty" | "locked" | "unlocked";
 
 export interface VaultSnapshot {
@@ -101,18 +108,19 @@ export class Vault {
     return () => this.listeners.delete(listener);
   }
 
-  async load(): Promise<void> {
-    this.infos = (await this.store.list(this.prefix())).flatMap(({ id, envelope }) => {
+  async load(): Promise<number> {
+    const stored = await this.store.list(this.prefix());
+    this.infos = stored.flatMap(({ id, envelope }) => {
       const provider = id.slice(this.prefix().length) as KeyedProvider;
       return [{ provider, last4: envelope.last4, createdAt: envelope.createdAt }];
     });
     this.publish();
+    return stored.length;
   }
 
   async initialize(passphrase: string): Promise<void> {
-    if (this.infos.length > 0 || this.unlocked) {
-      throw new VaultError("already-set-up", "A passphrase is already set");
-    }
+    if (this.unlocked) throw new VaultAlreadyInitializedError();
+    if ((await this.load()) > 0) throw new VaultAlreadyInitializedError();
     const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
     this.unlocked = {
       cryptoKey: await derive(passphrase, salt, this.iterations),
@@ -200,6 +208,10 @@ export class Vault {
     if (!this.unlocked) return null;
     this.touch();
     return this.unlocked.keys.get(provider) ?? null;
+  }
+
+  keepAlive(): void {
+    if (this.unlocked) this.touch();
   }
 
   lock(): void {
