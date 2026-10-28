@@ -63,19 +63,25 @@ export function EditorHeader({
   proofread?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4 lg:flex-nowrap">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="md:hidden"
-        aria-label="Open chapters"
-        onClick={onOpenRail}
-      >
-        <Menu />
-      </Button>
-      <AppMark />
-      <BookTitle title={title} translated={translatedTitle} />
-      <div className="order-last flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:flex-nowrap">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4">
+      {/* The controls wrap below this group whenever both cannot share one line. */}
+      <div className="flex min-w-64 flex-1 items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="md:hidden"
+          aria-label="Open chapters"
+          onClick={onOpenRail}
+        >
+          <Menu />
+        </Button>
+        <AppMark />
+        <BookTitle title={title} translated={translatedTitle} />
+        <div className="ml-auto shrink-0">
+          <ThemeToggle />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         <ProviderSelect providers={providers} selection={selection} onChange={onSelection} />
         <KeysDialog />
         <ModeToggle mode={mode} batchAvailable={batchAvailable} onChange={onMode} />
@@ -119,9 +125,6 @@ export function EditorHeader({
             </Link>
           </Button>
         ) : null}
-      </div>
-      <div className="ml-auto shrink-0 lg:ml-0">
-        <ThemeToggle />
       </div>
     </header>
   );
