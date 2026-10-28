@@ -1,9 +1,10 @@
-import type { ChapterBlock, ChapterView } from "@et/contracts";
+import type { ChapterBlock } from "@et/contracts";
 import {
   type ChapterRenderer,
   NotFoundError,
   type ParsedBook,
   type ParsedChapter,
+  type RenderedChapter,
   type Translations,
 } from "@et/core";
 import { escapeText, stripTokens } from "@et/segmenter";
@@ -92,7 +93,7 @@ export class XmlChapterRenderer implements ChapterRenderer {
     chapterId: string,
     translations: Translations,
     assetUrl: AssetUrl,
-  ): Promise<ChapterView> {
+  ): Promise<RenderedChapter> {
     const position = book.chapters.findIndex((c) => c.id === chapterId);
     const chapter = book.chapters[position] as ParsedChapter | undefined;
     if (!chapter) throw new NotFoundError("Chapter", chapterId);

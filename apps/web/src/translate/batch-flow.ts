@@ -1,13 +1,49 @@
-import type { ChapterProgress, RecordedBatch, ResultSegment } from "@et/contracts";
+import type { BatchPlan, ChapterProgress, RecordedBatch, ResultSegment } from "@et/contracts";
 import { failureNote, MISSING_NOTE, type SegmentBatchResult } from "@et/core";
 import type { BrowserProvider } from "@et/providers/browser";
 import type { KeyedProvider } from "@/keys/envelope";
+import { chunkSegments } from "./result-chunks";
 import type { WorkApi } from "./work-api";
 import { requestOf } from "./work-loop";
 
 export interface BatchDeps {
   api: WorkApi;
-  bundleFor(provider: KeyedProvider): BrowserProvider | null;
+  bundleFor(provider: KeyedProvider, model: string): BrowserProvider | null;
+}
+
+async function fetchPlan(
+  api: WorkApi,
+  jobId: string,
+  chapterId: string,
+): Promise<Pick<BatchPlan, "shared" | "units">> {
+  const first = await api.batchPlan(jobId, chapterId, 0);
+  const units = [...first.units];
+  for (let next = first.nextOffset; next !== null; ) {
+    const page = await api.batchPlan(jobId, chapterId, next);
+    units.push(...page.units);
+    next = page.nextOffset;
+  }
+  return { shared: first.shared, units };
+}
+
+async function postInChunks(
+  api: WorkApi,
+  jobId: string,
+  batchId: string,
+  body: ReturnType<typeof resultsOf>,
+): Promise<ChapterProgress> {
+  const chunks = chunkSegments(body.segments);
+  const quiet = { inputTokens: 0, outputTokens: 0 };
+  let progress: ChapterProgress | undefined;
+  for (const [i, segments] of chunks.entries()) {
+    const final = i === chunks.length - 1;
+    progress = await api.postBatchResults(jobId, batchId, {
+      segments,
+      usage: final ? body.usage : quiet,
+      final,
+    });
+  }
+  return progress as ChapterProgress;
 }
 
 export async function submitChapterBatch(
@@ -16,15 +52,15 @@ export async function submitChapterBatch(
   chapterId: string,
   run: { provider: KeyedProvider; model: string },
 ): Promise<boolean> {
-  const bundle = deps.bundleFor(run.provider);
+  const bundle = deps.bundleFor(run.provider, run.model);
   if (!bundle) throw new Error("Unlock your keys first");
-  const { units } = await deps.api.batchPlan(jobId, chapterId);
+  const { shared, units } = await fetchPlan(deps.api, jobId, chapterId);
   if (units.length === 0) return false;
 
   const vendorBatchId = await bundle.batch.submit(
     units.map((unit) => ({
       customId: unit.customId,
-      request: requestOf({ leaseId: "", jobId, chapterId, ...unit }, run.model),
+      request: requestOf({ leaseId: "", jobId, chapterId, ...shared, ...unit }, run.model),
     })),
   );
   try {
@@ -87,7 +123,7 @@ export async function pollClientBatches(
   const outcome: PollOutcome = { progress: [], waitingOnKeys: false };
   for (const batch of await deps.api.listBatches(jobId)) {
     const provider = batch.provider as KeyedProvider;
-    const bundle = deps.bundleFor(provider);
+    const bundle = deps.bundleFor(provider, batch.model);
     if (!bundle) {
       outcome.waitingOnKeys = true;
       continue;
@@ -121,7 +157,7 @@ async function settleBatch(
     ];
   }
   const body = resultsOf(batch.segmentIds, fetched.results);
-  return [await deps.api.postBatchResults(jobId, batch.id, body)];
+  return [await postInChunks(deps.api, jobId, batch.id, body)];
 }
 
 export async function cancelClientBatches(
@@ -131,7 +167,7 @@ export async function cancelClientBatches(
 ): Promise<void> {
   for (const batch of await deps.api.listBatches(jobId)) {
     if (chapterId !== undefined && batch.chapterId !== chapterId) continue;
-    const bundle = deps.bundleFor(batch.provider as KeyedProvider);
+    const bundle = deps.bundleFor(batch.provider as KeyedProvider, batch.model);
     await bundle?.batch.cancel(batch.vendorBatchId).catch(() => undefined);
     await deps.api.endBatch(jobId, batch.id, { status: "cancelled" });
   }

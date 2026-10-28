@@ -243,7 +243,7 @@ describe("client batches", () => {
     });
 
   it("plans one unit per split and none while a batch is open", async () => {
-    const units = await planBatchUnits(repos, {
+    const { units } = await planBatchUnits(repos, {
       jobId: "j1",
       chapterId: "ch-0",
       ...limits,
@@ -254,7 +254,9 @@ describe("client batches", () => {
       ["1", ["a.xhtml#1"]],
     ]);
     await record();
-    expect(await planBatchUnits(repos, { jobId: "j1", chapterId: "ch-0", ...limits })).toEqual([]);
+    expect(
+      (await planBatchUnits(repos, { jobId: "j1", chapterId: "ch-0", ...limits })).units,
+    ).toEqual([]);
   });
 
   it("records a batch once per chapter and rejects foreign segment ids", async () => {
@@ -274,11 +276,18 @@ describe("client batches", () => {
         ["a.xhtml#1", done("no tags")],
       ]),
       usage,
+      final: true,
     });
     expect(progress).toMatchObject({ done: 1, flagged: 1 });
     expect(await repos.batches.openForChapter("j1", "ch-0")).toBeNull();
     await expect(
-      applyBatchResult(repos, { jobId: "j1", batchId: batch.id, results: new Map(), usage }),
+      applyBatchResult(repos, {
+        jobId: "j1",
+        batchId: batch.id,
+        results: new Map(),
+        usage,
+        final: true,
+      }),
     ).rejects.toThrow("not found");
   });
 

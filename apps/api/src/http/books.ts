@@ -1,5 +1,10 @@
-import { BookSettingsSchema, SuggestGlossaryBodySchema } from "@et/contracts";
 import {
+  BookSettingsSchema,
+  ChapterPartQuerySchema,
+  SuggestGlossaryBodySchema,
+} from "@et/contracts";
+import {
+  AssetTooLargeError,
   type BlobStore,
   deleteBook,
   getOrCreateWorkspace,
@@ -142,14 +147,15 @@ export function booksRoutes(s: Services) {
         return c.json(await s.runner.summary(c.var.ownerId, job.id));
       },
     )
-    .get("/:id/chapters/:chapterId", async (c) => {
+    .get("/:id/chapters/:chapterId", validate("query", ChapterPartQuerySchema), async (c) => {
       const bookId = c.req.param("id");
       const view = await renderChapter(
         { ...s, ...c.var.repos, blobs: c.var.blobs },
         {
           bookId,
-          jobId: c.req.query("jobId") || null,
+          jobId: c.req.valid("query").jobId || null,
           chapterId: c.req.param("chapterId"),
+          part: c.req.valid("query").part,
           assetUrl: assetUrl(bookId),
         },
       );
@@ -168,6 +174,7 @@ export function booksRoutes(s: Services) {
     });
 }
 
+const MAX_ASSET_BYTES = 4 * 1024 * 1024;
 const INLINE_MEDIA = /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|font\/[\w.+-]+|text\/css)$/;
 const ASSET_CSP = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
 
@@ -181,6 +188,7 @@ async function serveAsset(
   const { book } = await requireBook(repos.books, bookId);
   const asset = await s.assets.read(await loadBookBytes(blobs, book), href);
   if (!asset) throw new NotFoundError("Asset", href);
+  if (asset.bytes.length > MAX_ASSET_BYTES) throw new AssetTooLargeError(href, MAX_ASSET_BYTES);
   const inline = INLINE_MEDIA.test(asset.mediaType);
   const headers: Record<string, string> = {
     "content-type": inline ? asset.mediaType : "application/octet-stream",

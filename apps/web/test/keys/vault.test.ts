@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryEnvelopeStore } from "@/keys/memory-store";
-import { Vault, VaultError } from "@/keys/vault";
+import { Vault, VaultAlreadyInitializedError, VaultError } from "@/keys/vault";
 
 const KEY = "sk-ant-fake-0123456789abcdefWXYZ";
 const OTHER = "sk-fake-openai-9876543210zyxwVUTS";
@@ -183,6 +183,39 @@ describe("vault", () => {
     const fresh = makeVault();
     await fresh.load();
     await expect(fresh.initialize("another")).rejects.toMatchObject({ code: "already-set-up" });
+  });
+
+  it("refuses to initialize when another tab saved keys after this one loaded", async () => {
+    const first = makeVault();
+    const second = makeVault();
+    await first.load();
+    await second.load();
+    expect(second.snapshot().status).toBe("empty");
+
+    await first.initialize(PASS);
+    await first.setKey("anthropic", KEY);
+
+    await expect(second.initialize("a different passphrase")).rejects.toBeInstanceOf(
+      VaultAlreadyInitializedError,
+    );
+    expect(second.snapshot()).toMatchObject({ status: "locked" });
+    expect(store.all()).toHaveLength(1);
+    await second.unlock(PASS);
+    expect(second.getKey("anthropic")).toBe(KEY);
+  });
+
+  it("keepAlive postpones the idle lock while unlocked and ignores a locked vault", async () => {
+    const vault = makeVault({ idleMs: 1000 });
+    await unlockedWithKey(vault);
+    vi.advanceTimersByTime(900);
+    vault.keepAlive();
+    vi.advanceTimersByTime(900);
+    expect(vault.snapshot().status).toBe("unlocked");
+    vi.advanceTimersByTime(200);
+    expect(vault.snapshot().status).toBe("locked");
+    vault.keepAlive();
+    vi.advanceTimersByTime(5000);
+    expect(vault.snapshot().status).toBe("locked");
   });
 
   it("keeps envelopes of different users apart", async () => {

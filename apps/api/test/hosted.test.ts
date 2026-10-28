@@ -48,7 +48,9 @@ beforeAll(async () => {
 });
 afterAll(() => db.close());
 beforeEach(async () => {
-  await db.exec("truncate public.books, public.app_users, public.invites, public.rate_limits cascade");
+  await db.exec(
+    "truncate public.books, public.app_users, public.invites, public.rate_limits cascade",
+  );
   await db.exec(
     `insert into public.app_users (id, role) values ('${BOB}', 'user') on conflict do nothing`,
   );

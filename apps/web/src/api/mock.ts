@@ -428,6 +428,8 @@ export function createMockApi(): Api {
         title: c.title,
         prevChapterId: CHAPTERS[idx - 1]?.id ?? null,
         nextChapterId: CHAPTERS[idx + 1]?.id ?? null,
+        part: 0,
+        partCount: 1,
         blocks,
       });
     },

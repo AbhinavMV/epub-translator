@@ -12,6 +12,15 @@ export class NotFoundError extends Error {
   }
 }
 
+export class AssetTooLargeError extends Error {
+  constructor(href: string, limitBytes: number) {
+    super(
+      `Image is too large to serve (${href}): the limit is ${Math.floor(limitBytes / (1024 * 1024))} MB`,
+    );
+    this.name = "AssetTooLargeError";
+  }
+}
+
 export class ProviderNotConfiguredError extends Error {
   constructor(provider: string) {
     super(`Provider not configured: ${provider}`);

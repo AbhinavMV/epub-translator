@@ -2,6 +2,7 @@ import type { ChapterView } from "@et/contracts";
 import { NotFoundError } from "../domain/errors.ts";
 import type { ChapterRenderer } from "../ports/epub.ts";
 import type { BlobStore, BookRepository, TranslationRepository } from "../ports/stores.ts";
+import { CHAPTER_PART_BYTES, paginateBlocks } from "./chapter-parts.ts";
 import { loadBookBytes, requireBook } from "./load-book.ts";
 
 export interface RenderChapterDeps {
@@ -15,6 +16,8 @@ export interface RenderChapterInput {
   bookId: string;
   jobId: string | null;
   chapterId: string;
+  part?: number;
+  partBytes?: number;
   assetUrl: (href: string) => string;
 }
 
@@ -28,5 +31,16 @@ export async function renderChapter(
   }
   const bytes = await loadBookBytes(deps.blobs, book);
   const translations = input.jobId ? await deps.translations.forJob(input.jobId) : new Map();
-  return deps.renderer.render(bytes, parsed, input.chapterId, translations, input.assetUrl);
+  const whole = await deps.renderer.render(
+    bytes,
+    parsed,
+    input.chapterId,
+    translations,
+    input.assetUrl,
+  );
+  const parts = paginateBlocks(whole.blocks, input.partBytes ?? CHAPTER_PART_BYTES);
+  const part = input.part ?? 0;
+  const blocks = parts[part];
+  if (!blocks) throw new NotFoundError("Chapter part", String(part));
+  return { ...whole, part, partCount: parts.length, blocks };
 }

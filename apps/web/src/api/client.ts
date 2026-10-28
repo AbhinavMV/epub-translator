@@ -54,7 +54,7 @@ export interface Api {
   saveSettings(id: string, settings: BookSettings): Promise<BookSettings>;
   suggestGlossary(bookId: string, body: SuggestGlossaryBody): Promise<GlossarySuggestion>;
   getWorkspace(bookId: string, targetLang: string): Promise<JobSummary>;
-  getChapter(bookId: string, chapterId: string, jobId: string): Promise<ChapterView>;
+  getChapter(bookId: string, chapterId: string, jobId: string, part?: number): Promise<ChapterView>;
   listProviders(): Promise<ProviderInfo[]>;
   getJob(jobId: string): Promise<JobSummary>;
   translateChapter(
@@ -203,9 +203,9 @@ export function createHttpApi(
     },
     getWorkspace: (bookId, lang) =>
       json(`/books/${enc(bookId)}/workspace?targetLang=${enc(lang)}`, JobSummarySchema),
-    getChapter: (bookId, chapterId, jobId) =>
+    getChapter: (bookId, chapterId, jobId, part = 0) =>
       json(
-        `/books/${enc(bookId)}/chapters/${enc(chapterId)}?jobId=${enc(jobId)}`,
+        `/books/${enc(bookId)}/chapters/${enc(chapterId)}?jobId=${enc(jobId)}&part=${part}`,
         ChapterViewSchema,
       ),
     listProviders: () => json("/providers", list(ProviderInfoSchema)),

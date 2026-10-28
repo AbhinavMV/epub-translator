@@ -12,15 +12,15 @@ export const TargetLanguageSchema = z.object({
 const ContextSchema = z.array(z.object({ source: z.string(), target: z.string() }));
 const SegmentSourceSchema = z.object({ id: z.string(), text: z.string() });
 
-const requestFields = {
+const sharedFields = {
   sourceLang: z.string().nullable(),
   target: TargetLanguageSchema,
   bookTitle: z.string(),
   context: ContextSchema,
-  segments: z.array(SegmentSourceSchema),
   instructions: z.string().optional(),
   glossary: z.array(GlossaryEntrySchema).optional(),
 };
+const requestFields = { ...sharedFields, segments: z.array(SegmentSourceSchema) };
 
 export const WorkUnitSchema = z.object({
   leaseId: z.string(),
@@ -31,8 +31,15 @@ export const WorkUnitSchema = z.object({
 });
 export type WorkUnitDto = z.infer<typeof WorkUnitSchema>;
 
-export const BatchUnitSchema = z.object({ customId: z.string(), ...requestFields });
-export const BatchPlanSchema = z.object({ units: z.array(BatchUnitSchema) });
+export const BatchUnitSchema = z.object({
+  customId: z.string(),
+  segments: z.array(SegmentSourceSchema),
+});
+export const BatchPlanSchema = z.object({
+  shared: z.object(sharedFields),
+  units: z.array(BatchUnitSchema),
+  nextOffset: z.number().int().min(0).nullable(),
+});
 export type BatchPlan = z.infer<typeof BatchPlanSchema>;
 
 export const ResultSegmentSchema = z
@@ -90,10 +97,17 @@ export type RecordedBatch = z.infer<typeof RecordedBatchSchema>;
 
 export const OpenBatchesSchema = z.array(RecordedBatchSchema);
 
+export const BatchPlanQuerySchema = z.object({
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const MAX_BATCH_RESULT_SEGMENTS = 1000;
+
 export const BatchResultsBodySchema = z
   .object({
-    segments: z.array(ResultSegmentSchema).max(5000),
+    segments: z.array(ResultSegmentSchema).max(MAX_BATCH_RESULT_SEGMENTS),
     usage: ClientUsageSchema,
+    final: z.boolean(),
   })
   .strict();
 export type BatchResultsBody = z.infer<typeof BatchResultsBodySchema>;

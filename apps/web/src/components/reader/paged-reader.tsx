@@ -11,6 +11,7 @@ import {
   recomputePage,
   resolveNav,
   type StartAt,
+  shouldFetchNextPart,
   swipeAction,
   tapAction,
 } from "@/lib/pagination";
@@ -32,11 +33,13 @@ interface Props {
   ready: boolean;
   hasPrev: boolean;
   hasNext: boolean;
+  hasMore?: boolean;
   maxPageWidth: number;
   layoutKey: string;
   style?: React.CSSProperties;
   onChapter: (direction: PageAction, startAt: StartAt) => void;
   onPosition?: (position: PagePosition) => void;
+  onNeedMore?: () => void;
 }
 
 function ignoresKeys(target: EventTarget | null, key: string): boolean {
@@ -53,11 +56,13 @@ export function PagedReader({
   ready,
   hasPrev,
   hasNext,
+  hasMore = false,
   maxPageWidth,
   layoutKey,
   style,
   onChapter,
   onPosition,
+  onNeedMore,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const columnsRef = useRef<HTMLDivElement>(null);
@@ -154,18 +159,28 @@ export function PagedReader({
     onPositionRef.current?.({ page, count });
   }, [page, count]);
 
+  const onNeedMoreRef = useRef(onNeedMore);
+  onNeedMoreRef.current = onNeedMore;
+  useEffect(() => {
+    if (shouldFetchNextPart({ page, count }, hasMore, false)) onNeedMoreRef.current?.();
+  }, [page, count, hasMore]);
+
   const act = useCallback(
     (action: PageAction) => {
       const result = resolveNav(action, {
         page: pageRef.current,
         count: countRef.current,
         hasPrev,
-        hasNext,
+        hasNext: hasNext || hasMore,
       });
+      if (result.type === "chapter" && result.direction === "next" && hasMore) {
+        onNeedMoreRef.current?.();
+        return;
+      }
       if (result.type === "page") commitPage(result.page);
       if (result.type === "chapter") onChapter(result.direction, result.startAt);
     },
-    [hasPrev, hasNext, commitPage, onChapter],
+    [hasPrev, hasNext, hasMore, commitPage, onChapter],
   );
 
   useEffect(() => {
@@ -270,7 +285,7 @@ export function PagedReader({
           variant="ghost"
           size="icon-sm"
           aria-label="Next page"
-          disabled={page >= count - 1 && !hasNext}
+          disabled={page >= count - 1 && !hasNext && !hasMore}
           onClick={() => act("next")}
         >
           <ChevronRight />

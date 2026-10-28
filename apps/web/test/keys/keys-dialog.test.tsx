@@ -51,6 +51,23 @@ describe("AI keys dialog", () => {
     expect(JSON.stringify(store.all())).not.toContain(KEY);
   });
 
+  it("asks for the existing passphrase when another tab set one meanwhile", async () => {
+    const { store, user } = await setup();
+    const other = new Vault({ store, scope: "u", iterations: 1000 });
+    await other.load();
+    await other.initialize(PASS);
+    await other.setKey("anthropic", KEY);
+
+    await user.click(screen.getByRole("button", { name: /AI keys/ }));
+    await user.type(screen.getByLabelText("New passphrase"), "my own different passphrase");
+    await user.type(screen.getByLabelText("Repeat passphrase"), "my own different passphrase");
+    await user.click(screen.getByRole("button", { name: "Set passphrase" }));
+
+    expect(await screen.findByLabelText("Passphrase")).toBeInTheDocument();
+    expect(screen.queryByLabelText("New passphrase")).toBeNull();
+    expect(store.all()).toHaveLength(1);
+  });
+
   it("does not accept mismatched passphrases", async () => {
     const { user } = await setup();
     await user.click(screen.getByRole("button", { name: /AI keys/ }));

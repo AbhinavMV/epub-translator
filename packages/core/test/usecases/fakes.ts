@@ -1,4 +1,4 @@
-import { type BookSettings, type ChapterView, LOCAL_OWNER_ID, type Usage } from "@et/contracts";
+import { type BookSettings, LOCAL_OWNER_ID, type Usage } from "@et/contracts";
 import type {
   BatchRepository,
   BlobStore,
@@ -12,6 +12,7 @@ import type {
   ParsedBook,
   ProviderBatch,
   ProviderBatchStatus,
+  RenderedChapter,
   SegmentTranslation,
   StoredBook,
   StoreFactory,
@@ -232,7 +233,7 @@ export class RecordingRenderer implements ChapterRenderer {
     book: ParsedBook,
     chapterId: string,
     translations: ReadonlyMap<string, SegmentTranslation>,
-  ): Promise<ChapterView> {
+  ): Promise<RenderedChapter> {
     this.lastTranslations = translations;
     const ch = book.chapters.find((c) => c.id === chapterId);
     return {

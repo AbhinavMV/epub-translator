@@ -5,6 +5,7 @@ import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
 import { BookTitle } from "@/components/book-title";
 import { ChapterRail } from "@/components/chapter-rail";
+import { PartSentinel } from "@/components/part-sentinel";
 import { ChapterContent } from "@/components/reader/chapter-view";
 import { PagedReader, type PagePosition } from "@/components/reader/paged-reader";
 import { ReaderSettings } from "@/components/reader/reader-settings";
@@ -70,6 +71,12 @@ export function ReaderPage() {
     scrollRef.current?.scrollTo({ top: 0 });
     setScrolled(0);
   }, [chapterId]);
+
+  const { hasMore, loadingMore, loadMore } = chapter;
+  const loadAllBeforeLanding = paged && startAt === "last" && hasMore;
+  useEffect(() => {
+    if (loadAllBeforeLanding && !loadingMore) loadMore();
+  }, [loadAllBeforeLanding, loadingMore, loadMore]);
 
   const prevId = view?.prevChapterId ?? chapters[position - 1]?.id ?? null;
   const nextId = view?.nextChapterId ?? chapters[position + 1]?.id ?? null;
@@ -189,9 +196,11 @@ export function ReaderPage() {
           <PagedReader
             key={chapterId}
             startAt={startAt}
-            ready={Boolean(view)}
+            ready={Boolean(view) && !(startAt === "last" && chapter.hasMore)}
             hasPrev={Boolean(prevId)}
             hasNext={Boolean(nextId)}
+            hasMore={chapter.hasMore}
+            onNeedMore={chapter.loadMore}
             maxPageWidth={widthEm * prefs.fontSize}
             layoutKey={layoutKey}
             style={proseStyle}
@@ -204,6 +213,11 @@ export function ReaderPage() {
           <div ref={scrollRef} onScroll={onScroll} className="min-w-0 flex-1 overflow-y-auto">
             <article className="reader-prose mx-auto px-5 py-10 md:px-8" style={proseStyle}>
               {content}
+              <PartSentinel
+                hasMore={chapter.hasMore}
+                loading={chapter.loadingMore}
+                onVisible={chapter.loadMore}
+              />
               <nav
                 aria-label="Chapter navigation"
                 className="mt-12 flex items-stretch justify-between gap-3 border-t pt-6 font-sans text-sm"

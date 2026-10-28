@@ -161,4 +161,53 @@ describe("WorkLoop.runChapter", () => {
       }),
     ).rejects.toThrow("Forbidden");
   });
+
+  it("releases the leases of units that were aborted before their results posted", async () => {
+    const api = newApi();
+    const provider = new EchoProvider();
+    const controller = new AbortController();
+    provider.behaviour = (req) => {
+      controller.abort();
+      return { kind: "ok", segments: req.segments, usage };
+    };
+    await loopFor(api, provider).runChapter("j1", "ch", run, { signal: controller.signal });
+    expect(api.posted).toHaveLength(0);
+    expect(api.releaseCalls.sort()).toEqual(["lease-1", "lease-2"]);
+  });
+
+  it("releases the unfinished lease when a sibling hits a fatal error", async () => {
+    const api = newApi();
+    const provider = new EchoProvider();
+    provider.behaviour = () => ({ kind: "fatal", cause: "HTTP 401" });
+    await loopFor(api, provider)
+      .runChapter("j1", "ch", run, { signal: new AbortController().signal })
+      .catch(() => undefined);
+    expect(api.releaseCalls.length).toBeGreaterThan(0);
+    expect(api.posted).toHaveLength(0);
+  });
+
+  it("does not release leases whose results were posted", async () => {
+    const api = newApi();
+    await loopFor(api, new EchoProvider()).runChapter("j1", "ch", run, {
+      signal: new AbortController().signal,
+    });
+    expect(api.posted.length).toBeGreaterThan(0);
+    expect(api.releaseCalls).toEqual([]);
+  });
+
+  it("ignores a failing or 404 release", async () => {
+    const api = newApi();
+    const provider = new EchoProvider();
+    const controller = new AbortController();
+    provider.behaviour = (req) => {
+      controller.abort();
+      return { kind: "ok", segments: req.segments, usage };
+    };
+    api.deleteLease = async () => {
+      throw new ApiRequestError("Lease not found", 404);
+    };
+    await expect(
+      loopFor(api, provider).runChapter("j1", "ch", run, { signal: controller.signal }),
+    ).resolves.toBeNull();
+  });
 });
