@@ -50,6 +50,9 @@ const ClientUsageSchema = z
   .object({ inputTokens: nonNegativeInt, outputTokens: nonNegativeInt })
   .strict();
 
+export const releaseLeasePath = (jobId: string, leaseId: string): string =>
+  `/jobs/${encodeURIComponent(jobId)}/leases/${encodeURIComponent(leaseId)}`;
+
 export const LeaseBodySchema = z.object({ after: z.string().max(512).optional() }).strict();
 export type LeaseBody = z.infer<typeof LeaseBodySchema>;
 

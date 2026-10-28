@@ -40,6 +40,7 @@ export * from "./usecases/work/client-batches.ts";
 export * from "./usecases/work/memory-leases.ts";
 export * from "./usecases/work/plan-work-unit.ts";
 export * from "./usecases/work/record-results.ts";
+export * from "./usecases/work/release-lease.ts";
 export * from "./usecases/work/request.ts";
 export * from "./usecases/work/vet-results.ts";
 export * from "./usecases/workspace.ts";

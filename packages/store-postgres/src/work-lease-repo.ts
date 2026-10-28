@@ -138,4 +138,24 @@ export class PostgresWorkLeaseRepository {
     );
     return rows.length > 0;
   }
+
+  async releaseForChapter(jobId: string, chapterId: string): Promise<number> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query(
+        "DELETE FROM work_leases WHERE owner_id = $1 AND job_id = $2 AND chapter_id = $3 RETURNING id",
+        [this.ownerId, jobId, chapterId],
+      ),
+    );
+    return rows.length;
+  }
+
+  async releaseForJob(jobId: string): Promise<number> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query("DELETE FROM work_leases WHERE owner_id = $1 AND job_id = $2 RETURNING id", [
+        this.ownerId,
+        jobId,
+      ]),
+    );
+    return rows.length;
+  }
 }

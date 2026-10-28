@@ -11,6 +11,7 @@ import type { JobEventSink } from "../ports/events.ts";
 import type { Repositories, StoreFactory } from "../ports/stores.ts";
 import type { Sleep } from "../ports/system.ts";
 import type { TranslationProvider } from "../ports/translation-provider.ts";
+import type { WorkLeaseFactory } from "../ports/work-lease.ts";
 import { batchSegments } from "../translation/batcher.ts";
 import { SegmentTranslator } from "../translation/translate-segments.ts";
 import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
@@ -27,6 +28,7 @@ export interface JobRunnerDeps {
   events: JobEventSink;
   sleep: Sleep;
   batch?: BatchDeps;
+  leases?: WorkLeaseFactory;
 }
 
 export interface JobRunnerOptions {
@@ -119,6 +121,7 @@ export class JobRunner {
     this.stop(jobId, (t) => t.chapterId === chapterId);
     this.errors.delete(key(jobId, chapterId));
     await this.cancelBatches(ownerId, jobId, chapterId);
+    await this.deps.leases?.forOwner(ownerId).releaseForChapter(jobId, chapterId);
     await repos.translations.deleteMany(
       jobId,
       parsed.segments.filter((s) => s.chapterId === chapter.id).map((s) => s.id),
@@ -131,6 +134,7 @@ export class JobRunner {
     await this.requireJob(repos, jobId);
     this.stop(jobId, () => true);
     await this.cancelBatches(ownerId, jobId);
+    await this.deps.leases?.forOwner(ownerId).releaseForJob(jobId);
     await this.publishJob(repos, jobId);
   }
 

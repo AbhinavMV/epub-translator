@@ -11,6 +11,7 @@ import {
   planBatchUnits,
   planWorkUnit,
   recordClientBatch,
+  releaseWorkLease,
   type SegmentTranslation,
 } from "../../../src/index.ts";
 import {
@@ -290,5 +291,40 @@ describe("client batches", () => {
     });
     expect(repos.batches.rows.get(batch.id)?.status).toBe("failed");
     expect((await repos.jobs.get("j1"))?.error).toBe("expired");
+  });
+});
+
+describe("MemoryWorkLeases release", () => {
+  const ids = ["s0", "s1"];
+
+  it("releaseForChapter frees only that chapter of that job", async () => {
+    await leases.lease("j1", "ch-0", ids, 60_000);
+    await leases.lease("j1", "ch-1", ["s2"], 60_000);
+    await leases.lease("j2", "ch-0", ["s0"], 60_000);
+    await leases.releaseForChapter("j1", "ch-0");
+    expect(await leases.lease("j1", "ch-0", ids, 60_000)).not.toBeNull();
+    expect(await leases.lease("j1", "ch-1", ["s2"], 60_000)).toBeNull();
+    expect(await leases.lease("j2", "ch-0", ["s0"], 60_000)).toBeNull();
+  });
+
+  it("releaseForJob frees every chapter of the job only", async () => {
+    await leases.lease("j1", "ch-0", ids, 60_000);
+    await leases.lease("j1", "ch-1", ["s2"], 60_000);
+    await leases.lease("j2", "ch-0", ["s0"], 60_000);
+    await leases.releaseForJob("j1");
+    expect(await leases.lease("j1", "ch-1", ["s2"], 60_000)).not.toBeNull();
+    expect(await leases.lease("j2", "ch-0", ["s0"], 60_000)).toBeNull();
+  });
+});
+
+describe("releaseWorkLease", () => {
+  it("frees the lease of that job and ignores unknown or foreign ones", async () => {
+    const small = { ...limits, maxCount: 1 };
+    const unit = await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...small });
+    await releaseWorkLease(leases, "other-job", unit?.leaseId ?? "");
+    expect(await leases.get(unit?.leaseId ?? "")).not.toBeNull();
+    await releaseWorkLease(leases, "j1", "unknown");
+    await releaseWorkLease(leases, "j1", unit?.leaseId ?? "");
+    expect(await leases.get(unit?.leaseId ?? "")).toBeNull();
   });
 });

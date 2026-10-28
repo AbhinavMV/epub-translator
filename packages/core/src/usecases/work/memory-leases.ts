@@ -41,6 +41,16 @@ export class MemoryWorkLeases implements WorkLeaseRepository {
   async release(leaseId: string): Promise<void> {
     this.rows.delete(leaseId);
   }
+
+  async releaseForChapter(jobId: string, chapterId: string): Promise<void> {
+    for (const [id, row] of this.rows) {
+      if (row.jobId === jobId && row.chapterId === chapterId) this.rows.delete(id);
+    }
+  }
+
+  async releaseForJob(jobId: string): Promise<void> {
+    for (const [id, row] of this.rows) if (row.jobId === jobId) this.rows.delete(id);
+  }
 }
 
 export class MemoryWorkLeaseFactory implements WorkLeaseFactory {

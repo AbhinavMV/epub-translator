@@ -19,6 +19,8 @@ export interface WorkLeaseRepository {
   ): Promise<{ leaseId: string; segmentIds: string[] } | null>;
   get(leaseId: string): Promise<WorkLease | null>;
   release(leaseId: string): Promise<void>;
+  releaseForChapter(jobId: string, chapterId: string): Promise<void>;
+  releaseForJob(jobId: string): Promise<void>;
 }
 
 export interface WorkLeaseFactory {
