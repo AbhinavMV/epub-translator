@@ -181,7 +181,12 @@ describe("public routes", () => {
   it("returns the current user from /api/me", async () => {
     const { app } = hosted();
     const me = await (await app.request("/api/me", { headers: bearer("admin-token") })).json();
-    expect(me).toEqual({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", email: ADMIN_EMAIL, role: "admin", isAdmin: true });
+    expect(me).toEqual({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      email: ADMIN_EMAIL,
+      role: "admin",
+      isAdmin: true,
+    });
   });
 });
 

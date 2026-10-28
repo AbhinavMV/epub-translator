@@ -44,10 +44,21 @@ describe("admin guard", () => {
 
   it("requires both the ADMIN_EMAILS entry and the admin role", async () => {
     const { app, users, verifier } = setup();
-    users.rows.set("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", role: "admin", disabled: false });
+    users.rows.set("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      role: "admin",
+      disabled: false,
+    });
     expect((await app.request("/api/admin/users", as("user-token"))).status).toBe(403);
-    verifier.tokens.set("admin-token", { userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", email: "admin@example.com" });
-    users.rows.set("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", role: "user", disabled: false });
+    verifier.tokens.set("admin-token", {
+      userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      email: "admin@example.com",
+    });
+    users.rows.set("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      role: "user",
+      disabled: false,
+    });
     expect((await app.request("/api/admin/users", as("admin-token"))).status).toBe(403);
   });
 
@@ -148,6 +159,17 @@ describe("accept invite", () => {
     expect((await app.request("/api/invites/accept", json(null, body))).status).toBe(400);
   });
 
+  it("refuses to create an account for an ADMIN_EMAILS address", async () => {
+    const { app, admin } = setup();
+    const token = await issue(app);
+    const res = await app.request(
+      "/api/invites/accept",
+      json(null, { token, email: "Admin@Example.com", password }),
+    );
+    expect(res.status).toBe(400);
+    expect([...admin.accounts.keys()]).toHaveLength(2);
+  });
+
   it("rejects short passwords", async () => {
     const { app } = setup();
     const token = await issue(app);
@@ -218,6 +240,39 @@ describe("malformed ids", () => {
   });
 });
 
+describe("rate limit client key", () => {
+  const keyFor = async (headers: Record<string, string>) => {
+    const seen: string[] = [];
+    const { app } = setup({
+      allow: async (key) => {
+        seen.push(key);
+        return false;
+      },
+    });
+    await app.request("/api/invites/accept", {
+      ...json(null, { token: "t", email: "a@example.com", password: "long-enough-pw" }),
+      headers: { "content-type": "application/json", ...headers },
+    });
+    return seen[0];
+  };
+
+  it("ignores the client-settable x-vercel-forwarded-for", async () => {
+    expect(await keyFor({ "x-vercel-forwarded-for": "6.6.6.6", "x-real-ip": "1.1.1.1" })).toBe(
+      "invite-accept:1.1.1.1",
+    );
+  });
+
+  it("falls back to the last x-forwarded-for hop, which the platform appended", async () => {
+    expect(await keyFor({ "x-forwarded-for": "6.6.6.6, 7.7.7.7, 2.2.2.2" })).toBe(
+      "invite-accept:2.2.2.2",
+    );
+  });
+
+  it("uses a shared bucket when no address is present", async () => {
+    expect(await keyFor({ "x-vercel-forwarded-for": "6.6.6.6" })).toBe("invite-accept:unknown");
+  });
+});
+
 describe("user management", () => {
   it("lists users with emails", async () => {
     const { app } = setup();
@@ -231,7 +286,10 @@ describe("user management", () => {
   it("disables and re-enables, blocking the user immediately", async () => {
     const { app, admin } = setup();
     const post = (path: string) =>
-      app.request(`/api/admin/users/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/${path}`, { method: "POST", ...as("admin-token") });
+      app.request(`/api/admin/users/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/${path}`, {
+        method: "POST",
+        ...as("admin-token"),
+      });
     expect((await post("disable")).status).toBe(204);
     expect(admin.accounts.get("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")?.banned).toBe(true);
     expect((await app.request("/api/books", as("user-token"))).status).toBe(403);
@@ -241,10 +299,13 @@ describe("user management", () => {
 
   it("refuses self-disable and self-delete", async () => {
     const { app } = setup();
-    const self = await app.request("/api/admin/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/disable", {
-      method: "POST",
-      ...as("admin-token"),
-    });
+    const self = await app.request(
+      "/api/admin/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/disable",
+      {
+        method: "POST",
+        ...as("admin-token"),
+      },
+    );
     expect(self.status).toBe(409);
     const del = await app.request("/api/admin/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", {
       method: "DELETE",
@@ -255,10 +316,13 @@ describe("user management", () => {
 
   it("returns a recovery link", async () => {
     const { app } = setup();
-    const res = await app.request("/api/admin/users/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/reset-link", {
-      method: "POST",
-      ...as("admin-token"),
-    });
+    const res = await app.request(
+      "/api/admin/users/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/reset-link",
+      {
+        method: "POST",
+        ...as("admin-token"),
+      },
+    );
     expect(((await res.json()) as { link: string }).link).toContain("reader%40example.com");
   });
 
