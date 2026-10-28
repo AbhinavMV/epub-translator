@@ -80,6 +80,29 @@ describe("PostgresWorkLeaseRepository", () => {
     expect(next?.segmentIds).toEqual(["s3"]);
   });
 
+  it("claims only the unheld ids and never overlaps concurrent claimants", async () => {
+    const repo = leases();
+    const ids = ["s0", "s1", "s2", "s3"];
+    const first = await repo.leaseAvailable("j1", "ch-0", ids.slice(0, 2), TTL);
+    expect(first?.segmentIds).toEqual(["s0", "s1"]);
+    const got = await Promise.all(
+      Array.from({ length: 4 }, () => repo.leaseAvailable("j1", "ch-0", ids, TTL)),
+    );
+    const claimed = got.flatMap((l) => l?.segmentIds ?? []);
+    expect(claimed.toSorted()).toEqual(["s2", "s3"]);
+    expect(await repo.leaseAvailable("j1", "ch-0", ids, TTL)).toBeNull();
+  });
+
+  it("offers expired ids again to leaseAvailable", async () => {
+    const repo = leases();
+    await repo.leaseAvailable("j1", "ch-0", ["s0"], TTL);
+    clock = new Date(clock.getTime() + TTL + 1);
+    expect((await repo.leaseAvailable("j1", "ch-0", ["s0", "s1"], TTL))?.segmentIds).toEqual([
+      "s0",
+      "s1",
+    ]);
+  });
+
   it("keeps chapters independent", async () => {
     const repo = leases();
     await repo.leaseNext("j1", "ch-0", [["s0"]], TTL);

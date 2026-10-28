@@ -57,6 +57,30 @@ export class PostgresWorkLeaseRepository {
     candidates: readonly (readonly string[])[],
     ttlMs: number,
   ): Promise<WorkLease | null> {
+    return this.claim(jobId, chapterId, ttlMs, (taken) =>
+      candidates.find((ids) => ids.length > 0 && ids.every((id) => !taken.has(id))),
+    );
+  }
+
+  /** Claims those of `ids` that no live lease on the chapter holds; null when none is free. */
+  async leaseAvailable(
+    jobId: string,
+    chapterId: string,
+    ids: readonly string[],
+    ttlMs: number,
+  ): Promise<WorkLease | null> {
+    return this.claim(jobId, chapterId, ttlMs, (taken) => {
+      const free = [...new Set(ids)].filter((id) => !taken.has(id));
+      return free.length > 0 ? free : undefined;
+    });
+  }
+
+  private async claim(
+    jobId: string,
+    chapterId: string,
+    ttlMs: number,
+    pick: (taken: ReadonlySet<string>) => readonly string[] | undefined,
+  ): Promise<WorkLease | null> {
     const now = this.now();
     const leasedUntil = new Date(now.getTime() + ttlMs);
     return withOwner(this.sql, this.ownerId, async (tx) => {
@@ -76,7 +100,7 @@ export class PostgresWorkLeaseRepository {
         [this.ownerId, jobId, chapterId],
       );
       const taken = new Set(live.map((r) => r.segment_id));
-      const batch = candidates.find((ids) => ids.length > 0 && ids.every((id) => !taken.has(id)));
+      const batch = pick(taken);
       if (!batch) return null;
       const id = this.newId();
       await tx.query(

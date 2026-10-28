@@ -1,4 +1,4 @@
-import { getTargetLanguage, type JobSummary, type TranslateBody } from "@et/contracts";
+import type { JobSummary, TranslateBody } from "@et/contracts";
 import { CONTENTS_CHAPTER_ID, type ParsedBook, type ParsedChapter } from "../domain/book.ts";
 import {
   BatchNotSupportedError,
@@ -14,10 +14,12 @@ import type { TranslationProvider } from "../ports/translation-provider.ts";
 import { batchSegments } from "../translation/batcher.ts";
 import { SegmentTranslator } from "../translation/translate-segments.ts";
 import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
-import { chapterWork, promptExtras } from "./chapter-work.ts";
+import { chapterWork } from "./chapter-work.ts";
 import { type ChapterRuntime, chapterProgress, jobSummary } from "./job-progress.ts";
 import { requireBook } from "./load-book.ts";
 import { translatedTitles } from "./translated-titles.ts";
+import { recordResults } from "./work/record-results.ts";
+import { segmentRequest } from "./work/request.ts";
 
 export interface JobRunnerDeps {
   factory: StoreFactory;
@@ -380,6 +382,7 @@ export class JobRunner {
     await this.publishJob(repos, task.jobId);
 
     const settings = await repos.settings.get(job.bookId);
+    const requestContext = { job, parsed, settings, contextSize: this.options.contextSize };
     const translator = new SegmentTranslator(task.provider, this.deps.sleep);
     const segments = parsed.segments.filter((s) => s.chapterId === task.chapterId);
     const { pending, context } = chapterWork(segments, await repos.translations.forJob(task.jobId));
@@ -388,36 +391,27 @@ export class JobRunner {
       for (const batch of batchSegments(pending, this.options.maxChars, this.options.maxCount)) {
         if (aborted()) return;
         const outcome = await translator.translateBatch(
-          {
-            model: task.body.model,
-            sourceLang: job.sourceLang,
-            target: getTargetLanguage(job.targetLang),
-            bookTitle: parsed.title,
-            context: context.slice(-this.options.contextSize),
-            segments: batch.map((s) => ({ id: s.id, text: s.sourceText })),
-            ...promptExtras(settings.customPrompt, settings.glossary),
-          },
+          segmentRequest(requestContext, task.body.model, batch, context),
           task.controller.signal,
         );
         if (aborted()) return;
-        await repos.jobs.addUsage(task.jobId, outcome.usage);
-        for (const segment of batch) {
-          const result = outcome.results.get(segment.id);
-          if (!result) continue;
-          // A clear or cancel may land during any await; never write after it.
-          if (aborted()) return;
-          await repos.translations.put(task.jobId, segment.id, result);
-          if (result.status === "done") {
-            context.push({ source: segment.sourceText, target: result.text });
-          }
-          this.deps.events.publish({
-            type: "segment.done",
-            jobId: task.jobId,
-            chapterId: task.chapterId,
-            segmentId: segment.id,
-            status: result.status,
-          });
-        }
+        const sourceOf = new Map(batch.map((s) => [s.id, s.sourceText]));
+        const recorded = await recordResults(repos, this.deps.events, {
+          jobId: task.jobId,
+          chapterId: task.chapterId,
+          usage: outcome.usage,
+          entries: batch.flatMap((s) => {
+            const result = outcome.results.get(s.id);
+            return result ? [[s.id, result] as const] : [];
+          }),
+          isStopped: aborted,
+          onRecorded: (id, result) => {
+            if (result.status === "done") {
+              context.push({ source: sourceOf.get(id) ?? "", target: result.text });
+            }
+          },
+        });
+        if (!recorded) return;
         if (aborted()) return;
         await this.publishChapter(repos, task.jobId, parsed, task.chapterId);
       }

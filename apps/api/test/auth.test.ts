@@ -157,6 +157,9 @@ describe("public routes", () => {
       authMode: "supabase",
       supabaseUrl: "https://x.supabase.co",
       supabasePublishableKey: "sb_publishable_x",
+      uploadMode: "multipart",
+      maxUploadBytes: 200 * 1024 * 1024,
+      clientExecution: true,
     });
   });
 
@@ -166,6 +169,9 @@ describe("public routes", () => {
       authMode: "none",
       supabaseUrl: null,
       supabasePublishableKey: null,
+      uploadMode: "multipart",
+      maxUploadBytes: 200 * 1024 * 1024,
+      clientExecution: false,
     });
     expect((await app.request("/api/books")).status).toBe(200);
     expect((await app.request("/api/admin/users")).status).toBe(404);

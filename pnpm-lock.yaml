@@ -38,6 +38,9 @@ importers:
       '@et/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@et/store-postgres':
+        specifier: workspace:*
+        version: link:../../packages/store-postgres
       '@et/store-sqlite':
         specifier: workspace:*
         version: link:../../packages/store-sqlite
@@ -69,6 +72,12 @@ importers:
       '@et/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@et/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@et/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@fontsource-variable/inter':
         specifier: 5.3.0
         version: 5.3.0

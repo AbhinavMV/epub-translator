@@ -19,6 +19,7 @@ export class ProviderCatalog {
   constructor(
     private readonly registry: ProviderRegistry,
     private readonly discoverModels: boolean,
+    private readonly capabilitiesOnly = false,
   ) {}
 
   provider(id: ProviderId): TranslationProvider | null {
@@ -42,6 +43,21 @@ export class ProviderCatalog {
   }
 
   private async load(): Promise<ProviderInfo[]> {
+    if (this.capabilitiesOnly) {
+      return [...this.registry].map(([id, entry]) => {
+        const models = KNOWN_MODELS[id] ?? (entry.termsModel ? [entry.termsModel] : []);
+        const defaultModel = entry.defaultModel || (models[0] ?? "");
+        return {
+          id,
+          label: LABELS[id],
+          configured: false,
+          models: withDefault(models, defaultModel),
+          defaultModel,
+          ...(entry.termsModel ? { termsModel: entry.termsModel } : {}),
+          supportsBatch: true,
+        };
+      });
+    }
     return Promise.all(
       [...this.registry].map(async ([id, entry]) => {
         if (!entry.configured || !entry.provider) {

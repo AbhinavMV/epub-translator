@@ -27,7 +27,6 @@ const LIBRARY_TITLE_LANG = "en";
 
 async function libraryTitle(
   repos: Repositories,
-  blobs: BlobStore,
   bookId: string,
   parsed: ParsedBook,
 ): Promise<string | null> {
@@ -53,35 +52,31 @@ export function booksRoutes(s: Services) {
       }
       return c.json(summaries);
     })
-    .post(
-      "/import",
-      validate("json", ImportBodySchema),
-      async (c) => {
-        const uploads = s.uploads;
-        if (!uploads) return c.json({ error: "Not found" }, 404);
-        const { ownerId, blobs } = c.var;
-        const { path } = c.req.valid("json");
-        const { books } = c.var.repos;
-        try {
-          const bytes = await uploads.read(ownerId, path);
-          const book = await importBook(
-            {
-              ...s,
-              books,
-              blobs: {
-                get: (key) => blobs.get(key),
-                delete: (key) => blobs.delete(key),
-                put: (key) => uploads.promote(ownerId, path, `${ownerId}/${key}`, bytes),
-              },
+    .post("/import", validate("json", ImportBodySchema), async (c) => {
+      const uploads = s.uploads;
+      if (!uploads) return c.json({ error: "Not found" }, 404);
+      const { ownerId, blobs } = c.var;
+      const { path } = c.req.valid("json");
+      const { books } = c.var.repos;
+      try {
+        const bytes = await uploads.read(ownerId, path);
+        const book = await importBook(
+          {
+            ...s,
+            books,
+            blobs: {
+              get: (key) => blobs.get(key),
+              delete: (key) => blobs.delete(key),
+              put: (key) => uploads.promote(ownerId, path, `${ownerId}/${key}`, bytes),
             },
-            bytes,
-          );
-          return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
-        } finally {
-          await uploads.discard(ownerId, path).catch(() => undefined);
-        }
-      },
-    )
+          },
+          bytes,
+        );
+        return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
+      } finally {
+        await uploads.discard(ownerId, path).catch(() => undefined);
+      }
+    })
     .post(
       "/",
       bodyLimit({
@@ -94,7 +89,10 @@ export function booksRoutes(s: Services) {
         const file = body.file;
         if (!(file instanceof File)) throw new InvalidEpubError("Missing file field");
         const { books } = c.var.repos;
-        const book = await importBook({ ...s, books, blobs: c.var.blobs }, new Uint8Array(await file.arrayBuffer()));
+        const book = await importBook(
+          { ...s, books, blobs: c.var.blobs },
+          new Uint8Array(await file.arrayBuffer()),
+        );
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       },
     )
@@ -113,7 +111,12 @@ export function booksRoutes(s: Services) {
     .delete("/:id", async (c) => {
       const { ownerId } = c.var;
       await deleteBook(
-        { ...s, ...c.var.repos, blobs: c.var.blobs, runner: { cancel: (jobId) => s.runner.cancel(ownerId, jobId) } },
+        {
+          ...s,
+          ...c.var.repos,
+          blobs: c.var.blobs,
+          runner: { cancel: (jobId) => s.runner.cancel(ownerId, jobId) },
+        },
         c.req.param("id"),
       );
       return c.body(null, 204);
@@ -182,6 +185,7 @@ const ASSET_CSP = "sandbox; default-src 'none'; img-src 'self' data:; style-src 
 async function serveAsset(
   s: Services,
   repos: Repositories,
+  blobs: BlobStore,
   bookId: string,
   href: string,
 ): Promise<Response> {

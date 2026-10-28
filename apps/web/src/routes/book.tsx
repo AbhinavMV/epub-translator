@@ -30,6 +30,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useHosted } from "@/keys/hosted-context";
 import {
   hasAnyTranslation,
   isBusy,
@@ -37,6 +38,7 @@ import {
   translatedChapterCount,
 } from "@/lib/chapter-status";
 import { effectiveMode, loadMode, saveMode } from "@/lib/translate-mode";
+import { useBatchPolling, useHostedSync } from "@/translate/use-hosted-sync";
 
 const route = getRouteApi("/books/$bookId");
 
@@ -53,6 +55,8 @@ export function BookPage() {
   const jobId = workspace.data?.id;
   const job = useJob(jobId);
   useJobEvents(jobId);
+  const hosted = useHosted();
+  useHostedSync(hosted, jobId);
 
   const chapters = book.data?.chapters ?? [];
   const chapterId = chapters.find((c) => c.id === search.chapter)?.id ?? chapters[0]?.id;
@@ -93,10 +97,15 @@ export function BookPage() {
   const onSelection = (next: Selection) =>
     void persist({ provider: next.provider, model: next.model });
 
+  const hasSubmitted = job.data?.progress.some((p) => p.status === "submitted") ?? false;
+  const checkBatch = useBatchPolling(hosted, jobId, hasSubmitted);
+
   const busyElsewhere =
     job.data?.progress.filter((p) => p.chapterId !== chapterId && isBusy(p.status)).length ?? 0;
 
-  const noProviderHint = "No provider configured. Set ANTHROPIC_API_KEY in apps/api/.env";
+  const noProviderHint = hosted
+    ? "No AI key yet. Add one under AI keys."
+    : "No provider configured. Set ANTHROPIC_API_KEY in apps/api/.env";
 
   if (book.isError) {
     return (
@@ -171,6 +180,7 @@ export function BookPage() {
             onPrev={() => goTo(chapters[chapterIndex - 1]?.id)}
             onNext={() => goTo(chapters[chapterIndex + 1]?.id)}
             onCancel={() => action.mutate({ kind: "cancel" })}
+            {...(hosted ? { onCheckBatch: checkBatch } : {})}
             epubHref={jobId ? api.exportUrl(jobId, "epub") : undefined}
             bilingualEpubHref={jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined}
             txtHref={jobId ? api.exportUrl(jobId, "txt") : undefined}

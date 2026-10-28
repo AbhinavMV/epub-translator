@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { LOCAL_OWNER_ID } from "@et/contracts";
 import type { BatchTranslationProvider, BlobStore, TranslationProvider } from "@et/core";
-import { JobRunner } from "@et/core";
+import { JobRunner, MemoryWorkLeaseFactory } from "@et/core";
 import { XmlChapterRenderer, YauzlEpubAssets, YauzlEpubParser, YazlEpubExporter } from "@et/epub";
 import {
   buildProviderRegistry,
@@ -60,6 +60,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
   return {
     db,
     factory,
+    leases: new MemoryWorkLeaseFactory(systemClock, uuidGenerator),
     repos: factory.forOwner(LOCAL_OWNER_ID),
     ownerOf: () => LOCAL_OWNER_ID,
     blobs,

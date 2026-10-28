@@ -9,7 +9,12 @@ export function assertOwner(ownerId: string): void {
 
 export function assertOwnedKey(key: string): void {
   const [owner, ...rest] = key.split("/");
-  if (!owner || !OWNER.test(owner) || rest.length === 0 || !rest.every((s) => SAFE_SEGMENT.test(s))) {
+  if (
+    !owner ||
+    !OWNER.test(owner) ||
+    rest.length === 0 ||
+    !rest.every((s) => SAFE_SEGMENT.test(s))
+  ) {
     throw new Error("Invalid blob key");
   }
 }

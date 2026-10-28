@@ -90,6 +90,7 @@ export function EditorToolbar({
   onPrev,
   onNext,
   onCancel,
+  onCheckBatch,
   epubHref,
   bilingualEpubHref,
   txtHref,
@@ -111,6 +112,7 @@ export function EditorToolbar({
   onPrev: () => void;
   onNext: () => void;
   onCancel: () => void;
+  onCheckBatch?: () => void;
   epubHref: string | undefined;
   bilingualEpubHref: string | undefined;
   txtHref: string | undefined;
@@ -226,6 +228,15 @@ export function EditorToolbar({
                 : busy
                   ? "Queued…"
                   : `Translating ${busyCount} other chapter${busyCount > 1 ? "s" : ""}…`}
+            {onCheckBatch && busy && chapterProgress?.status === "submitted" ? (
+              <button
+                type="button"
+                onClick={onCheckBatch}
+                className="rounded-full px-2 py-0.5 text-[11px] hover:bg-primary/15"
+              >
+                Check batch
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onCancel}

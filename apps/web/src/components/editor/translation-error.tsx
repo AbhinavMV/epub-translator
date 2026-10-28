@@ -1,11 +1,14 @@
 import { AlertTriangle } from "lucide-react";
+import { useHosted } from "@/keys/hosted-context";
 
 const AUTH = /HTTP 40[13]|authentication/i;
 const QUOTA = /HTTP 429|rate.?limit|quota|credit/i;
 
-function hintFor(message: string): string | null {
+function hintFor(message: string, hosted: boolean): string | null {
   if (AUTH.test(message)) {
-    return "Fix the key in apps/api/.env, restart the app, then translate again.";
+    return hosted
+      ? "Check the key under AI keys, then translate again."
+      : "Fix the key in apps/api/.env, restart the app, then translate again.";
   }
   if (QUOTA.test(message)) {
     return "The provider is limiting requests. Wait a little, or check your plan's credit, then try again.";
@@ -20,9 +23,10 @@ export function TranslationError({
   chapterError: string | null | undefined;
   jobError: string | null | undefined;
 }) {
+  const hosted = useHosted() !== null;
   const message = chapterError ?? jobError;
   if (!message) return null;
-  const hint = hintFor(message);
+  const hint = hintFor(message, hosted);
   return (
     <div
       role="alert"

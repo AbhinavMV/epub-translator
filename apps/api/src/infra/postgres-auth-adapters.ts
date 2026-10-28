@@ -1,10 +1,4 @@
-import type {
-  AppUser,
-  AppUserRepository,
-  Invite,
-  InviteRepository,
-  NewInvite,
-} from "@et/core";
+import type { AppUser, AppUserRepository, Invite, InviteRepository, NewInvite } from "@et/core";
 import type { PostgresAppUserRepository, PostgresInviteRepository } from "@et/store-postgres";
 
 type PgInvite = Awaited<ReturnType<PostgresInviteRepository["create"]>>;

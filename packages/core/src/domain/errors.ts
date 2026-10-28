@@ -61,10 +61,24 @@ export class RateLimitedError extends Error {
   }
 }
 
+export class LeaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LeaseError";
+  }
+}
+
 export class ConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ConflictError";
+  }
+}
+
+export class InvalidWorkResultError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidWorkResultError";
   }
 }
 
