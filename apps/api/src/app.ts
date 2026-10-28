@@ -1,15 +1,18 @@
+import type { PublicConfig } from "@et/contracts";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { adminRoutes } from "./http/admin.ts";
 import { type AuthDeps, authMiddleware } from "./http/auth.ts";
-import { configRoutes, meRoutes } from "./http/auth-routes.ts";
+import { meRoutes } from "./http/auth-routes.ts";
 import { booksRoutes } from "./http/books.ts";
+import { configRoutes, LOCAL_PUBLIC_CONFIG, publicConfig } from "./http/config.ts";
 import { handleError } from "./http/errors.ts";
 import { invitesRoutes } from "./http/invites.ts";
 import { jobsRoutes } from "./http/jobs.ts";
 import { providersRoutes } from "./http/providers.ts";
 import { type AppEnv, requestContext } from "./http/request-context.ts";
 import { sessionRoutes } from "./http/session.ts";
+import { glossarySampleRoutes, workRoutes } from "./http/work.ts";
 import type { Services } from "./services.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -33,6 +36,7 @@ export function allowedHostsPolicy(list: string): (host: string) => boolean {
 export interface AppOptions {
   allowHost?: (host: string) => boolean;
   auth?: AuthDeps;
+  config?: PublicConfig;
 }
 
 export function createApp(services: Services, options: AppOptions = {}) {
@@ -56,10 +60,10 @@ export function createApp(services: Services, options: AppOptions = {}) {
     });
   }
 
+  app.route("/api/config", configRoutes(publicConfig(options.config ?? LOCAL_PUBLIC_CONFIG, auth)));
   app
     .use("/api/*", authMiddleware(auth))
     .use("/api/*", requestContext(services, auth !== undefined));
-  app.route("/api/config", configRoutes(auth));
   if (auth) {
     app
       .route("/api/me", meRoutes(auth))
@@ -69,7 +73,9 @@ export function createApp(services: Services, options: AppOptions = {}) {
   }
   return app
     .route("/api/books", booksRoutes(services))
+    .route("/api/books", glossarySampleRoutes())
     .route("/api/jobs", jobsRoutes(services))
+    .route("/api/jobs", workRoutes(services))
     .route("/api/providers", providersRoutes(services))
     .notFound((c) => c.json({ error: "Not found" }, 404));
 }

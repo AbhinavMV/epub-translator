@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { KeysDialog } from "@/keys/keys-dialog";
 import { GlossaryDialog } from "./glossary-dialog";
 import { ModeToggle } from "./mode-toggle";
 import type { Selection } from "./model-selection";
@@ -73,6 +74,7 @@ export function EditorHeader({
       <BookTitle title={title} translated={translatedTitle} />
       <div className="order-last flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:flex-nowrap">
         <ProviderSelect providers={providers} selection={selection} onChange={onSelection} />
+        <KeysDialog />
         <ModeToggle mode={mode} batchAvailable={batchAvailable} onChange={onMode} />
         <Select value={targetLang} onValueChange={onTargetLang}>
           <SelectTrigger size="sm" className="w-[7.5rem]" aria-label="Target language">

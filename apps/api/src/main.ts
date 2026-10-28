@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { composeLocalServices } from "./compose-local.ts";
 import { loadConfig } from "./config.ts";
+import { LOCAL_PUBLIC_CONFIG } from "./http/config.ts";
 import { startBatchPolling } from "./infra/batch-poller.ts";
 
 const config = loadConfig(process.env);
@@ -13,7 +14,13 @@ if (refreshed.upgraded + refreshed.failed > 0) {
   console.log(`[api] re-parsed ${refreshed.upgraded} book(s), ${refreshed.failed} failed`);
 }
 const server = serve(
-  { fetch: createApp(services).fetch, port: config.port, hostname: config.host },
+  {
+    fetch: createApp(services, {
+      config: { ...LOCAL_PUBLIC_CONFIG, clientExecution: config.env.CLIENT_EXECUTION === "1" },
+    }).fetch,
+    port: config.port,
+    hostname: config.host,
+  },
   (info) => {
     console.log(`[api] listening on http://${info.address}:${info.port} (data: ${config.dataDir})`);
   },

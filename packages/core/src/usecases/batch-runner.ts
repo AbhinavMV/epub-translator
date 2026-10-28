@@ -1,5 +1,4 @@
-import { getTargetLanguage, type TranslateBody } from "@et/contracts";
-import type { SegmentTranslation } from "../domain/segment.ts";
+import type { TranslateBody } from "@et/contracts";
 import type { BatchRequest, BatchTranslationProvider } from "../ports/batch-provider.ts";
 import type { JobEventSink } from "../ports/events.ts";
 import type { Repositories } from "../ports/stores.ts";
@@ -7,7 +6,9 @@ import type { Clock, IdGenerator } from "../ports/system.ts";
 import type { SegmentBatchResult } from "../ports/translation-provider.ts";
 import { batchSegments } from "../translation/batcher.ts";
 import { settleOnce } from "../translation/settle.ts";
-import { chapterWork, promptExtras } from "./chapter-work.ts";
+import { chapterWork } from "./chapter-work.ts";
+import { recordResults } from "./work/record-results.ts";
+import { segmentRequest } from "./work/request.ts";
 
 export interface BatchDeps {
   provider: (id: TranslateBody["provider"]) => BatchTranslationProvider | null;
@@ -66,17 +67,10 @@ export class BatchRunner {
     const splits = batchSegments(pending, this.options.maxChars, this.options.maxCount);
     if (splits.length === 0) return;
 
+    const requestContext = { job, parsed, settings, contextSize: this.options.contextSize };
     const requests: BatchRequest[] = splits.map((split, i) => ({
       customId: String(i),
-      request: {
-        model: body.model,
-        sourceLang: job.sourceLang,
-        target: getTargetLanguage(job.targetLang),
-        bookTitle: parsed.title,
-        context: context.slice(-this.options.contextSize),
-        segments: split.map((s) => ({ id: s.id, text: s.sourceText })),
-        ...promptExtras(settings.customPrompt, settings.glossary),
-      },
+      request: segmentRequest(requestContext, body.model, split, context),
     }));
 
     const vendorBatchId = await provider.submit(requests);
@@ -197,29 +191,15 @@ export class BatchRunner {
       };
       const settled = settleOnce(split, result);
       if (this.epochOf(jobId) !== epoch) return false;
-      await repos.jobs.addUsage(jobId, settled.usage);
-      for (const [segmentId, translation] of settled.results) {
-        if (this.epochOf(jobId) !== epoch) return false;
-        await this.record(repos, jobId, chapterId, segmentId, translation);
-      }
+      const recorded = await recordResults(repos, this.deps.events, {
+        jobId,
+        chapterId,
+        usage: settled.usage,
+        entries: [...settled.results],
+        isStopped: () => this.epochOf(jobId) !== epoch,
+      });
+      if (!recorded) return false;
     }
     return true;
-  }
-
-  private async record(
-    repos: Repositories,
-    jobId: string,
-    chapterId: string,
-    segmentId: string,
-    translation: SegmentTranslation,
-  ): Promise<void> {
-    await repos.translations.put(jobId, segmentId, translation);
-    this.deps.events.publish({
-      type: "segment.done",
-      jobId,
-      chapterId,
-      segmentId,
-      status: translation.status,
-    });
   }
 }

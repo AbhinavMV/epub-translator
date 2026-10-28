@@ -10,6 +10,7 @@ import type {
   JobRunner,
   Repositories,
   StoreFactory,
+  WorkLeaseFactory,
 } from "@et/core";
 import type { Database } from "@et/store-sqlite";
 import type { JobEventBus } from "./infra/job-event-bus.ts";
@@ -24,6 +25,7 @@ export interface EpubAdapters {
 
 export interface Services extends EpubAdapters {
   factory: StoreFactory;
+  leases: WorkLeaseFactory;
   ownerOf(request: Request): string | Promise<string>;
   blobs: BlobStore;
   events: JobEventBus;

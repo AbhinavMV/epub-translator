@@ -157,6 +157,7 @@ describe("public routes", () => {
       authMode: "supabase",
       supabaseUrl: "https://x.supabase.co",
       supabasePublishableKey: "sb_publishable_x",
+      clientExecution: true,
     });
   });
 
@@ -166,6 +167,7 @@ describe("public routes", () => {
       authMode: "none",
       supabaseUrl: null,
       supabasePublishableKey: null,
+      clientExecution: false,
     });
     expect((await app.request("/api/books")).status).toBe(200);
     expect((await app.request("/api/admin/users")).status).toBe(404);

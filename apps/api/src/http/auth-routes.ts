@@ -1,18 +1,7 @@
-import type { AppConfig, Me } from "@et/contracts";
+import type { Me } from "@et/contracts";
 import { Hono } from "hono";
 import { type AuthDeps, isAdmin } from "./auth.ts";
 import type { AppEnv } from "./request-context.ts";
-
-export function configRoutes(auth: AuthDeps | undefined) {
-  const config: AppConfig = auth
-    ? {
-        authMode: "supabase",
-        supabaseUrl: auth.publicConfig.supabaseUrl,
-        supabasePublishableKey: auth.publicConfig.supabasePublishableKey,
-      }
-    : { authMode: "none", supabaseUrl: null, supabasePublishableKey: null };
-  return new Hono<AppEnv>().get("/", (c) => c.json(config));
-}
 
 export function meRoutes(auth: AuthDeps) {
   return new Hono<AppEnv>().get("/", (c) => {

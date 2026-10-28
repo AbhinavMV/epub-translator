@@ -6,7 +6,9 @@ import {
   FatalProviderError,
   ForbiddenError,
   InvalidEpubError,
+  InvalidWorkResultError,
   InviteInvalidError,
+  LeaseError,
   NotFoundError,
   ProviderNotConfiguredError,
   RateLimitedError,
@@ -25,12 +27,14 @@ export function errorStatus(err: unknown): ContentfulStatusCode {
   if (err instanceof AccountCreationError) return 422;
   if (err instanceof InvalidEpubError) return 422;
   if (
+    err instanceof InvalidWorkResultError ||
     err instanceof ProviderNotConfiguredError ||
     err instanceof BatchNotSupportedError ||
     err instanceof UnknownLanguageError
   ) {
     return 400;
   }
+  if (err instanceof LeaseError || err instanceof ConflictError) return 409;
   if (err instanceof FatalProviderError) return 502;
   return 500;
 }

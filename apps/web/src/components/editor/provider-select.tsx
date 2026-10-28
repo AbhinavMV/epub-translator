@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useHosted } from "@/keys/hosted-context";
 import { envHint, type Selection } from "./model-selection";
 
 export function ProviderSelect({
@@ -17,6 +18,7 @@ export function ProviderSelect({
   selection: Selection | null;
   onChange: (next: Selection) => void;
 }) {
+  const hosted = useHosted();
   const current = providers?.find((p) => p.id === selection?.provider);
   const models = current
     ? [...new Set([...current.models, selection?.model ?? ""])].filter(Boolean)
@@ -45,7 +47,9 @@ export function ProviderSelect({
               <span className="flex flex-col">
                 <span>{p.label}</span>
                 {!p.configured && (
-                  <span className="font-mono text-[10px] text-muted-foreground">{envHint(p)}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {hosted ? "Add a key under AI keys" : envHint(p)}
+                  </span>
                 )}
               </span>
             </SelectItem>
