@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --fsModuleCachePath .vitest-cache --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json",
     "db:migrate": "node scripts/migrate.ts",
     "db:bundle": "node scripts/bundle.ts"
