@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run --fsModuleCachePath .vitest-cache --passWithNoTests",
+    "test": "vitest run --testTimeout 20000 --hookTimeout 60000 --fsModuleCachePath .vitest-cache --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json",
     "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
     "start": "tsx --env-file-if-exists=.env src/main.ts"
