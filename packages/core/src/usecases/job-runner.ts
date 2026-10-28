@@ -8,12 +8,7 @@ import {
 } from "../domain/errors.ts";
 import type { Job } from "../domain/job.ts";
 import type { JobEventSink } from "../ports/events.ts";
-import type {
-  BookRepository,
-  BookSettingsRepository,
-  JobRepository,
-  TranslationRepository,
-} from "../ports/stores.ts";
+import type { Repositories, StoreFactory } from "../ports/stores.ts";
 import type { Sleep } from "../ports/system.ts";
 import type { TranslationProvider } from "../ports/translation-provider.ts";
 import { batchSegments } from "../translation/batcher.ts";
@@ -25,10 +20,7 @@ import { requireBook } from "./load-book.ts";
 import { translatedTitles } from "./translated-titles.ts";
 
 export interface JobRunnerDeps {
-  books: BookRepository;
-  jobs: JobRepository;
-  translations: TranslationRepository;
-  settings: BookSettingsRepository;
+  factory: StoreFactory;
   providers: (id: TranslateBody["provider"]) => TranslationProvider | null;
   events: JobEventSink;
   sleep: Sleep;
@@ -43,6 +35,7 @@ export interface JobRunnerOptions {
 }
 
 interface Task {
+  ownerId: string;
   jobId: string;
   chapterId: string;
   body: TranslateBody;
@@ -51,6 +44,7 @@ interface Task {
 }
 
 interface Submission {
+  ownerId: string;
   jobId: string;
   chapterId: string;
   cancelled: boolean;
@@ -65,6 +59,7 @@ export class JobRunner {
   private readonly runtime = new Map<string, ChapterRuntime>();
   private readonly errors = new Map<string, string>();
   private readonly batches: BatchRunner | null;
+  private finalizing = 0;
   private idleWaiters: (() => void)[] = [];
 
   constructor(
@@ -79,79 +74,79 @@ export class JobRunner {
     this.batches = deps.batch ? new BatchRunner({ ...deps, batch: deps.batch }, options) : null;
   }
 
-  translateChapter(jobId: string, chapterId: string, body: TranslateBody): void {
-    const { parsed } = this.requireJob(jobId);
+  async translateChapter(
+    ownerId: string,
+    jobId: string,
+    chapterId: string,
+    body: TranslateBody,
+  ): Promise<void> {
+    const { parsed } = await this.requireJob(this.reposOf(ownerId), jobId);
     this.requireChapter(parsed, chapterId);
-    this.enqueue(jobId, chapterId, body, this.requireProvider(body));
+    await this.enqueue(ownerId, jobId, chapterId, body, this.requireProvider(body));
   }
 
-  translateAll(jobId: string, body: TranslateBody): void {
-    const { job, parsed } = this.requireJob(jobId);
+  async translateAll(ownerId: string, jobId: string, body: TranslateBody): Promise<void> {
+    const repos = this.reposOf(ownerId);
+    const { job, parsed } = await this.requireJob(repos, jobId);
     const provider = this.requireProvider(body);
-    const translations = this.deps.translations.forJob(jobId);
+    const translations = await repos.translations.forJob(jobId);
     const contentsFirst = [...parsed.chapters].sort(
       (a, b) => Number(b.id === CONTENTS_CHAPTER_ID) - Number(a.id === CONTENTS_CHAPTER_ID),
     );
     for (const chapter of contentsFirst) {
       const p = chapterProgress(parsed, chapter.id, translations, undefined, null);
-      if (p.status !== "done") this.enqueue(job.id, chapter.id, body, provider);
+      if (p.status !== "done") await this.enqueue(ownerId, job.id, chapter.id, body, provider);
     }
   }
 
-  retryChapter(jobId: string, chapterId: string, body: TranslateBody): void {
+  async retryChapter(
+    ownerId: string,
+    jobId: string,
+    chapterId: string,
+    body: TranslateBody,
+  ): Promise<void> {
     const provider = this.requireProvider(body);
-    this.clearChapter(jobId, chapterId);
-    this.enqueue(jobId, chapterId, body, provider);
+    await this.clearChapter(ownerId, jobId, chapterId);
+    await this.enqueue(ownerId, jobId, chapterId, body, provider);
   }
 
-  clearChapter(jobId: string, chapterId: string): void {
-    const { parsed } = this.requireJob(jobId);
+  async clearChapter(ownerId: string, jobId: string, chapterId: string): Promise<void> {
+    const repos = this.reposOf(ownerId);
+    const { parsed } = await this.requireJob(repos, jobId);
     const chapter = this.requireChapter(parsed, chapterId);
     this.stop(jobId, (t) => t.chapterId === chapterId);
-    this.cancelBatches(jobId, chapterId);
     this.errors.delete(key(jobId, chapterId));
-    this.deps.translations.deleteMany(
+    await this.cancelBatches(ownerId, jobId, chapterId);
+    await repos.translations.deleteMany(
       jobId,
       parsed.segments.filter((s) => s.chapterId === chapter.id).map((s) => s.id),
     );
-    this.publishChapter(jobId, parsed, chapterId);
+    await this.publishChapter(repos, jobId, parsed, chapterId);
   }
 
-  cancel(jobId: string): void {
-    this.requireJob(jobId);
+  async cancel(ownerId: string, jobId: string): Promise<void> {
+    const repos = this.reposOf(ownerId);
+    await this.requireJob(repos, jobId);
     this.stop(jobId, () => true);
-    this.cancelBatches(jobId);
-    this.publishJob(jobId);
+    await this.cancelBatches(ownerId, jobId);
+    await this.publishJob(repos, jobId);
   }
 
-  async pollBatches(): Promise<void> {
+  async pollBatches(ownerId: string): Promise<void> {
     if (!this.batches) return;
-    for (const t of await this.batches.poll()) {
+    const repos = this.reposOf(ownerId);
+    for (const t of await this.batches.poll(repos)) {
       if (t.error) this.errors.set(key(t.jobId, t.chapterId), t.error);
-      const job = this.deps.jobs.get(t.jobId);
-      const parsed = job ? this.deps.books.getParsed(job.bookId) : null;
+      const job = await repos.jobs.get(t.jobId);
+      const parsed = job ? await repos.books.getParsed(job.bookId) : null;
       if (!parsed) continue;
-      this.publishChapter(t.jobId, parsed, t.chapterId);
-      this.publishJob(t.jobId);
+      await this.publishChapter(repos, t.jobId, parsed, t.chapterId);
+      await this.publishJob(repos, t.jobId);
     }
   }
 
-  summary(jobId: string): JobSummary {
-    const { job, parsed } = this.requireJob(jobId);
-    const translations = this.deps.translations.forJob(jobId);
-    return jobSummary(
-      job,
-      parsed.chapters.map((c) =>
-        chapterProgress(
-          parsed,
-          c.id,
-          translations,
-          this.runtimeOf(jobId, c.id),
-          this.errors.get(key(jobId, c.id)) ?? null,
-        ),
-      ),
-      translatedTitles(parsed, translations),
-    );
+  async summary(ownerId: string, jobId: string): Promise<JobSummary> {
+    return this.summaryOf(this.reposOf(ownerId), jobId);
   }
 
   whenIdle(): Promise<void> {
@@ -159,20 +154,56 @@ export class JobRunner {
     return new Promise((resolve) => this.idleWaiters.push(resolve));
   }
 
-  private isIdle(): boolean {
-    return this.queue.length === 0 && this.active.size === 0 && this.submissions.size === 0;
+  private reposOf(ownerId: string): Repositories {
+    return this.deps.factory.forOwner(ownerId);
   }
 
-  private runtimeOf(jobId: string, chapterId: string): ChapterRuntime | undefined {
+  private async summaryOf(repos: Repositories, jobId: string): Promise<JobSummary> {
+    const { job, parsed } = await this.requireJob(repos, jobId);
+    const translations = await repos.translations.forJob(jobId);
+    const progress = [];
+    for (const c of parsed.chapters) {
+      progress.push(
+        chapterProgress(
+          parsed,
+          c.id,
+          translations,
+          await this.runtimeOf(repos, jobId, c.id),
+          this.errors.get(key(jobId, c.id)) ?? null,
+        ),
+      );
+    }
+    return jobSummary(job, progress, translatedTitles(parsed, translations));
+  }
+
+  private isIdle(): boolean {
+    return (
+      this.queue.length === 0 &&
+      this.active.size === 0 &&
+      this.submissions.size === 0 &&
+      this.finalizing === 0
+    );
+  }
+
+  private async runtimeOf(
+    repos: Repositories,
+    jobId: string,
+    chapterId: string,
+  ): Promise<ChapterRuntime | undefined> {
     const live = this.runtime.get(key(jobId, chapterId));
     if (live) return live;
-    return this.batches?.hasOpen(jobId, chapterId) ? { status: "submitted" } : undefined;
+    return this.batches && (await this.batches.hasOpen(repos, jobId, chapterId))
+      ? { status: "submitted" }
+      : undefined;
   }
 
-  private requireJob(jobId: string): { job: Job; parsed: ParsedBook } {
-    const job = this.deps.jobs.get(jobId);
+  private async requireJob(
+    repos: Repositories,
+    jobId: string,
+  ): Promise<{ job: Job; parsed: ParsedBook }> {
+    const job = await repos.jobs.get(jobId);
     if (!job) throw new NotFoundError("Job", jobId);
-    return { job, parsed: requireBook(this.deps.books, job.bookId).parsed };
+    return { job, parsed: (await requireBook(repos.books, job.bookId)).parsed };
   }
 
   private requireChapter(parsed: ParsedBook, chapterId: string): ParsedChapter {
@@ -191,49 +222,74 @@ export class JobRunner {
     return provider;
   }
 
-  private enqueue(
+  private async enqueue(
+    ownerId: string,
     jobId: string,
     chapterId: string,
     body: TranslateBody,
     provider: TranslationProvider | null,
-  ): void {
+  ): Promise<void> {
+    const repos = this.reposOf(ownerId);
     const k = key(jobId, chapterId);
-    if (this.runtime.has(k) || this.batches?.hasOpen(jobId, chapterId)) return;
+    if (this.runtime.has(k) || (await this.batches?.hasOpen(repos, jobId, chapterId))) return;
+    // Everything from here to the queue push is synchronous so concurrent enqueues cannot interleave.
+    if (this.runtime.has(k)) return;
     this.errors.delete(k);
-    if (this.deps.jobs.get(jobId)?.error) this.deps.jobs.update(jobId, { error: null });
     this.runtime.set(k, { status: "queued" });
     if (provider) {
-      this.queue.push({ jobId, chapterId, body, provider, controller: new AbortController() });
+      this.queue.push({
+        ownerId,
+        jobId,
+        chapterId,
+        body,
+        provider,
+        controller: new AbortController(),
+      });
     } else {
-      this.submit(jobId, chapterId, body);
+      this.submit(ownerId, jobId, chapterId, body);
     }
-    this.publishChapter(jobId, this.requireJob(jobId).parsed, chapterId);
-    this.publishJob(jobId);
+    try {
+      if ((await repos.jobs.get(jobId))?.error) await repos.jobs.update(jobId, { error: null });
+      await this.publishChapter(
+        repos,
+        jobId,
+        (await this.requireJob(repos, jobId)).parsed,
+        chapterId,
+      );
+      await this.publishJob(repos, jobId);
+    } catch (err) {
+      this.stop(jobId, (t) => t.chapterId === chapterId);
+      throw err;
+    }
     this.pump();
   }
 
-  private submit(jobId: string, chapterId: string, body: TranslateBody): void {
+  private submit(ownerId: string, jobId: string, chapterId: string, body: TranslateBody): void {
     const k = key(jobId, chapterId);
-    const submission: Submission = { jobId, chapterId, cancelled: false };
+    const submission: Submission = { ownerId, jobId, chapterId, cancelled: false };
     this.submissions.set(k, submission);
+    this.finalizing++;
     void (this.batches as BatchRunner)
-      .submit(jobId, chapterId, body, () => submission.cancelled)
+      .submit(this.reposOf(ownerId), jobId, chapterId, body, () => submission.cancelled)
       .catch((err: unknown) => {
         if (!submission.cancelled) {
           this.errors.set(k, err instanceof Error ? err.message : String(err));
         }
       })
-      .finally(() => {
+      .then(async () => {
         if (this.submissions.get(k) === submission) {
           this.submissions.delete(k);
           this.runtime.delete(k);
         }
-        this.safePublish(jobId, chapterId);
+        await this.safePublish(ownerId, jobId, chapterId);
+      })
+      .finally(() => {
+        this.finalizing--;
         this.notifyIdle();
       });
   }
 
-  private cancelBatches(jobId: string, chapterId?: string): void {
+  private async cancelBatches(ownerId: string, jobId: string, chapterId?: string): Promise<void> {
     for (const [k, submission] of this.submissions) {
       if (submission.jobId !== jobId) continue;
       if (chapterId !== undefined && submission.chapterId !== chapterId) continue;
@@ -241,9 +297,10 @@ export class JobRunner {
       this.submissions.delete(k);
       this.runtime.delete(k);
     }
-    if (chapterId === undefined) this.batches?.cancelJob(jobId);
-    else this.batches?.cancelChapter(jobId, chapterId);
     this.notifyIdle();
+    const repos = this.reposOf(ownerId);
+    if (chapterId === undefined) await this.batches?.cancelJob(repos, jobId);
+    else await this.batches?.cancelChapter(repos, jobId, chapterId);
   }
 
   private stop(jobId: string, match: (t: Task) => boolean): void {
@@ -271,30 +328,39 @@ export class JobRunner {
       const k = key(task.jobId, task.chapterId);
       this.active.set(k, task);
       this.runtime.set(k, { status: "running" });
+      this.finalizing++;
       void this.runTask(task)
         .catch((err: unknown) => {
           if (!task.controller.signal.aborted) {
             this.errors.set(k, err instanceof Error ? err.message : String(err));
           }
         })
-        .finally(() => {
+        .then(async () => {
           if (this.active.get(k) === task) {
             this.active.delete(k);
             this.runtime.delete(k);
           }
-          this.safePublish(task.jobId, task.chapterId);
           this.pump();
+          await this.safePublish(task.ownerId, task.jobId, task.chapterId);
+        })
+        .finally(() => {
+          this.finalizing--;
           this.notifyIdle();
         });
     }
   }
 
-  private safePublish(jobId: string, chapterId: string): void {
-    const job = this.deps.jobs.get(jobId);
-    const parsed = job ? this.deps.books.getParsed(job.bookId) : null;
-    if (!parsed) return;
-    this.publishChapter(jobId, parsed, chapterId);
-    this.publishJob(jobId);
+  private async safePublish(ownerId: string, jobId: string, chapterId: string): Promise<void> {
+    try {
+      const repos = this.reposOf(ownerId);
+      const job = await repos.jobs.get(jobId);
+      const parsed = job ? await repos.books.getParsed(job.bookId) : null;
+      if (!parsed) return;
+      await this.publishChapter(repos, jobId, parsed, chapterId);
+      await this.publishJob(repos, jobId);
+    } catch {
+      // Publishing is best-effort; the next poll or reload recomputes progress from the store.
+    }
   }
 
   private notifyIdle(): void {
@@ -305,20 +371,22 @@ export class JobRunner {
   }
 
   private async runTask(task: Task): Promise<void> {
-    const job = this.deps.jobs.get(task.jobId);
-    const parsed = job ? this.deps.books.getParsed(job.bookId) : null;
-    if (!job || !parsed) return;
-    this.publishChapter(task.jobId, parsed, task.chapterId);
-    this.publishJob(task.jobId);
+    const repos = this.reposOf(task.ownerId);
+    const aborted = () => task.controller.signal.aborted;
+    const job = await repos.jobs.get(task.jobId);
+    const parsed = job ? await repos.books.getParsed(job.bookId) : null;
+    if (!job || !parsed || aborted()) return;
+    await this.publishChapter(repos, task.jobId, parsed, task.chapterId);
+    await this.publishJob(repos, task.jobId);
 
-    const settings = this.deps.settings.get(job.bookId);
+    const settings = await repos.settings.get(job.bookId);
     const translator = new SegmentTranslator(task.provider, this.deps.sleep);
     const segments = parsed.segments.filter((s) => s.chapterId === task.chapterId);
-    const { pending, context } = chapterWork(segments, this.deps.translations.forJob(task.jobId));
+    const { pending, context } = chapterWork(segments, await repos.translations.forJob(task.jobId));
 
     try {
       for (const batch of batchSegments(pending, this.options.maxChars, this.options.maxCount)) {
-        if (task.controller.signal.aborted) return;
+        if (aborted()) return;
         const outcome = await translator.translateBatch(
           {
             model: task.body.model,
@@ -331,12 +399,14 @@ export class JobRunner {
           },
           task.controller.signal,
         );
-        if (task.controller.signal.aborted) return;
-        this.deps.jobs.addUsage(task.jobId, outcome.usage);
+        if (aborted()) return;
+        await repos.jobs.addUsage(task.jobId, outcome.usage);
         for (const segment of batch) {
           const result = outcome.results.get(segment.id);
           if (!result) continue;
-          this.deps.translations.put(task.jobId, segment.id, result);
+          // A clear or cancel may land during any await; never write after it.
+          if (aborted()) return;
+          await repos.translations.put(task.jobId, segment.id, result);
           if (result.status === "done") {
             context.push({ source: segment.sourceText, target: result.text });
           }
@@ -348,35 +418,42 @@ export class JobRunner {
             status: result.status,
           });
         }
-        this.publishChapter(task.jobId, parsed, task.chapterId);
+        if (aborted()) return;
+        await this.publishChapter(repos, task.jobId, parsed, task.chapterId);
       }
     } catch (err) {
-      if (task.controller.signal.aborted) return;
+      if (aborted()) return;
       const message = err instanceof Error ? err.message : String(err);
       this.errors.set(key(task.jobId, task.chapterId), message);
       if (err instanceof FatalProviderError) {
-        this.deps.jobs.update(task.jobId, { error: message });
         this.stop(task.jobId, (t) => t !== task);
+        await repos.jobs.update(task.jobId, { error: message });
       }
     }
   }
 
-  private publishChapter(jobId: string, parsed: ParsedBook, chapterId: string): void {
-    const k = key(jobId, chapterId);
+  private async publishChapter(
+    repos: Repositories,
+    jobId: string,
+    parsed: ParsedBook,
+    chapterId: string,
+  ): Promise<void> {
+    const translations = await repos.translations.forJob(jobId);
+    const runtime = await this.runtimeOf(repos, jobId, chapterId);
     this.deps.events.publish({
       type: "chapter.progress",
       jobId,
       progress: chapterProgress(
         parsed,
         chapterId,
-        this.deps.translations.forJob(jobId),
-        this.runtimeOf(jobId, chapterId),
-        this.errors.get(k) ?? null,
+        translations,
+        runtime,
+        this.errors.get(key(jobId, chapterId)) ?? null,
       ),
     });
   }
 
-  private publishJob(jobId: string): void {
-    this.deps.events.publish({ type: "job.status", job: this.summary(jobId) });
+  private async publishJob(repos: Repositories, jobId: string): Promise<void> {
+    this.deps.events.publish({ type: "job.status", job: await this.summaryOf(repos, jobId) });
   }
 }

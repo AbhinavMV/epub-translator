@@ -38,11 +38,11 @@ export async function exportEpub(
   jobId: string,
   layout: ExportLayout = "translation",
 ): Promise<{ filename: string; bytes: Uint8Array }> {
-  const job = deps.jobs.get(jobId);
+  const job = await deps.jobs.get(jobId);
   if (!job) throw new NotFoundError("Job", jobId);
-  const { book, parsed } = requireBook(deps.books, job.bookId);
+  const { book, parsed } = await requireBook(deps.books, job.bookId);
   const bytes = await loadBookBytes(deps.blobs, book);
-  const translations = deps.translations.forJob(jobId);
+  const translations = await deps.translations.forJob(jobId);
   const out = await deps.exporter.export(
     bytes,
     parsed,

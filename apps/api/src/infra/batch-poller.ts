@@ -1,10 +1,6 @@
-export interface BatchPollable {
-  pollBatches(): Promise<void>;
-}
-
-export function startBatchPolling(runner: BatchPollable, intervalMs: number): () => void {
+export function startBatchPolling(poll: () => Promise<void>, intervalMs: number): () => void {
   const tick = () => {
-    runner.pollBatches().catch(() => {});
+    poll().catch(() => {});
   };
   tick();
   const timer = setInterval(tick, intervalMs);

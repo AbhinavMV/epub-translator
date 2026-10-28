@@ -3,11 +3,11 @@ import { readZip, YauzlEpubParser } from "@et/epub";
 import { describe, expect, it } from "vitest";
 import { buildFixtureEpub } from "../../../packages/epub/test/fixtures/build-fixture.ts";
 import { createApp } from "../src/app.ts";
-import { composeServices } from "../src/compose.ts";
+import { composeLocalServices } from "../src/compose-local.ts";
 
 describe("api with real epub adapters", () => {
   it("imports, translates a chapter, renders it and exports a valid english epub", async () => {
-    const services = composeServices({
+    const services = composeLocalServices({
       dataDir: ":memory:",
       env: { ENABLE_FAKE_PROVIDER: "1", FAKE_PROVIDER_DELAY_MS: "0" },
       discoverModels: false,

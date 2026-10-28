@@ -21,9 +21,9 @@ class StubExtractor implements TermExtractor {
 const usage = { inputTokens: 10, outputTokens: 5 };
 const signal = new AbortController().signal;
 
-function setup(extractor: TermExtractor, withJob = true) {
+async function setup(extractor: TermExtractor, withJob = true) {
   const books = new MemoryBooks();
-  books.insert(
+  await books.insert(
     {
       id: "b1",
       sha256: "s",
@@ -38,7 +38,7 @@ function setup(extractor: TermExtractor, withJob = true) {
   const settings = new MemorySettings();
   const jobs = new MemoryJobs();
   if (withJob) {
-    jobs.insert({
+    await jobs.insert({
       id: "j1",
       bookId: "b1",
       targetLang: "en",
@@ -69,8 +69,8 @@ describe("suggestGlossary", () => {
         { source: "C", target: "c" },
       ],
     });
-    const { deps, settings } = setup(extractor);
-    settings.put("b1", {
+    const { deps, settings } = await setup(extractor);
+    await settings.put("b1", {
       customPrompt: "",
       glossary: [{ source: "A", target: "x" }],
       provider: null,
@@ -85,26 +85,26 @@ describe("suggestGlossary", () => {
 
   it("caps suggestions at the maximum", async () => {
     const terms = Array.from({ length: 100 }, (_, i) => ({ source: `s${i}`, target: "t" }));
-    const { deps } = setup(new StubExtractor({ kind: "ok", usage, terms }));
+    const { deps } = await setup(new StubExtractor({ kind: "ok", usage, terms }));
     const out = await suggestGlossary(deps, input, signal);
     expect(out.terms).toHaveLength(60);
   });
 
   it("records usage on the existing workspace job", async () => {
-    const { deps, jobs } = setup(new StubExtractor({ kind: "ok", usage, terms: [] }));
+    const { deps, jobs } = await setup(new StubExtractor({ kind: "ok", usage, terms: [] }));
     const out = await suggestGlossary(deps, input, signal);
-    expect(jobs.get("j1")?.usage).toEqual(usage);
+    expect((await jobs.get("j1"))?.usage).toEqual(usage);
     expect(out.usage).toEqual(usage);
   });
 
   it("succeeds without a workspace job", async () => {
-    const { deps, jobs } = setup(new StubExtractor({ kind: "ok", usage, terms: [] }), false);
+    const { deps, jobs } = await setup(new StubExtractor({ kind: "ok", usage, terms: [] }), false);
     await suggestGlossary(deps, input, signal);
     expect(jobs.rows.size).toBe(0);
   });
 
   it("throws a typed error when the extractor fails", async () => {
-    const { deps } = setup(new StubExtractor({ kind: "fatal", cause: "boom" }));
+    const { deps } = await setup(new StubExtractor({ kind: "fatal", cause: "boom" }));
     await expect(suggestGlossary(deps, input, signal)).rejects.toBeInstanceOf(FatalProviderError);
   });
 });

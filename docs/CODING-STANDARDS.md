@@ -5,7 +5,7 @@ These rules apply to every line of production and test code in this repository.
 ## Architecture
 
 - **Ports and adapters.** `packages/core` owns the domain types, the ports (interfaces) and the use cases. It never imports Node built-ins, SDKs or databases; Biome enforces this for `core`, `segmenter` and `contracts`.
-- **Depend on ports, not adapters (DIP).** Use cases receive their collaborators through constructor or function parameters. `apps/api/src/compose.ts` is the only place that instantiates adapters.
+- **Depend on ports, not adapters (DIP).** Use cases receive their collaborators through constructor or function parameters. `apps/api/src/compose-local.ts` and `compose-hosted.ts` are the only places that instantiate adapters.
 - **Open for extension (OCP).** A new LLM provider is a new class implementing `TranslationProvider`, plus one registry entry. A new target language is one entry in `packages/contracts/src/languages.ts`. Neither change touches a use case.
 - **One responsibility per file (SRP).** Split by responsibility, not by technical layer. A file that needs "and" to describe it should be two files.
 - **Small interfaces (ISP).** Ports expose only what their consumers call. For example, the renderer and the exporter are separate ports even though one adapter package implements both.

@@ -1,4 +1,4 @@
-import type { BookSettings, ChapterView, Usage } from "@et/contracts";
+import { type BookSettings, type ChapterView, LOCAL_OWNER_ID, type Usage } from "@et/contracts";
 import type {
   BatchRepository,
   BlobStore,
@@ -14,66 +14,67 @@ import type {
   ProviderBatchStatus,
   SegmentTranslation,
   StoredBook,
+  StoreFactory,
   TranslationRepository,
 } from "../../src/index.ts";
 
 export class MemoryBooks implements BookRepository {
   readonly rows = new Map<string, { book: StoredBook; parsed: ParsedBook }>();
-  insert(book: StoredBook, parsed: ParsedBook) {
+  async insert(book: StoredBook, parsed: ParsedBook) {
     this.rows.set(book.id, { book, parsed });
   }
-  get(id: string) {
+  async get(id: string) {
     return this.rows.get(id)?.book ?? null;
   }
-  findBySha256(sha: string) {
+  async findBySha256(sha: string) {
     return [...this.rows.values()].find((r) => r.book.sha256 === sha)?.book ?? null;
   }
-  getParsed(id: string) {
+  async getParsed(id: string) {
     return this.rows.get(id)?.parsed ?? null;
   }
-  updateParsed(id: string, parsed: ParsedBook) {
+  async updateParsed(id: string, parsed: ParsedBook) {
     const row = this.rows.get(id);
     if (row) row.parsed = parsed;
   }
-  list() {
+  async list() {
     return [...this.rows.values()].map((r) => r.book);
   }
-  delete(id: string) {
+  async delete(id: string) {
     this.rows.delete(id);
   }
 }
 
 export class MemorySettings implements BookSettingsRepository {
   readonly rows = new Map<string, BookSettings>();
-  get(bookId: string): BookSettings {
+  async get(bookId: string): Promise<BookSettings> {
     return this.rows.get(bookId) ?? { customPrompt: "", glossary: [], provider: null, model: null };
   }
-  put(bookId: string, s: BookSettings) {
+  async put(bookId: string, s: BookSettings) {
     this.rows.set(bookId, s);
   }
 }
 
 export class MemoryJobs implements JobRepository {
   readonly rows = new Map<string, Job>();
-  insert(job: Job) {
+  async insert(job: Job) {
     this.rows.set(job.id, structuredClone(job));
   }
-  get(id: string) {
+  async get(id: string) {
     return this.rows.get(id) ?? null;
   }
-  findByBookAndLang(bookId: string, lang: string) {
+  async findByBookAndLang(bookId: string, lang: string) {
     return (
       [...this.rows.values()].find((j) => j.bookId === bookId && j.targetLang === lang) ?? null
     );
   }
-  listByBook(bookId: string) {
+  async listByBook(bookId: string) {
     return [...this.rows.values()].filter((j) => j.bookId === bookId);
   }
-  update(id: string, patch: Partial<Pick<Job, "error" | "usage">>) {
+  async update(id: string, patch: Partial<Pick<Job, "error" | "usage">>) {
     const j = this.rows.get(id);
     if (j) Object.assign(j, patch);
   }
-  addUsage(id: string, u: Usage) {
+  async addUsage(id: string, u: Usage) {
     const j = this.rows.get(id);
     if (j) {
       j.usage.inputTokens += u.inputTokens;
@@ -92,37 +93,70 @@ export class MemoryTranslations implements TranslationRepository {
     }
     return m;
   }
-  get(jobId: string, segmentId: string) {
+  async get(jobId: string, segmentId: string) {
     return this.job(jobId).get(segmentId) ?? null;
   }
-  forJob(jobId: string) {
+  async forJob(jobId: string) {
     return new Map(this.job(jobId));
   }
-  put(jobId: string, segmentId: string, t: SegmentTranslation) {
+  async put(jobId: string, segmentId: string, t: SegmentTranslation) {
     this.job(jobId).set(segmentId, t);
   }
-  deleteMany(jobId: string, ids: readonly string[]) {
+  async deleteMany(jobId: string, ids: readonly string[]) {
     for (const id of ids) this.job(jobId).delete(id);
   }
 }
 
 export class MemoryBatches implements BatchRepository {
   readonly rows = new Map<string, ProviderBatch>();
-  insert(batch: ProviderBatch) {
+  async insert(batch: ProviderBatch) {
     this.rows.set(batch.id, structuredClone(batch));
   }
-  listOpen() {
+  async listOpen() {
     return [...this.rows.values()].filter((b) => b.status === "submitted");
   }
-  openForChapter(jobId: string, chapterId: string) {
-    return this.listOpen().find((b) => b.jobId === jobId && b.chapterId === chapterId) ?? null;
+  async openForChapter(jobId: string, chapterId: string) {
+    return (
+      (await this.listOpen()).find((b) => b.jobId === jobId && b.chapterId === chapterId) ?? null
+    );
   }
-  openForJob(jobId: string) {
-    return this.listOpen().filter((b) => b.jobId === jobId);
+  async openForJob(jobId: string) {
+    return (await this.listOpen()).filter((b) => b.jobId === jobId);
   }
-  setStatus(id: string, status: ProviderBatchStatus) {
+  async setStatus(id: string, status: ProviderBatchStatus) {
     const b = this.rows.get(id);
     if (b) b.status = status;
+  }
+}
+
+export interface MemoryRepos {
+  books: MemoryBooks;
+  settings: MemorySettings;
+  jobs: MemoryJobs;
+  translations: MemoryTranslations;
+  batches: MemoryBatches;
+}
+
+export class MemoryStoreFactory implements StoreFactory {
+  private readonly owners = new Map<string, MemoryRepos>();
+
+  forOwner(ownerId: string): MemoryRepos {
+    let repos = this.owners.get(ownerId);
+    if (!repos) {
+      repos = {
+        books: new MemoryBooks(),
+        settings: new MemorySettings(),
+        jobs: new MemoryJobs(),
+        translations: new MemoryTranslations(),
+        batches: new MemoryBatches(),
+      };
+      this.owners.set(ownerId, repos);
+    }
+    return repos;
+  }
+
+  local(): MemoryRepos {
+    return this.forOwner(LOCAL_OWNER_ID);
   }
 }
 

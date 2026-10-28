@@ -14,12 +14,12 @@ export async function refreshParsedBooks(
 ): Promise<{ upgraded: number; failed: number }> {
   let upgraded = 0;
   let failed = 0;
-  for (const book of deps.books.list()) {
-    const current = deps.books.getParsed(book.id);
+  for (const book of await deps.books.list()) {
+    const current = await deps.books.getParsed(book.id);
     if (!current || (current.parserVersion ?? 1) >= PARSER_VERSION) continue;
     try {
       const bytes = await deps.blobs.get(bookBlobKey(book.sha256));
-      deps.books.updateParsed(book.id, await deps.parser.parse(bytes));
+      await deps.books.updateParsed(book.id, await deps.parser.parse(bytes));
       upgraded++;
     } catch {
       failed++;

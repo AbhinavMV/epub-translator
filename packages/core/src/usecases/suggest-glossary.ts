@@ -87,9 +87,9 @@ export async function suggestGlossary(
   input: SuggestGlossaryInput,
   signal: AbortSignal,
 ): Promise<GlossarySuggestions> {
-  const { book, parsed } = requireBook(deps.books, input.bookId);
+  const { book, parsed } = await requireBook(deps.books, input.bookId);
   const target = getTargetLanguage(input.targetLang);
-  const existing = deps.settings.get(input.bookId).glossary;
+  const existing = (await deps.settings.get(input.bookId)).glossary;
 
   const result = await deps.extractor.extractTerms(
     {
@@ -104,8 +104,8 @@ export async function suggestGlossary(
   );
   if (result.kind !== "ok") throw new FatalProviderError(result.cause);
 
-  const job = deps.jobs.findByBookAndLang(input.bookId, target.code);
-  if (job) deps.jobs.addUsage(job.id, result.usage);
+  const job = await deps.jobs.findByBookAndLang(input.bookId, target.code);
+  if (job) await deps.jobs.addUsage(job.id, result.usage);
 
   return {
     terms: dedupe(result.terms, existing).slice(0, MAX_SUGGESTED_TERMS),

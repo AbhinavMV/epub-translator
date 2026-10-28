@@ -41,10 +41,10 @@ const batch = (over: Partial<ProviderBatch> = {}): ProviderBatch => ({
 
 let db: Database;
 let repo: SqliteBatchRepository;
-beforeEach(() => {
+beforeEach(async () => {
   db = openDatabase(":memory:");
-  new SqliteBookRepository(db).insert(book, parsed);
-  new SqliteJobRepository(db).insert({
+  await new SqliteBookRepository(db).insert(book, parsed);
+  await new SqliteJobRepository(db).insert({
     id: "j1",
     bookId: "b1",
     targetLang: "en",
@@ -57,27 +57,27 @@ beforeEach(() => {
 });
 
 describe("SqliteBatchRepository", () => {
-  it("round-trips a batch with its per-request segment ids", () => {
-    repo.insert(batch());
-    expect(repo.openForChapter("j1", "ch-0")).toEqual(batch());
+  it("round-trips a batch with its per-request segment ids", async () => {
+    await repo.insert(batch());
+    expect(await repo.openForChapter("j1", "ch-0")).toEqual(batch());
   });
 
-  it("lists only submitted batches as open", () => {
-    repo.insert(batch());
-    repo.insert(batch({ id: "pb2", chapterId: "ch-1", vendorBatchId: "v2" }));
-    repo.setStatus("pb1", "ended");
-    expect(repo.listOpen().map((b) => b.id)).toEqual(["pb2"]);
-    expect(repo.openForChapter("j1", "ch-0")).toBeNull();
-    expect(repo.openForJob("j1").map((b) => b.id)).toEqual(["pb2"]);
+  it("lists only submitted batches as open", async () => {
+    await repo.insert(batch());
+    await repo.insert(batch({ id: "pb2", chapterId: "ch-1", vendorBatchId: "v2" }));
+    await repo.setStatus("pb1", "ended");
+    expect((await repo.listOpen()).map((b) => b.id)).toEqual(["pb2"]);
+    expect(await repo.openForChapter("j1", "ch-0")).toBeNull();
+    expect((await repo.openForJob("j1")).map((b) => b.id)).toEqual(["pb2"]);
   });
 
-  it("removes a job's batches when the job is deleted", () => {
-    repo.insert(batch());
+  it("removes a job's batches when the job is deleted", async () => {
+    await repo.insert(batch());
     db.prepare("DELETE FROM jobs WHERE id = ?").run("j1");
-    expect(repo.listOpen()).toEqual([]);
+    expect(await repo.listOpen()).toEqual([]);
   });
 
-  it("appends the provider_batches migration after the first schema", () => {
+  it("appends the provider_batches migration after the first schema", async () => {
     const columns = db.prepare("PRAGMA table_info(provider_batches)").all() as { name: string }[];
     expect(columns.map((c) => c.name)).toContain("vendor_batch_id");
     expect(db.pragma("user_version", { simple: true })).toBe(3);

@@ -28,44 +28,44 @@ const parsed: ParsedBook = {
 };
 
 let db: Database;
-beforeEach(() => {
+beforeEach(async () => {
   db = openDatabase(":memory:");
 });
 
 describe("SqliteBookRepository", () => {
-  it("round-trips a book and its parsed structure", () => {
+  it("round-trips a book and its parsed structure", async () => {
     const repo = new SqliteBookRepository(db);
-    repo.insert(book, parsed);
-    expect(repo.get("b1")).toEqual(book);
-    expect(repo.getParsed("b1")).toEqual(parsed);
-    expect(repo.findBySha256("abc")?.id).toBe("b1");
-    expect(repo.list()).toEqual([book]);
+    await repo.insert(book, parsed);
+    expect(await repo.get("b1")).toEqual(book);
+    expect(await repo.getParsed("b1")).toEqual(parsed);
+    expect((await repo.findBySha256("abc"))?.id).toBe("b1");
+    expect(await repo.list()).toEqual([book]);
   });
 
-  it("caches the parsed structure and forgets it on delete", () => {
+  it("caches the parsed structure and forgets it on delete", async () => {
     const repo = new SqliteBookRepository(db);
-    repo.insert(book, parsed);
-    expect(repo.getParsed("b1")).toBe(repo.getParsed("b1"));
-    repo.delete("b1");
-    expect(repo.getParsed("b1")).toBeNull();
+    await repo.insert(book, parsed);
+    expect(await repo.getParsed("b1")).toBe(await repo.getParsed("b1"));
+    await repo.delete("b1");
+    expect(await repo.getParsed("b1")).toBeNull();
   });
 
-  it("updateParsed replaces the stored structure and the cache", () => {
+  it("updateParsed replaces the stored structure and the cache", async () => {
     const repo = new SqliteBookRepository(db);
-    repo.insert(book, parsed);
-    repo.getParsed("b1");
+    await repo.insert(book, parsed);
+    await repo.getParsed("b1");
     const next = { ...parsed, parserVersion: 2 };
-    repo.updateParsed("b1", next);
-    expect(repo.getParsed("b1")).toEqual(next);
-    expect(new SqliteBookRepository(db).getParsed("b1")).toEqual(next);
+    await repo.updateParsed("b1", next);
+    expect(await repo.getParsed("b1")).toEqual(next);
+    expect(await new SqliteBookRepository(db).getParsed("b1")).toEqual(next);
   });
 
-  it("delete cascades to jobs and translations", () => {
+  it("delete cascades to jobs and translations", async () => {
     const books = new SqliteBookRepository(db);
     const jobs = new SqliteJobRepository(db);
     const translations = new SqliteTranslationRepository(db);
-    books.insert(book, parsed);
-    jobs.insert({
+    await books.insert(book, parsed);
+    await jobs.insert({
       id: "j1",
       bookId: "b1",
       targetLang: "en",
@@ -74,35 +74,40 @@ describe("SqliteBookRepository", () => {
       usage: { inputTokens: 0, outputTokens: 0 },
       createdAt: book.createdAt,
     });
-    translations.put("j1", "a.xhtml#0", { text: "Hello", status: "done" });
-    books.delete("b1");
-    expect(books.get("b1")).toBeNull();
-    expect(jobs.get("j1")).toBeNull();
-    expect(translations.forJob("j1").size).toBe(0);
+    await translations.put("j1", "a.xhtml#0", { text: "Hello", status: "done" });
+    await books.delete("b1");
+    expect(await books.get("b1")).toBeNull();
+    expect(await jobs.get("j1")).toBeNull();
+    expect((await translations.forJob("j1")).size).toBe(0);
   });
 });
 
 describe("SqliteBookSettingsRepository", () => {
-  it("returns defaults until settings are saved", () => {
-    new SqliteBookRepository(db).insert(book, parsed);
+  it("returns defaults until settings are saved", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
     const repo = new SqliteBookSettingsRepository(db);
-    expect(repo.get("b1")).toEqual({ customPrompt: "", glossary: [], provider: null, model: null });
+    expect(await repo.get("b1")).toEqual({
+      customPrompt: "",
+      glossary: [],
+      provider: null,
+      model: null,
+    });
     const s = {
       customPrompt: "Keep honorifics",
       glossary: [{ source: "シャル", target: "Charlotte" }],
       provider: "anthropic" as const,
       model: "claude-sonnet-5-5",
     };
-    repo.put("b1", s);
-    expect(repo.get("b1")).toEqual(s);
+    await repo.put("b1", s);
+    expect(await repo.get("b1")).toEqual(s);
   });
 });
 
 describe("SqliteJobRepository", () => {
-  it("finds by book and language and accumulates usage", () => {
-    new SqliteBookRepository(db).insert(book, parsed);
+  it("finds by book and language and accumulates usage", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
     const jobs = new SqliteJobRepository(db);
-    jobs.insert({
+    await jobs.insert({
       id: "j1",
       bookId: "b1",
       targetLang: "en",
@@ -111,23 +116,23 @@ describe("SqliteJobRepository", () => {
       usage: { inputTokens: 0, outputTokens: 0 },
       createdAt: book.createdAt,
     });
-    expect(jobs.findByBookAndLang("b1", "en")?.id).toBe("j1");
-    expect(jobs.findByBookAndLang("b1", "fr")).toBeNull();
-    jobs.addUsage("j1", { inputTokens: 10, outputTokens: 5 });
-    jobs.addUsage("j1", { inputTokens: 1, outputTokens: 2 });
-    jobs.update("j1", { error: "boom" });
-    expect(jobs.get("j1")).toMatchObject({
+    expect((await jobs.findByBookAndLang("b1", "en"))?.id).toBe("j1");
+    expect(await jobs.findByBookAndLang("b1", "fr")).toBeNull();
+    await jobs.addUsage("j1", { inputTokens: 10, outputTokens: 5 });
+    await jobs.addUsage("j1", { inputTokens: 1, outputTokens: 2 });
+    await jobs.update("j1", { error: "boom" });
+    expect(await jobs.get("j1")).toMatchObject({
       error: "boom",
       usage: { inputTokens: 11, outputTokens: 7 },
     });
-    expect(jobs.listByBook("b1")).toHaveLength(1);
+    expect(await jobs.listByBook("b1")).toHaveLength(1);
   });
 });
 
 describe("SqliteTranslationRepository", () => {
-  it("upserts and deletes segment translations", () => {
-    new SqliteBookRepository(db).insert(book, parsed);
-    new SqliteJobRepository(db).insert({
+  it("upserts and deletes segment translations", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    await new SqliteJobRepository(db).insert({
       id: "j1",
       bookId: "b1",
       targetLang: "en",
@@ -137,17 +142,17 @@ describe("SqliteTranslationRepository", () => {
       createdAt: book.createdAt,
     });
     const repo = new SqliteTranslationRepository(db);
-    repo.put("j1", "s1", { text: "a", status: "flagged" });
-    repo.put("j1", "s1", { text: "b", status: "done" });
-    repo.put("j1", "s2", { text: "c", status: "done" });
-    expect(repo.get("j1", "s1")).toEqual({ text: "b", status: "done" });
-    repo.deleteMany("j1", ["s1"]);
-    expect([...repo.forJob("j1").keys()]).toEqual(["s2"]);
+    await repo.put("j1", "s1", { text: "a", status: "flagged" });
+    await repo.put("j1", "s1", { text: "b", status: "done" });
+    await repo.put("j1", "s2", { text: "c", status: "done" });
+    expect(await repo.get("j1", "s1")).toEqual({ text: "b", status: "done" });
+    await repo.deleteMany("j1", ["s1"]);
+    expect([...(await repo.forJob("j1")).keys()]).toEqual(["s2"]);
   });
 
-  it("keeps the reason a segment failed", () => {
-    new SqliteBookRepository(db).insert(book, parsed);
-    new SqliteJobRepository(db).insert({
+  it("keeps the reason a segment failed", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    await new SqliteJobRepository(db).insert({
       id: "j1",
       bookId: "b1",
       targetLang: "en",
@@ -157,9 +162,9 @@ describe("SqliteTranslationRepository", () => {
       createdAt: book.createdAt,
     });
     const repo = new SqliteTranslationRepository(db);
-    repo.put("j1", "s1", { text: "", status: "failed", note: "declined" });
-    repo.put("j1", "s2", { text: "ok", status: "done" });
-    expect(repo.get("j1", "s1")).toEqual({ text: "", status: "failed", note: "declined" });
-    expect(repo.forJob("j1").get("s2")).toEqual({ text: "ok", status: "done" });
+    await repo.put("j1", "s1", { text: "", status: "failed", note: "declined" });
+    await repo.put("j1", "s2", { text: "ok", status: "done" });
+    expect(await repo.get("j1", "s1")).toEqual({ text: "", status: "failed", note: "declined" });
+    expect((await repo.forJob("j1")).get("s2")).toEqual({ text: "ok", status: "done" });
   });
 });
