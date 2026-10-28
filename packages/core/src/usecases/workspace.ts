@@ -29,6 +29,5 @@ export async function getOrCreateWorkspace(
     usage: { inputTokens: 0, outputTokens: 0 },
     createdAt: deps.clock.now().toISOString(),
   };
-  await deps.jobs.insert(job);
-  return job;
+  return deps.jobs.insertIfAbsent(job);
 }

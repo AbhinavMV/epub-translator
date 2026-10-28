@@ -45,6 +45,13 @@ export class SqliteJobRepository implements JobRepository {
       );
   }
 
+  async insertIfAbsent(job: Job): Promise<Job> {
+    const existing = await this.findByBookAndLang(job.bookId, job.targetLang);
+    if (existing) return existing;
+    await this.insert(job);
+    return job;
+  }
+
   async get(id: string): Promise<Job | null> {
     const row = this.db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow | undefined;
     return row ? toJob(row) : null;

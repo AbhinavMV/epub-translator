@@ -23,6 +23,12 @@ export class MemoryBooks implements BookRepository {
   async insert(book: StoredBook, parsed: ParsedBook) {
     this.rows.set(book.id, { book, parsed });
   }
+  async insertIfAbsent(book: StoredBook, parsed: ParsedBook) {
+    const existing = await this.findBySha256(book.sha256);
+    if (existing) return existing;
+    await this.insert(book, parsed);
+    return book;
+  }
   async get(id: string) {
     return this.rows.get(id)?.book ?? null;
   }
@@ -58,6 +64,12 @@ export class MemoryJobs implements JobRepository {
   readonly rows = new Map<string, Job>();
   async insert(job: Job) {
     this.rows.set(job.id, structuredClone(job));
+  }
+  async insertIfAbsent(job: Job) {
+    const existing = await this.findByBookAndLang(job.bookId, job.targetLang);
+    if (existing) return existing;
+    await this.insert(job);
+    return job;
   }
   async get(id: string) {
     return this.rows.get(id) ?? null;
