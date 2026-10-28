@@ -4,6 +4,7 @@ import {
   applyBatchResult,
   applyWorkResult,
   ConflictError,
+  chapterProgressOf,
   endClientBatch,
   InvalidWorkResultError,
   LeaseError,
@@ -326,5 +327,49 @@ describe("releaseWorkLease", () => {
     await releaseWorkLease(leases, "j1", "unknown");
     await releaseWorkLease(leases, "j1", unit?.leaseId ?? "");
     expect(await leases.get(unit?.leaseId ?? "")).toBeNull();
+  });
+});
+
+describe("chapter-scoped translation reads", () => {
+  const CH0 = ["a.xhtml#0", "a.xhtml#1"];
+  const onlyChapter0 = () => {
+    expect(repos.translations.forJobCalls).toEqual([]);
+    expect(repos.translations.forSegmentsCalls.length).toBeGreaterThan(0);
+    for (const ids of repos.translations.forSegmentsCalls) expect(ids).toEqual(CH0);
+  };
+  beforeEach(() => {
+    repos.translations.resetCalls();
+  });
+
+  it("planWorkUnit asks only for the chapter's segments", async () => {
+    await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...limits });
+    onlyChapter0();
+  });
+
+  it("applyWorkResult and chapterProgressOf ask only for the chapter's segments", async () => {
+    const unit = await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...limits });
+    repos.translations.resetCalls();
+    await applyWorkResult(repos, leases, {
+      jobId: "j1",
+      leaseId: unit?.leaseId ?? "",
+      results: new Map([["a.xhtml#0", done("one")]]),
+      usage,
+    });
+    onlyChapter0();
+    repos.translations.resetCalls();
+    await chapterProgressOf(repos, "j1", "ch-0");
+    onlyChapter0();
+  });
+
+  it("planBatchUnits asks only for the chapter's segments", async () => {
+    await planBatchUnits(repos, { jobId: "j1", chapterId: "ch-0", ...limits });
+    onlyChapter0();
+  });
+
+  it("scopes the lease context to the chapter's translations", async () => {
+    await repos.translations.put("j1", "b.xhtml#0", done("three"));
+    await repos.translations.put("j1", "a.xhtml#0", done("one"));
+    const unit = await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...limits });
+    expect(unit?.context).toEqual([{ source: "一", target: "one" }]);
   });
 });

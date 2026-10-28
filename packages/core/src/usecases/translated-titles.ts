@@ -7,6 +7,7 @@ import {
   TITLE_SEGMENT_ID,
 } from "../domain/book.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
+import type { Repositories } from "../ports/stores.ts";
 import { stripTokens } from "../translation/placeholders.ts";
 
 const plain = (text: string): string =>
@@ -56,4 +57,20 @@ export function translatedTitles(
     }
   }
   return { book: translatedText(translations.get(TITLE_SEGMENT_ID)), chapters };
+}
+
+const LIBRARY_TITLE_LANG = "en";
+
+export async function libraryBookTitle(
+  repos: Pick<Repositories, "jobs" | "translations">,
+  bookId: string,
+  book: ParsedBook,
+): Promise<string | null> {
+  const job = await repos.jobs.findByBookAndLang(bookId, LIBRARY_TITLE_LANG);
+  if (!job) return null;
+  const ids = new Set(
+    book.segments.filter((s) => s.chapterId === CONTENTS_CHAPTER_ID).map((s) => s.id),
+  );
+  ids.add(TITLE_SEGMENT_ID);
+  return translatedTitles(book, await repos.translations.forSegments(job.id, [...ids])).book;
 }

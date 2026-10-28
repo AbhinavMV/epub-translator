@@ -15,7 +15,7 @@ import type { WorkLeaseFactory } from "../ports/work-lease.ts";
 import { batchSegments } from "../translation/batcher.ts";
 import { SegmentTranslator } from "../translation/translate-segments.ts";
 import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
-import { chapterWork } from "./chapter-work.ts";
+import { chapterSegmentIds, chapterWork } from "./chapter-work.ts";
 import { type ChapterRuntime, chapterProgress, jobSummary } from "./job-progress.ts";
 import { requireBook } from "./load-book.ts";
 import { translatedTitles } from "./translated-titles.ts";
@@ -389,7 +389,13 @@ export class JobRunner {
     const requestContext = { job, parsed, settings, contextSize: this.options.contextSize };
     const translator = new SegmentTranslator(task.provider, this.deps.sleep);
     const segments = parsed.segments.filter((s) => s.chapterId === task.chapterId);
-    const { pending, context } = chapterWork(segments, await repos.translations.forJob(task.jobId));
+    const { pending, context } = chapterWork(
+      segments,
+      await repos.translations.forSegments(
+        task.jobId,
+        segments.map((s) => s.id),
+      ),
+    );
 
     try {
       for (const batch of batchSegments(pending, this.options.maxChars, this.options.maxCount)) {
@@ -436,7 +442,10 @@ export class JobRunner {
     parsed: ParsedBook,
     chapterId: string,
   ): Promise<void> {
-    const translations = await repos.translations.forJob(jobId);
+    const translations = await repos.translations.forSegments(
+      jobId,
+      chapterSegmentIds(parsed, chapterId),
+    );
     const runtime = await this.runtimeOf(repos, jobId, chapterId);
     this.deps.events.publish({
       type: "chapter.progress",

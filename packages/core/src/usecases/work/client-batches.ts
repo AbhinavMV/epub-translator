@@ -25,7 +25,13 @@ export async function planBatchUnits(
   if (await repos.batches.openForChapter(job.id, input.chapterId)) return [];
   const settings = await repos.settings.get(job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
-  const { pending, context } = chapterWork(segments, await repos.translations.forJob(job.id));
+  const { pending, context } = chapterWork(
+    segments,
+    await repos.translations.forSegments(
+      job.id,
+      segments.map((s) => s.id),
+    ),
+  );
   return batchSegments(pending, input.maxChars, input.maxCount).map((split, i) => {
     const { model: _model, ...request } = segmentRequest(
       { job, parsed, settings, contextSize: input.contextSize },

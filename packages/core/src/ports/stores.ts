@@ -31,6 +31,10 @@ export interface JobRepository {
 export interface TranslationRepository {
   get(jobId: string, segmentId: string): Promise<SegmentTranslation | null>;
   forJob(jobId: string): Promise<Map<string, SegmentTranslation>>;
+  forSegments(
+    jobId: string,
+    segmentIds: readonly string[],
+  ): Promise<Map<string, SegmentTranslation>>;
   put(jobId: string, segmentId: string, translation: SegmentTranslation): Promise<void>;
   deleteMany(jobId: string, segmentIds: readonly string[]): Promise<void>;
 }

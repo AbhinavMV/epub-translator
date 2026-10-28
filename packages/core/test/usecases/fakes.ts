@@ -96,8 +96,20 @@ export class MemoryTranslations implements TranslationRepository {
   async get(jobId: string, segmentId: string) {
     return this.job(jobId).get(segmentId) ?? null;
   }
+  readonly forJobCalls: string[] = [];
+  readonly forSegmentsCalls: string[][] = [];
   async forJob(jobId: string) {
+    this.forJobCalls.push(jobId);
     return new Map(this.job(jobId));
+  }
+  async forSegments(jobId: string, segmentIds: readonly string[]) {
+    this.forSegmentsCalls.push([...segmentIds]);
+    const wanted = new Set(segmentIds);
+    return new Map([...this.job(jobId)].filter(([id]) => wanted.has(id)));
+  }
+  resetCalls() {
+    this.forJobCalls.length = 0;
+    this.forSegmentsCalls.length = 0;
   }
   async put(jobId: string, segmentId: string, t: SegmentTranslation) {
     this.job(jobId).set(segmentId, t);

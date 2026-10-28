@@ -63,7 +63,13 @@ export class BatchRunner {
 
     const settings = await repos.settings.get(job.bookId);
     const segments = parsed.segments.filter((s) => s.chapterId === chapterId);
-    const { pending, context } = chapterWork(segments, await repos.translations.forJob(jobId));
+    const { pending, context } = chapterWork(
+      segments,
+      await repos.translations.forSegments(
+        jobId,
+        segments.map((s) => s.id),
+      ),
+    );
     const splits = batchSegments(pending, this.options.maxChars, this.options.maxCount);
     if (splits.length === 0) return;
 

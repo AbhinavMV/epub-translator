@@ -40,6 +40,22 @@ export class PostgresTranslationRepository implements TranslationRepository {
     return new Map(rows.map((r) => [r.segment_id, toTranslation(r)]));
   }
 
+  async forSegments(
+    jobId: string,
+    segmentIds: readonly string[],
+  ): Promise<Map<string, SegmentTranslation>> {
+    if (segmentIds.length === 0) return new Map();
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<Row & { segment_id: string }>(
+        `SELECT segment_id, text, status, note FROM translations
+         WHERE owner_id = $1 AND job_id = $2
+         AND segment_id = ANY(ARRAY(SELECT jsonb_array_elements_text($3::text::jsonb)))`,
+        [this.ownerId, jobId, JSON.stringify(segmentIds)],
+      ),
+    );
+    return new Map(rows.map((r) => [r.segment_id, toTranslation(r)]));
+  }
+
   async put(jobId: string, segmentId: string, translation: SegmentTranslation): Promise<void> {
     await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query(

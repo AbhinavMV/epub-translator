@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type ParsedBook, type SegmentTranslation, translatedTitles } from "../../src/index.ts";
+import {
+  libraryBookTitle,
+  type ParsedBook,
+  type SegmentTranslation,
+  translatedTitles,
+} from "../../src/index.ts";
+import { MemoryStoreFactory } from "./fakes.ts";
 
 const seg = (id: string, sourceText: string, chapterId = "ch-contents") => ({
   id,
@@ -64,5 +70,39 @@ describe("translatedTitles", () => {
 
   it("is empty when nothing is translated", () => {
     expect(translatedTitles(book, new Map())).toEqual({ book: null, chapters: {} });
+  });
+});
+
+describe("libraryBookTitle", () => {
+  it("reads only the Contents chapter's segments of the English job", async () => {
+    const repos = new MemoryStoreFactory().local();
+    await repos.jobs.insert({
+      id: "j1",
+      bookId: "b1",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: "t",
+    });
+    await repos.translations.put("j1", "opf#title", done("Lost Book"));
+    await repos.translations.put("j1", "x", done("not asked"));
+    repos.translations.resetCalls();
+    expect(await libraryBookTitle(repos, "b1", book)).toBe("Lost Book");
+    expect(repos.translations.forJobCalls).toEqual([]);
+    const asked = repos.translations.forSegmentsCalls.flat();
+    expect(asked).toContain("opf#title");
+    expect(asked).not.toContain("x");
+    expect(asked.sort()).toEqual(
+      book.segments
+        .filter((s) => s.chapterId === "ch-contents")
+        .map((s) => s.id)
+        .sort(),
+    );
+  });
+
+  it("is null without an English job", async () => {
+    const repos = new MemoryStoreFactory().local();
+    expect(await libraryBookTitle(repos, "b1", book)).toBeNull();
   });
 });

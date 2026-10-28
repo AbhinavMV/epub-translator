@@ -4,6 +4,7 @@ import type { SegmentTranslation } from "../../domain/segment.ts";
 import type { JobEventSink } from "../../ports/events.ts";
 import type { Repositories } from "../../ports/stores.ts";
 import type { WorkLeaseRepository } from "../../ports/work-lease.ts";
+import { chapterSegmentIds } from "../chapter-work.ts";
 import { chapterProgress } from "../job-progress.ts";
 import { loadChapterJob } from "./plan-work-unit.ts";
 import { recordResults } from "./record-results.ts";
@@ -27,7 +28,7 @@ export async function chapterProgressOf(
   return chapterProgress(
     parsed,
     chapterId,
-    await repos.translations.forJob(jobId),
+    await repos.translations.forSegments(jobId, chapterSegmentIds(parsed, chapterId)),
     open ? { status: "submitted" } : undefined,
     null,
   );

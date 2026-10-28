@@ -151,6 +151,18 @@ describe("JobRunner work leases", () => {
   });
 });
 
+describe("JobRunner reads", () => {
+  it("translating one chapter never reads another chapter's translations by id", async () => {
+    await translations.put("j1", "b.xhtml#0", { text: "Keep", status: "done" });
+    translations.resetCalls();
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
+    await runner.whenIdle();
+    const asked = translations.forSegmentsCalls.flat();
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((id) => id.startsWith("a.xhtml"))).toBe(true);
+  });
+});
+
 describe("JobRunner", () => {
   it("translates every segment of a chapter and marks it done", async () => {
     await runner.translateChapter(OWNER, "j1", "ch-0", body);
