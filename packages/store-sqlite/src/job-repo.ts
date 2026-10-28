@@ -28,7 +28,7 @@ function toJob(row: JobRow): Job {
 export class SqliteJobRepository implements JobRepository {
   constructor(private readonly db: Database) {}
 
-  insert(job: Job): void {
+  async insert(job: Job): Promise<void> {
     this.db
       .prepare(
         "INSERT INTO jobs (id, book_id, target_lang, source_lang, error, input_tokens, output_tokens, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -45,26 +45,26 @@ export class SqliteJobRepository implements JobRepository {
       );
   }
 
-  get(id: string): Job | null {
+  async get(id: string): Promise<Job | null> {
     const row = this.db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow | undefined;
     return row ? toJob(row) : null;
   }
 
-  findByBookAndLang(bookId: string, targetLang: string): Job | null {
+  async findByBookAndLang(bookId: string, targetLang: string): Promise<Job | null> {
     const row = this.db
       .prepare("SELECT * FROM jobs WHERE book_id = ? AND target_lang = ?")
       .get(bookId, targetLang) as JobRow | undefined;
     return row ? toJob(row) : null;
   }
 
-  listByBook(bookId: string): Job[] {
+  async listByBook(bookId: string): Promise<Job[]> {
     const rows = this.db
       .prepare("SELECT * FROM jobs WHERE book_id = ? ORDER BY created_at")
       .all(bookId) as JobRow[];
     return rows.map(toJob);
   }
 
-  update(id: string, patch: Partial<Pick<Job, "error" | "usage">>): void {
+  async update(id: string, patch: Partial<Pick<Job, "error" | "usage">>): Promise<void> {
     if ("error" in patch) {
       this.db.prepare("UPDATE jobs SET error = ? WHERE id = ?").run(patch.error ?? null, id);
     }
@@ -75,7 +75,7 @@ export class SqliteJobRepository implements JobRepository {
     }
   }
 
-  addUsage(id: string, usage: Usage): void {
+  async addUsage(id: string, usage: Usage): Promise<void> {
     this.db
       .prepare(
         "UPDATE jobs SET input_tokens = input_tokens + ?, output_tokens = output_tokens + ? WHERE id = ?",

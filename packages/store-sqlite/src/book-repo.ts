@@ -30,7 +30,7 @@ export class SqliteBookRepository implements BookRepository {
 
   constructor(private readonly db: Database) {}
 
-  insert(book: StoredBook, parsed: ParsedBook): void {
+  async insert(book: StoredBook, parsed: ParsedBook): Promise<void> {
     this.db
       .prepare(`INSERT INTO books (${COLUMNS}, parsed_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(
@@ -45,21 +45,21 @@ export class SqliteBookRepository implements BookRepository {
       );
   }
 
-  get(id: string): StoredBook | null {
+  async get(id: string): Promise<StoredBook | null> {
     const row = this.db.prepare(`SELECT ${COLUMNS} FROM books WHERE id = ?`).get(id) as
       | BookRow
       | undefined;
     return row ? toBook(row) : null;
   }
 
-  findBySha256(sha256: string): StoredBook | null {
+  async findBySha256(sha256: string): Promise<StoredBook | null> {
     const row = this.db.prepare(`SELECT ${COLUMNS} FROM books WHERE sha256 = ?`).get(sha256) as
       | BookRow
       | undefined;
     return row ? toBook(row) : null;
   }
 
-  getParsed(id: string): ParsedBook | null {
+  async getParsed(id: string): Promise<ParsedBook | null> {
     const cached = this.parsedCache.get(id);
     if (cached) return cached;
     const row = this.db.prepare("SELECT parsed_json FROM books WHERE id = ?").get(id) as
@@ -71,21 +71,21 @@ export class SqliteBookRepository implements BookRepository {
     return parsed;
   }
 
-  updateParsed(id: string, parsed: ParsedBook): void {
+  async updateParsed(id: string, parsed: ParsedBook): Promise<void> {
     this.db
       .prepare("UPDATE books SET parsed_json = ? WHERE id = ?")
       .run(JSON.stringify(parsed), id);
     this.parsedCache.set(id, parsed);
   }
 
-  list(): StoredBook[] {
+  async list(): Promise<StoredBook[]> {
     const rows = this.db
       .prepare(`SELECT ${COLUMNS} FROM books ORDER BY created_at DESC`)
       .all() as BookRow[];
     return rows.map(toBook);
   }
 
-  delete(id: string): void {
+  async delete(id: string): Promise<void> {
     this.parsedCache.delete(id);
     this.db.prepare("DELETE FROM books WHERE id = ?").run(id);
   }

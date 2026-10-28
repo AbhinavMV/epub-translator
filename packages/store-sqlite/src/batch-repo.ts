@@ -31,7 +31,7 @@ function toBatch(row: BatchRow): ProviderBatch {
 export class SqliteBatchRepository implements BatchRepository {
   constructor(private readonly db: Database) {}
 
-  insert(batch: ProviderBatch): void {
+  async insert(batch: ProviderBatch): Promise<void> {
     this.db
       .prepare(
         "INSERT INTO provider_batches (id, job_id, chapter_id, provider, model, vendor_batch_id, status, segment_ids_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -49,14 +49,14 @@ export class SqliteBatchRepository implements BatchRepository {
       );
   }
 
-  listOpen(): ProviderBatch[] {
+  async listOpen(): Promise<ProviderBatch[]> {
     const rows = this.db
       .prepare("SELECT * FROM provider_batches WHERE status = 'submitted' ORDER BY created_at")
       .all() as BatchRow[];
     return rows.map(toBatch);
   }
 
-  openForChapter(jobId: string, chapterId: string): ProviderBatch | null {
+  async openForChapter(jobId: string, chapterId: string): Promise<ProviderBatch | null> {
     const row = this.db
       .prepare(
         "SELECT * FROM provider_batches WHERE job_id = ? AND chapter_id = ? AND status = 'submitted'",
@@ -65,14 +65,14 @@ export class SqliteBatchRepository implements BatchRepository {
     return row ? toBatch(row) : null;
   }
 
-  openForJob(jobId: string): ProviderBatch[] {
+  async openForJob(jobId: string): Promise<ProviderBatch[]> {
     const rows = this.db
       .prepare("SELECT * FROM provider_batches WHERE job_id = ? AND status = 'submitted'")
       .all(jobId) as BatchRow[];
     return rows.map(toBatch);
   }
 
-  setStatus(id: string, status: ProviderBatchStatus): void {
+  async setStatus(id: string, status: ProviderBatchStatus): Promise<void> {
     this.db.prepare("UPDATE provider_batches SET status = ? WHERE id = ?").run(status, id);
   }
 }
