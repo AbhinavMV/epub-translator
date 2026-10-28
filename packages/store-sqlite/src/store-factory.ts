@@ -5,6 +5,7 @@ import { SqliteBookRepository } from "./book-repo.ts";
 import { SqliteBookSettingsRepository } from "./book-settings-repo.ts";
 import type { Database } from "./db.ts";
 import { SqliteJobRepository } from "./job-repo.ts";
+import { SqliteProofreadRepository } from "./proofread-repo.ts";
 import { SqliteTranslationRepository } from "./translation-repo.ts";
 
 export class UnsupportedOwnerError extends Error {
@@ -24,6 +25,7 @@ export class SqliteStoreFactory implements StoreFactory {
       jobs: new SqliteJobRepository(db),
       translations: new SqliteTranslationRepository(db),
       batches: new SqliteBatchRepository(db),
+      proofreads: new SqliteProofreadRepository(db),
     };
   }
 

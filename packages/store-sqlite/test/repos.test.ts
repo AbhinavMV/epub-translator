@@ -6,6 +6,7 @@ import {
   SqliteBookRepository,
   SqliteBookSettingsRepository,
   SqliteJobRepository,
+  SqliteProofreadRepository,
   SqliteTranslationRepository,
 } from "../src/index.ts";
 
@@ -196,5 +197,47 @@ describe("SqliteTranslationRepository", () => {
     await repo.put("j1", "s2", { text: "ok", status: "done" });
     expect(await repo.get("j1", "s1")).toEqual({ text: "", status: "failed", note: "declined" });
     expect((await repo.forJob("j1")).get("s2")).toEqual({ text: "ok", status: "done" });
+  });
+});
+
+describe("SqliteProofreadRepository", () => {
+  it("round-trips, replaces, deletes and cascades with the job", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    await new SqliteJobRepository(db).insert({
+      id: "j1",
+      bookId: "b1",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: book.createdAt,
+    });
+    const repo = new SqliteProofreadRepository(db);
+    const proofread = {
+      jobId: "j1",
+      chapterId: "ch-0",
+      model: "m",
+      createdAt: "2026-10-28T00:00:00.000Z",
+      usage: { inputTokens: 5, outputTokens: 1 },
+      suggestions: [
+        {
+          segmentId: "a.xhtml#0",
+          kind: "fluency" as const,
+          before: "Hi",
+          after: "Hello",
+          reason: "r",
+          state: "pending" as const,
+        },
+      ],
+    };
+    expect(await repo.get("j1", "ch-0")).toBeNull();
+    await repo.put(proofread);
+    await repo.put(proofread);
+    expect(await repo.listForJob("j1")).toEqual([proofread]);
+    await repo.delete("j1", "ch-0");
+    expect(await repo.get("j1", "ch-0")).toBeNull();
+    await repo.put(proofread);
+    await new SqliteBookRepository(db).delete("b1");
+    expect(await repo.listForJob("j1")).toEqual([]);
   });
 });

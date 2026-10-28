@@ -16,6 +16,7 @@ describe("migrations", () => {
       "0005_rate_limits.sql",
       "0006_exports_text_supabase.sql",
       "0007_private_owner_role.sql",
+      "0008_proofreads.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",

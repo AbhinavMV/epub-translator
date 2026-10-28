@@ -1,4 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
+import type { ChapterProofread } from "@et/contracts";
 import type { Repositories } from "@et/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql } from "../src/index.ts";
@@ -191,5 +192,51 @@ describe("PostgresTranslationRepository", () => {
       text: "ok",
       status: "done",
     });
+  });
+});
+
+describe("PostgresProofreadRepository", () => {
+  const proofread: ChapterProofread = {
+    jobId: "j1",
+    chapterId: "ch-0",
+    model: "m",
+    createdAt: "2026-10-28T00:00:00.000Z",
+    usage: { inputTokens: 5, outputTokens: 1 },
+    suggestions: [
+      {
+        segmentId: "a.xhtml#0",
+        kind: "accuracy",
+        before: "Hi",
+        after: "Hello",
+        reason: "r",
+        state: "pending",
+      },
+    ],
+  };
+
+  beforeEach(async () => {
+    await repos.books.insert(book, parsed);
+    await repos.jobs.insert(job);
+  });
+
+  it("round-trips, replaces and deletes a chapter's proofread", async () => {
+    expect(await repos.proofreads.get("j1", "ch-0")).toBeNull();
+    await repos.proofreads.put(proofread);
+    expect(await repos.proofreads.get("j1", "ch-0")).toEqual(proofread);
+    const decided: ChapterProofread = {
+      ...proofread,
+      suggestions: proofread.suggestions.map((s) => ({ ...s, state: "accepted" })),
+    };
+    await repos.proofreads.put(decided);
+    expect(await repos.proofreads.listForJob("j1")).toEqual([decided]);
+    expect(await factory.forOwner(BOB).proofreads.listForJob("j1")).toEqual([]);
+    await repos.proofreads.delete("j1", "ch-0");
+    expect(await repos.proofreads.get("j1", "ch-0")).toBeNull();
+  });
+
+  it("goes away with its job's book", async () => {
+    await repos.proofreads.put(proofread);
+    await repos.books.delete("b1");
+    expect(await repos.proofreads.listForJob("j1")).toEqual([]);
   });
 });

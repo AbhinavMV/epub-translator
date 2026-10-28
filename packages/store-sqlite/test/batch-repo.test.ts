@@ -80,6 +80,6 @@ describe("SqliteBatchRepository", () => {
   it("appends the provider_batches migration after the first schema", async () => {
     const columns = db.prepare("PRAGMA table_info(provider_batches)").all() as { name: string }[];
     expect(columns.map((c) => c.name)).toContain("vendor_batch_id");
-    expect(db.pragma("user_version", { simple: true })).toBe(3);
+    expect(db.pragma("user_version", { simple: true })).toBe(4);
   });
 });

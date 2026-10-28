@@ -1,4 +1,4 @@
-import type { BookSettings, Usage } from "@et/contracts";
+import type { BookSettings, ChapterProofread, Usage } from "@et/contracts";
 import type { ParsedBook, StoredBook } from "../domain/book.ts";
 import type { Job } from "../domain/job.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
@@ -43,6 +43,13 @@ export interface TranslationRepository {
   deleteMany(jobId: string, segmentIds: readonly string[]): Promise<void>;
 }
 
+export interface ProofreadRepository {
+  get(jobId: string, chapterId: string): Promise<ChapterProofread | null>;
+  listForJob(jobId: string): Promise<ChapterProofread[]>;
+  put(proofread: ChapterProofread): Promise<void>;
+  delete(jobId: string, chapterId: string): Promise<void>;
+}
+
 export interface BlobStore {
   put(key: string, bytes: Uint8Array): Promise<void>;
   get(key: string): Promise<Uint8Array>;
@@ -55,6 +62,7 @@ export interface Repositories {
   jobs: JobRepository;
   translations: TranslationRepository;
   batches: BatchRepository;
+  proofreads: ProofreadRepository;
 }
 
 export interface StoreFactory {

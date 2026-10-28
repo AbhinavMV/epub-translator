@@ -52,6 +52,14 @@ const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE translations ADD COLUMN note TEXT;
   `,
+  `
+  CREATE TABLE proofreads (
+    job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    chapter_id TEXT NOT NULL,
+    json TEXT NOT NULL,
+    PRIMARY KEY (job_id, chapter_id)
+  );
+  `,
 ];
 
 export function migrate(db: BetterSqlite3.Database): void {

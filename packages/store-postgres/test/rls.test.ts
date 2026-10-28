@@ -23,6 +23,14 @@ beforeEach(async () => {
     "insert into work_leases (owner_id, id, job_id, chapter_id, segment_ids, leased_until) values ($1, 'l1', 'j1', 'ch-0', '[]', now() + interval '1 hour')",
     [BOB],
   );
+  await bob.proofreads.put({
+    jobId: "j1",
+    chapterId: "ch-0",
+    model: "m",
+    createdAt: "2026-10-28T00:00:00.000Z",
+    usage: { inputTokens: 0, outputTokens: 0 },
+    suggestions: [],
+  });
 });
 
 const OWNER_TABLES = [
@@ -32,6 +40,7 @@ const OWNER_TABLES = [
   "translations",
   "provider_batches",
   "work_leases",
+  "proofreads",
 ];
 
 describe("row level security", () => {

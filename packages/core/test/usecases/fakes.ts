@@ -1,4 +1,9 @@
-import { type BookSettings, LOCAL_OWNER_ID, type Usage } from "@et/contracts";
+import {
+  type BookSettings,
+  type ChapterProofread,
+  LOCAL_OWNER_ID,
+  type Usage,
+} from "@et/contracts";
 import type {
   BatchRepository,
   BlobStore,
@@ -10,6 +15,7 @@ import type {
   Job,
   JobRepository,
   ParsedBook,
+  ProofreadRepository,
   ProviderBatch,
   ProviderBatchStatus,
   RenderedChapter,
@@ -160,12 +166,30 @@ export class MemoryBatches implements BatchRepository {
   }
 }
 
+export class MemoryProofreads implements ProofreadRepository {
+  readonly rows = new Map<string, ChapterProofread>();
+  async get(jobId: string, chapterId: string) {
+    const row = this.rows.get(`${jobId}/${chapterId}`);
+    return row ? structuredClone(row) : null;
+  }
+  async listForJob(jobId: string) {
+    return [...this.rows.values()].filter((p) => p.jobId === jobId).map((p) => structuredClone(p));
+  }
+  async put(proofread: ChapterProofread) {
+    this.rows.set(`${proofread.jobId}/${proofread.chapterId}`, structuredClone(proofread));
+  }
+  async delete(jobId: string, chapterId: string) {
+    this.rows.delete(`${jobId}/${chapterId}`);
+  }
+}
+
 export interface MemoryRepos {
   books: MemoryBooks;
   settings: MemorySettings;
   jobs: MemoryJobs;
   translations: MemoryTranslations;
   batches: MemoryBatches;
+  proofreads: MemoryProofreads;
 }
 
 export class MemoryStoreFactory implements StoreFactory {
@@ -180,6 +204,7 @@ export class MemoryStoreFactory implements StoreFactory {
         jobs: new MemoryJobs(),
         translations: new MemoryTranslations(),
         batches: new MemoryBatches(),
+        proofreads: new MemoryProofreads(),
       };
       this.owners.set(ownerId, repos);
     }

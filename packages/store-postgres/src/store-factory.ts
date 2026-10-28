@@ -6,6 +6,7 @@ import { PostgresBookSettingsRepository } from "./book-settings-repo.ts";
 import { PostgresInviteRepository } from "./invite-repo.ts";
 import { PostgresJobRepository } from "./job-repo.ts";
 import { ParsedBookCache } from "./parsed-cache.ts";
+import { PostgresProofreadRepository } from "./proofread-repo.ts";
 import type { Sql } from "./sql.ts";
 import { PostgresTranslationRepository } from "./translation-repo.ts";
 import { PostgresWorkLeaseRepository, type WorkLeaseOptions } from "./work-lease-repo.ts";
@@ -45,6 +46,7 @@ export class PostgresStoreFactory implements StoreFactory {
       jobs: new PostgresJobRepository(this.sql, ownerId),
       translations: new PostgresTranslationRepository(this.sql, ownerId),
       batches: new PostgresBatchRepository(this.sql, ownerId),
+      proofreads: new PostgresProofreadRepository(this.sql, ownerId),
     };
   }
 
