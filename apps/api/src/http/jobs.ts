@@ -3,6 +3,7 @@ import { exportEpub, exportText } from "@et/core";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { Services } from "../services.ts";
+import type { AppEnv } from "./request-context.ts";
 import { validate } from "./validate.ts";
 
 const HEARTBEAT_MS = 15_000;
@@ -13,36 +14,45 @@ function attachment(filename: string): string {
 }
 
 export function jobsRoutes(s: Services) {
-  return new Hono()
-    .get("/:id", (c) => c.json(s.runner.summary(c.req.param("id"))))
-    .post("/:id/chapters/:chapterId/translate", validate("json", TranslateBodySchema), (c) => {
+  return new Hono<AppEnv>()
+    .get("/:id", async (c) => c.json(await s.runner.summary(c.var.ownerId, c.req.param("id"))))
+    .post(
+      "/:id/chapters/:chapterId/translate",
+      validate("json", TranslateBodySchema),
+      async (c) => {
+        const id = c.req.param("id");
+        await s.runner.translateChapter(
+          c.var.ownerId,
+          id,
+          c.req.param("chapterId"),
+          c.req.valid("json"),
+        );
+        return c.json(await s.runner.summary(c.var.ownerId, id));
+      },
+    )
+    .post("/:id/chapters/:chapterId/retry", validate("json", TranslateBodySchema), async (c) => {
       const id = c.req.param("id");
-      s.runner.translateChapter(id, c.req.param("chapterId"), c.req.valid("json"));
-      return c.json(s.runner.summary(id));
+      await s.runner.retryChapter(c.var.ownerId, id, c.req.param("chapterId"), c.req.valid("json"));
+      return c.json(await s.runner.summary(c.var.ownerId, id));
     })
-    .post("/:id/chapters/:chapterId/retry", validate("json", TranslateBodySchema), (c) => {
+    .post("/:id/chapters/:chapterId/clear", async (c) => {
       const id = c.req.param("id");
-      s.runner.retryChapter(id, c.req.param("chapterId"), c.req.valid("json"));
-      return c.json(s.runner.summary(id));
+      await s.runner.clearChapter(c.var.ownerId, id, c.req.param("chapterId"));
+      return c.json(await s.runner.summary(c.var.ownerId, id));
     })
-    .post("/:id/chapters/:chapterId/clear", (c) => {
+    .post("/:id/translate-all", validate("json", TranslateBodySchema), async (c) => {
       const id = c.req.param("id");
-      s.runner.clearChapter(id, c.req.param("chapterId"));
-      return c.json(s.runner.summary(id));
+      await s.runner.translateAll(c.var.ownerId, id, c.req.valid("json"));
+      return c.json(await s.runner.summary(c.var.ownerId, id));
     })
-    .post("/:id/translate-all", validate("json", TranslateBodySchema), (c) => {
+    .post("/:id/cancel", async (c) => {
       const id = c.req.param("id");
-      s.runner.translateAll(id, c.req.valid("json"));
-      return c.json(s.runner.summary(id));
-    })
-    .post("/:id/cancel", (c) => {
-      const id = c.req.param("id");
-      s.runner.cancel(id);
-      return c.json(s.runner.summary(id));
+      await s.runner.cancel(c.var.ownerId, id);
+      return c.json(await s.runner.summary(c.var.ownerId, id));
     })
     .get("/:id/export", validate("query", ExportQuerySchema), async (c) => {
       const { filename, bytes } = await exportEpub(
-        s,
+        { ...s, ...c.var.repos },
         c.req.param("id"),
         c.req.valid("query").layout,
       );
@@ -53,8 +63,8 @@ export function jobsRoutes(s: Services) {
         },
       });
     })
-    .get("/:id/export.txt", (c) => {
-      const { filename, text } = exportText(s, c.req.param("id"));
+    .get("/:id/export.txt", async (c) => {
+      const { filename, text } = await exportText(c.var.repos, c.req.param("id"));
       return new Response(text, {
         headers: {
           "content-type": "text/plain; charset=utf-8",
@@ -62,9 +72,9 @@ export function jobsRoutes(s: Services) {
         },
       });
     })
-    .get("/:id/events", (c) => {
+    .get("/:id/events", async (c) => {
       const id = c.req.param("id");
-      const initial = s.runner.summary(id);
+      const initial = await s.runner.summary(c.var.ownerId, id);
       return streamSSE(c, async (stream) => {
         const closed = new Promise<void>((resolve) => stream.onAbort(resolve));
         let seq = 0;

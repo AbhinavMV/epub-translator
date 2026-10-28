@@ -8,6 +8,7 @@ import {
   NotFoundError,
   type ParsedBook,
   ProviderNotConfiguredError,
+  type Repositories,
   renderChapter,
   requireBook,
   suggestGlossary,
@@ -18,27 +19,37 @@ import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import type { Services } from "../services.ts";
 import { assetUrl, bookDetail, bookSummary } from "./presenters.ts";
+import type { AppEnv } from "./request-context.ts";
 import { validate } from "./validate.ts";
 
 const LIBRARY_TITLE_LANG = "en";
 
-function libraryTitle(s: Services, bookId: string, parsed: ParsedBook): string | null {
-  const job = s.jobs.findByBookAndLang(bookId, LIBRARY_TITLE_LANG);
-  return job ? translatedTitles(parsed, s.translations.forJob(job.id)).book : null;
+async function libraryTitle(
+  repos: Repositories,
+  bookId: string,
+  parsed: ParsedBook,
+): Promise<string | null> {
+  const job = await repos.jobs.findByBookAndLang(bookId, LIBRARY_TITLE_LANG);
+  return job ? translatedTitles(parsed, await repos.translations.forJob(job.id)).book : null;
 }
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 
 export function booksRoutes(s: Services) {
-  return new Hono()
-    .get("/", (c) =>
-      c.json(
-        s.books.list().flatMap((book) => {
-          const parsed = s.books.getParsed(book.id);
-          return parsed ? [bookSummary(book, parsed, libraryTitle(s, book.id, parsed))] : [];
-        }),
-      ),
-    )
+  return new Hono<AppEnv>()
+    .get("/", async (c) => {
+      const { books } = c.var.repos;
+      const summaries = [];
+      for (const book of await books.list()) {
+        const parsed = await books.getParsed(book.id);
+        if (parsed) {
+          summaries.push(
+            bookSummary(book, parsed, await libraryTitle(c.var.repos, book.id, parsed)),
+          );
+        }
+      }
+      return c.json(summaries);
+    })
     .post(
       "/",
       bodyLimit({
@@ -49,24 +60,36 @@ export function booksRoutes(s: Services) {
         const body = await c.req.parseBody();
         const file = body.file;
         if (!(file instanceof File)) throw new InvalidEpubError("Missing file field");
-        const book = await importBook(s, new Uint8Array(await file.arrayBuffer()));
-        return c.json(bookSummary(book, requireBook(s.books, book.id).parsed), 201);
+        const { books } = c.var.repos;
+        const book = await importBook({ ...s, books }, new Uint8Array(await file.arrayBuffer()));
+        return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       },
     )
-    .get("/:id", (c) => {
+    .get("/:id", async (c) => {
       const id = c.req.param("id");
-      const { book, parsed } = requireBook(s.books, id);
-      return c.json(bookDetail(book, parsed, s.settings.get(id), libraryTitle(s, id, parsed)));
+      const { book, parsed } = await requireBook(c.var.repos.books, id);
+      return c.json(
+        bookDetail(
+          book,
+          parsed,
+          await c.var.repos.settings.get(id),
+          await libraryTitle(c.var.repos, id, parsed),
+        ),
+      );
     })
     .delete("/:id", async (c) => {
-      await deleteBook(s, c.req.param("id"));
+      const { ownerId } = c.var;
+      await deleteBook(
+        { ...s, ...c.var.repos, runner: { cancel: (jobId) => s.runner.cancel(ownerId, jobId) } },
+        c.req.param("id"),
+      );
       return c.body(null, 204);
     })
-    .put("/:id/settings", validate("json", BookSettingsSchema), (c) => {
+    .put("/:id/settings", validate("json", BookSettingsSchema), async (c) => {
       const id = c.req.param("id");
-      requireBook(s.books, id);
+      await requireBook(c.var.repos.books, id);
       const settings = c.req.valid("json");
-      s.settings.put(id, settings);
+      await c.var.repos.settings.put(id, settings);
       return c.json(settings);
     })
     .post("/:id/glossary/suggest", validate("json", SuggestGlossaryBodySchema), async (c) => {
@@ -74,7 +97,7 @@ export function booksRoutes(s: Services) {
       const extractor = s.providers.termExtractor(body.provider);
       if (!extractor) throw new ProviderNotConfiguredError(body.provider);
       const { terms, usage } = await suggestGlossary(
-        { books: s.books, settings: s.settings, jobs: s.jobs, extractor },
+        { ...c.var.repos, extractor },
         { bookId: c.req.param("id"), model: body.model, targetLang: body.targetLang ?? "en" },
         c.req.raw.signal,
       );
@@ -85,39 +108,51 @@ export function booksRoutes(s: Services) {
     .get(
       "/:id/workspace",
       validate("query", z.object({ targetLang: z.string().default("en") })),
-      (c) => {
-        const job = getOrCreateWorkspace(s, c.req.param("id"), c.req.valid("query").targetLang);
-        return c.json(s.runner.summary(job.id));
+      async (c) => {
+        const job = await getOrCreateWorkspace(
+          { ...s, ...c.var.repos },
+          c.req.param("id"),
+          c.req.valid("query").targetLang,
+        );
+        return c.json(await s.runner.summary(c.var.ownerId, job.id));
       },
     )
     .get("/:id/chapters/:chapterId", async (c) => {
       const bookId = c.req.param("id");
-      const view = await renderChapter(s, {
-        bookId,
-        jobId: c.req.query("jobId") || null,
-        chapterId: c.req.param("chapterId"),
-        assetUrl: assetUrl(bookId),
-      });
+      const view = await renderChapter(
+        { ...s, ...c.var.repos },
+        {
+          bookId,
+          jobId: c.req.query("jobId") || null,
+          chapterId: c.req.param("chapterId"),
+          assetUrl: assetUrl(bookId),
+        },
+      );
       return c.json(view);
     })
     .get("/:id/cover", async (c) => {
-      const { book } = requireBook(s.books, c.req.param("id"));
+      const { book } = await requireBook(c.var.repos.books, c.req.param("id"));
       if (!book.coverHref) throw new NotFoundError("Cover", book.id);
-      return serveAsset(s, book.id, book.coverHref);
+      return serveAsset(s, c.var.repos, book.id, book.coverHref);
     })
     .get("/:id/assets/*", async (c) => {
       const id = c.req.param("id");
       const prefix = `/api/books/${id}/assets/`;
       const href = decodeURIComponent(c.req.path.slice(c.req.path.indexOf(prefix) + prefix.length));
-      return serveAsset(s, id, href);
+      return serveAsset(s, c.var.repos, id, href);
     });
 }
 
 const INLINE_MEDIA = /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|font\/[\w.+-]+|text\/css)$/;
 const ASSET_CSP = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
 
-async function serveAsset(s: Services, bookId: string, href: string): Promise<Response> {
-  const { book } = requireBook(s.books, bookId);
+async function serveAsset(
+  s: Services,
+  repos: Repositories,
+  bookId: string,
+  href: string,
+): Promise<Response> {
+  const { book } = await requireBook(repos.books, bookId);
   const asset = await s.assets.read(await loadBookBytes(s.blobs, book), href);
   if (!asset) throw new NotFoundError("Asset", href);
   const inline = INLINE_MEDIA.test(asset.mediaType);

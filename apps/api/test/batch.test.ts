@@ -2,14 +2,15 @@ import {
   BookSummarySchema,
   type JobSummary,
   JobSummarySchema,
+  LOCAL_OWNER_ID,
   ProviderInfoSchema,
 } from "@et/contracts";
 import type { ChapterRenderer, EpubAssets, EpubExporter, EpubParser, ParsedBook } from "@et/core";
 import { FakeBatchProvider, FakeProvider } from "@et/providers";
 import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
+import { createLocalServices } from "../src/compose-local.ts";
 import { startBatchPolling } from "../src/infra/batch-poller.ts";
-import { createServices } from "../src/services.ts";
 
 const parsed: ParsedBook = {
   title: "本",
@@ -37,7 +38,7 @@ const renderer: ChapterRenderer = {
 const exporter: EpubExporter = { export: async () => new Uint8Array([1]) };
 
 function setup() {
-  const services = createServices({
+  const services = createLocalServices({
     dataDir: ":memory:",
     env: {},
     epub: { parser, assets, renderer, exporter },
@@ -86,12 +87,12 @@ describe("batch mode api", () => {
     );
     expect(res.status).toBe(200);
     await services.runner.whenIdle();
-    expect(chapterStatus(services.runner.summary(job.id))).toBe("submitted");
+    expect(chapterStatus(await services.runner.summary(LOCAL_OWNER_ID, job.id))).toBe("submitted");
 
-    await services.runner.pollBatches();
-    expect(chapterStatus(services.runner.summary(job.id))).toBe("submitted");
-    await services.runner.pollBatches();
-    expect(services.runner.summary(job.id).progress[0]).toMatchObject({
+    await services.runner.pollBatches(LOCAL_OWNER_ID);
+    expect(chapterStatus(await services.runner.summary(LOCAL_OWNER_ID, job.id))).toBe("submitted");
+    await services.runner.pollBatches(LOCAL_OWNER_ID);
+    expect((await services.runner.summary(LOCAL_OWNER_ID, job.id)).progress[0]).toMatchObject({
       status: "done",
       done: 2,
     });
@@ -107,7 +108,7 @@ describe("batch mode api", () => {
       200,
     );
     await services.runner.whenIdle();
-    expect(chapterStatus(services.runner.summary(job.id))).toBe("submitted");
+    expect(chapterStatus(await services.runner.summary(LOCAL_OWNER_ID, job.id))).toBe("submitted");
   });
 
   it("returns 400 when the provider has no batch support", async () => {
@@ -139,7 +140,7 @@ describe("batch mode api", () => {
       post({ provider: "fake", model: "fake-echo", mode: "batch" }),
     );
     await services.runner.whenIdle();
-    expect(services.batches.listOpen()).toHaveLength(1);
+    expect(await services.repos.batches.listOpen()).toHaveLength(1);
   });
 });
 
@@ -148,14 +149,9 @@ describe("startBatchPolling", () => {
     vi.useFakeTimers();
     try {
       let polls = 0;
-      const stop = startBatchPolling(
-        {
-          pollBatches: async () => {
-            polls++;
-          },
-        },
-        1000,
-      );
+      const stop = startBatchPolling(async () => {
+        polls++;
+      }, 1000);
       await vi.advanceTimersByTimeAsync(0);
       expect(polls).toBe(1);
       await vi.advanceTimersByTimeAsync(2500);
@@ -172,15 +168,10 @@ describe("startBatchPolling", () => {
     vi.useFakeTimers();
     try {
       let polls = 0;
-      const stop = startBatchPolling(
-        {
-          pollBatches: async () => {
-            polls++;
-            throw new Error("boom");
-          },
-        },
-        1000,
-      );
+      const stop = startBatchPolling(async () => {
+        polls++;
+        throw new Error("boom");
+      }, 1000);
       await vi.advanceTimersByTimeAsync(2100);
       expect(polls).toBe(3);
       stop();

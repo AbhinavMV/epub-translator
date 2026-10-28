@@ -18,7 +18,7 @@ import { FakeProvider } from "@et/providers";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createApp } from "../src/app.ts";
-import { createServices } from "../src/services.ts";
+import { createLocalServices } from "../src/compose-local.ts";
 
 const parsed: ParsedBook = {
   title: "本",
@@ -74,7 +74,7 @@ const exporter: EpubExporter = {
 };
 
 function setup(env: Record<string, string | undefined> = {}) {
-  const services = createServices({
+  const services = createLocalServices({
     dataDir: ":memory:",
     env,
     epub: { parser, assets, renderer, exporter },
@@ -116,7 +116,10 @@ describe("books api", () => {
       await (await app.request(`/api/books/${book.id}/workspace?targetLang=en`)).json(),
     );
     expect(workspace.titles).toEqual({ book: null, chapters: {} });
-    services.translations.put(workspace.id, "opf#title", { text: "The Book", status: "done" });
+    await services.repos.translations.put(workspace.id, "opf#title", {
+      text: "The Book",
+      status: "done",
+    });
     const list = z.array(BookSummarySchema).parse(await (await app.request("/api/books")).json());
     expect(list[0]?.translatedTitle).toBe("The Book");
     const again = JobSummarySchema.parse(
@@ -209,7 +212,7 @@ describe("glossary suggestion api", () => {
     });
 
   async function setupLatin() {
-    const services = createServices({
+    const services = createLocalServices({
       dataDir: ":memory:",
       env: {},
       epub: { parser: { parse: async () => latin }, assets, renderer, exporter },
