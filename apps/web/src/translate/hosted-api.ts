@@ -96,6 +96,8 @@ export function createHostedApi(base: Api, runtime: ClientRuntime, vault: Vault)
       return settled(jobId);
     },
     suggestGlossary: (bookId, body) => runtime.suggestGlossary(bookId, body),
+    proofreadChapter: (jobId, chapterId, body, signal) =>
+      runtime.proofreadChapter(jobId, chapterId, body, signal),
     openJobEvents: silentEvents,
   };
 }

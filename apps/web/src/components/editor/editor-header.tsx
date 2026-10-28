@@ -2,6 +2,7 @@ import type { BookSettings, GlossaryEntry, ProviderInfo, TranslateMode } from "@
 import { TARGET_LANGUAGES } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Menu } from "lucide-react";
+import type { ReactNode } from "react";
 import { AppMark } from "@/components/app-mark";
 import { BookTitle } from "@/components/book-title";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -39,6 +40,7 @@ export function EditorHeader({
   onSaveGlossary,
   onSavePrompt,
   onOpenRail,
+  proofread,
 }: {
   bookId: string;
   title: string | undefined;
@@ -58,6 +60,7 @@ export function EditorHeader({
   onSaveGlossary: (glossary: GlossaryEntry[]) => Promise<unknown>;
   onSavePrompt: (prompt: string) => Promise<unknown>;
   onOpenRail: () => void;
+  proofread?: ReactNode;
 }) {
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4 lg:flex-nowrap">
@@ -103,6 +106,7 @@ export function EditorHeader({
           saving={saving}
           onSave={onSavePrompt}
         />
+        {proofread}
         {chapterId ? (
           <Button variant="outline" size="sm" asChild>
             <Link

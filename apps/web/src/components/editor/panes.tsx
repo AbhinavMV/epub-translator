@@ -1,5 +1,5 @@
 import type { ChapterBlock, ChapterView } from "@et/contracts";
-import { ChevronDown, Copy, Eraser, RotateCcw } from "lucide-react";
+import { ChevronDown, Copy, Eraser, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Html } from "@/components/html";
@@ -34,11 +34,13 @@ function TargetCell({
   busy,
   firstPending,
   language,
+  onSuggestion,
 }: {
   block: SegmentBlock;
   busy: boolean;
   firstPending: boolean;
   language: LanguageAttrs | undefined;
+  onSuggestion: (() => void) | undefined;
 }) {
   const flagged = block.status === "flagged";
   const pending = block.targetHtml === null;
@@ -53,6 +55,16 @@ function TargetCell({
         flagged && "segment-flagged",
       )}
     >
+      {onSuggestion && (
+        <button
+          type="button"
+          onClick={onSuggestion}
+          className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-900"
+        >
+          <Sparkles className="size-3" />
+          Suggested edit
+        </button>
+      )}
       {block.targetHtml !== null ? (
         <Html html={block.targetHtml} language={language} />
       ) : busy ? (
@@ -87,6 +99,8 @@ export function EditorPanes({
   onLoadMore,
   onRetry,
   onClear,
+  suggested,
+  onSuggestion,
 }: {
   view: ChapterView | undefined;
   loading: boolean;
@@ -100,6 +114,8 @@ export function EditorPanes({
   onLoadMore?: () => void;
   onRetry: () => void;
   onClear: () => void;
+  suggested?: ReadonlySet<string>;
+  onSuggestion?: (segmentId: string) => void;
 }) {
   const [showSource, setShowSource] = useState(false);
   const targetLanguage = languageAttrs(targetLang);
@@ -186,7 +202,8 @@ export function EditorPanes({
           ) : (
             <div
               key={block.id}
-              className="grid grid-cols-1 border-b border-border/50 lg:grid-cols-2"
+              data-segment-id={block.id}
+              className="grid scroll-mt-14 grid-cols-1 border-b border-border/50 transition-colors data-[flash]:bg-primary/10 lg:grid-cols-2"
             >
               <div
                 className={cn(
@@ -201,6 +218,11 @@ export function EditorPanes({
                 busy={busy}
                 firstPending={block.id === firstPendingId}
                 language={targetLanguage}
+                onSuggestion={
+                  suggested?.has(block.id) && onSuggestion
+                    ? () => onSuggestion(block.id)
+                    : undefined
+                }
               />
             </div>
           ),

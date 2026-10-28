@@ -1,5 +1,11 @@
-import { CONTENTS_CHAPTER_ID, type JobSummary, type TranslateBody } from "@et/contracts";
-import type { Sleep } from "@et/core";
+import {
+  CONTENTS_CHAPTER_ID,
+  type JobSummary,
+  type ProofreadBody,
+  type ProofreadRun,
+  type TranslateBody,
+} from "@et/contracts";
+import { proofreadParts, type Sleep } from "@et/core";
 import { type BrowserProvider, createBrowserProvider, redactKey } from "@et/providers/browser";
 import type { Api } from "@/api/client";
 import { KEYED_PROVIDERS, type KeyedProvider } from "@/keys/envelope";
@@ -139,6 +145,47 @@ export class ClientRuntime {
       throw new Error(
         redactKey(message, this.deps.vault.getKey(body.provider as KeyedProvider) ?? ""),
       );
+    }
+  }
+
+  async proofreadChapter(
+    jobId: string,
+    chapterId: string,
+    body: ProofreadBody,
+    signal: AbortSignal = new AbortController().signal,
+  ): Promise<ProofreadRun> {
+    const provider = body.provider as KeyedProvider;
+    await this.ensureKey(provider);
+    const relay = new AbortController();
+    const onAbort = () => relay.abort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    const unsubscribe = this.deps.vault.subscribe(() => {
+      if (this.deps.vault.snapshot().status !== "unlocked") relay.abort();
+    });
+    try {
+      const input = await this.deps.api.proofreadInput(jobId, chapterId);
+      const outcome = await proofreadParts(
+        this.requireBundle(provider, body.model).proofreader,
+        this.deps.sleep,
+        input,
+        body.model,
+        body.notes ?? [],
+        relay.signal,
+      );
+      this.deps.vault.keepAlive();
+      const proofread = await this.deps.api.recordProofread(jobId, chapterId, {
+        model: body.model,
+        edits: outcome.edits,
+        usage: outcome.usage,
+      });
+      return { proofread, notes: outcome.notes };
+    } catch (err) {
+      if (relay.signal.aborted) throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(redactKey(message, this.deps.vault.getKey(provider) ?? ""));
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+      unsubscribe();
     }
   }
 

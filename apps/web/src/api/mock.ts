@@ -4,9 +4,11 @@ import type {
   BookSummary,
   ChapterBlock,
   ChapterProgress,
+  ChapterProofread,
   ChapterView,
   JobEvent,
   JobSummary,
+  ProofreadKind,
   ProviderInfo,
   SegmentStatus,
 } from "@et/contracts";
@@ -144,6 +146,38 @@ function delay<T>(value: T, ms = 120): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
+const MOCK_FIXES: readonly {
+  find: string;
+  replace: string;
+  kind: ProofreadKind;
+  reason: string;
+}[] = [
+  {
+    find: "Good morning, Emma.",
+    replace: "Morning, Emma-chan.",
+    kind: "consistency",
+    reason: "ちゃん is kept as -chan everywhere else in the book.",
+  },
+  {
+    find: "The gesture felt oddly unnatural",
+    replace: "Something about the gesture felt forced",
+    kind: "fluency",
+    reason: "“Oddly unnatural” reads awkwardly; 不自然 here means forced.",
+  },
+  {
+    find: "Spring was almost upon us.",
+    replace: "Spring was just around the corner.",
+    kind: "fluency",
+    reason: "More natural idiom for もうすぐそこまで来ている.",
+  },
+  {
+    find: "the town was wrapped in a sweet fragrance",
+    replace: "the whole town filled with a sweet scent",
+    kind: "accuracy",
+    reason: "一斉に means all at once, across the whole town.",
+  },
+];
+
 class MockSource implements EventSourceLike {
   onmessage: ((e: { data: string }) => void) | null = null;
   onerror: ((e: unknown) => void) | null = null;
@@ -166,6 +200,7 @@ export function createMockApi(): Api {
   const timers = new Map<string, ReturnType<typeof setInterval>>();
   const queues = new Map<string, string[]>();
   const batchTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const proofreads = new Map<string, ChapterProofread>();
 
   const segCount = CHAPTERS.reduce((n, c) => n + c.pairs.length, 0);
   const addBook = (id: string, title: string) => {
@@ -481,6 +516,77 @@ export function createMockApi(): Api {
       const source: MockSource = new MockSource(() => set.delete(source));
       set.add(source);
       return source;
+    },
+    async listProofreads(jobId) {
+      return delay(
+        [...proofreads.values()]
+          .filter((p) => p.jobId === jobId)
+          .map((p) => ({
+            chapterId: p.chapterId,
+            createdAt: p.createdAt,
+            pending: p.suggestions.filter((x) => x.state === "pending").length,
+            total: p.suggestions.length,
+          })),
+        40,
+      );
+    },
+    async getProofread(jobId, chapterId) {
+      return delay(structuredClone(proofreads.get(`${jobId}:${chapterId}`) ?? null), 40);
+    },
+    async proofreadChapter(jobId, chapterId, body) {
+      const c = CHAPTERS.find((x) => x.id === chapterId);
+      const suggestions = (c?.pairs ?? []).flatMap((_, i) => {
+        const id = segId(c as MockChapter, i);
+        const html = segs.get(segKey(jobId, id))?.html;
+        if (!html) return [];
+        const before = html.replace(/^<p>|<\/p>$/g, "");
+        const fix = MOCK_FIXES.find((f) => before.includes(f.find));
+        return fix
+          ? [
+              {
+                segmentId: id,
+                kind: fix.kind,
+                before,
+                after: before.replace(fix.find, fix.replace),
+                reason: fix.reason,
+                state: "pending" as const,
+              },
+            ]
+          : [];
+      });
+      const proofread: ChapterProofread = {
+        jobId,
+        chapterId,
+        model: body.model,
+        createdAt: new Date().toISOString(),
+        usage: { inputTokens: 1800, outputTokens: 120 },
+        suggestions,
+      };
+      proofreads.set(`${jobId}:${chapterId}`, proofread);
+      return delay({ proofread: structuredClone(proofread), notes: body.notes ?? [] }, 900);
+    },
+    async decideProofread(jobId, chapterId, decision) {
+      const proofread = proofreads.get(`${jobId}:${chapterId}`);
+      if (!proofread) throw new Error("Proofread not found");
+      for (const x of proofread.suggestions) {
+        if (x.state !== "pending") continue;
+        if (decision.reject?.includes(x.segmentId)) x.state = "rejected";
+        if (decision.accept?.includes(x.segmentId)) {
+          const key = segKey(jobId, x.segmentId);
+          const seg = segs.get(key);
+          if (seg?.html !== `<p>${x.before}</p>`) {
+            x.state = "outdated";
+            continue;
+          }
+          segs.set(key, { html: `<p>${x.after}</p>`, status: "done" });
+          x.state = "accepted";
+        }
+      }
+      return delay(structuredClone(proofread), 60);
+    },
+    async discardProofread(jobId, chapterId) {
+      proofreads.delete(`${jobId}:${chapterId}`);
+      await delay(null, 40);
     },
     upload: { mode: "multipart", maxBytes: 200 * 1024 * 1024 },
     signedExports: false,

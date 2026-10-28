@@ -1,4 +1,10 @@
-import type { SegmentBatchRequest, SegmentBatchResult, TranslationProvider } from "@et/core";
+import type {
+  Proofreader,
+  ProofreadRequest,
+  SegmentBatchRequest,
+  SegmentBatchResult,
+  TranslationProvider,
+} from "@et/core";
 import type { BrowserProvider, createBrowserProvider } from "@et/providers/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryEnvelopeStore } from "@/keys/memory-store";
@@ -35,8 +41,33 @@ class HangingProvider implements TranslationProvider {
   finish = false;
 }
 
+class EditingProofreader implements Proofreader {
+  requests: ProofreadRequest[] = [];
+  hang = false;
+  async proofread(req: ProofreadRequest, signal: AbortSignal) {
+    this.requests.push(req);
+    if (this.hang) {
+      return new Promise<never>((_, reject) =>
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
+      );
+    }
+    const first = req.segments[0];
+    return {
+      kind: "ok" as const,
+      edits: first
+        ? [{ id: first.id, kind: "fluency" as const, text: "Better.", reason: "r" }]
+        : [],
+      notes: [{ source: "周", target: "Amane" }],
+      usage,
+    };
+  }
+}
+
+const proofreader = new EditingProofreader();
+
 function bundleOf(provider: TranslationProvider): BrowserProvider {
   return {
+    proofreader,
     provider,
     batch: {} as BrowserProvider["batch"],
     terms: {
@@ -166,5 +197,46 @@ describe("provider bundle cache", () => {
     await runtime.suggestGlossary("b1", { provider: "anthropic", model: "model-a" });
     const named = created.filter((c) => c.model === "model-a");
     expect(named.map((c) => c.key)).toEqual([KEY, `${KEY}-rotated`]);
+  });
+});
+
+describe("proofreading in the browser", () => {
+  beforeEach(() => {
+    proofreader.requests = [];
+    proofreader.hang = false;
+  });
+
+  it("proofreads with the vault key and saves only the edits and usage", async () => {
+    const run = await runtime.proofreadChapter("job", "ch", {
+      provider: "anthropic",
+      model: "claude-opus-5-5",
+      notes: [{ source: "真昼", target: "Mahiru" }],
+    });
+    expect(created.at(-1)).toEqual({ provider: "anthropic", key: KEY, model: "claude-opus-5-5" });
+    expect(proofreader.requests[0]?.notes).toEqual([{ source: "真昼", target: "Mahiru" }]);
+    expect(api.proofreadRecords).toEqual([
+      {
+        chapterId: "ch",
+        body: {
+          model: "claude-opus-5-5",
+          edits: [{ id: "s0", kind: "fluency", text: "Better.", reason: "r" }],
+          usage,
+        },
+      },
+    ]);
+    expect(JSON.stringify(api.proofreadRecords)).not.toContain(KEY);
+    expect(run.notes.map((n) => n.source)).toEqual(["真昼", "周"]);
+  });
+
+  it("stops when the vault locks and saves nothing", async () => {
+    proofreader.hang = true;
+    const pending = runtime.proofreadChapter("job", "ch", {
+      provider: "anthropic",
+      model: "m",
+    });
+    await vi.waitFor(() => expect(proofreader.requests).toHaveLength(1));
+    vault.lock();
+    await expect(pending).rejects.toBeDefined();
+    expect(api.proofreadRecords).toEqual([]);
   });
 });

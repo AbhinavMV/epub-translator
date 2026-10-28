@@ -5,4 +5,6 @@ export const keys = {
   workspace: (bookId: string, lang: string) => ["workspace", bookId, lang] as const,
   job: (id: string) => ["job", id] as const,
   chapter: (jobId: string, chapterId: string) => ["chapter", jobId, chapterId] as const,
+  proofreads: (jobId: string) => ["proofreads", jobId] as const,
+  proofread: (jobId: string, chapterId: string) => ["proofread", jobId, chapterId] as const,
 };

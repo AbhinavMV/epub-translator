@@ -6,14 +6,19 @@ import {
   type BatchStatusBody,
   type ChapterProgress,
   ChapterProgressSchema,
+  type ChapterProofread,
+  ChapterProofreadSchema,
   type GlossarySample,
   GlossarySampleSchema,
   OpenBatchesSchema,
+  type ProofreadInput,
+  ProofreadInputSchema,
   type PublicConfig,
   PublicConfigSchema,
   type RecordBatchBody,
   type RecordedBatch,
   RecordedBatchSchema,
+  type RecordProofreadBody,
   type WorkResultBody,
   type WorkUnitDto,
   WorkUnitSchema,
@@ -35,6 +40,12 @@ export interface WorkApi {
   ): Promise<ChapterProgress>;
   endBatch(jobId: string, batchId: string, body: BatchStatusBody): Promise<ChapterProgress>;
   glossarySample(bookId: string, targetLang: string): Promise<GlossarySample>;
+  proofreadInput(jobId: string, chapterId: string): Promise<ProofreadInput>;
+  recordProofread(
+    jobId: string,
+    chapterId: string,
+    body: RecordProofreadBody,
+  ): Promise<ChapterProofread>;
 }
 
 const enc = encodeURIComponent;
@@ -102,6 +113,19 @@ export function createWorkApi(fetchFn: typeof fetch = (...args) => fetch(...args
       ),
     endBatch: (jobId, batchId, body) =>
       json(ChapterProgressSchema, `/jobs/${enc(jobId)}/batches/${enc(batchId)}`, "PATCH", body),
+    proofreadInput: (jobId, chapterId) =>
+      json(
+        ProofreadInputSchema,
+        `/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/proofread/input`,
+        "GET",
+      ),
+    recordProofread: (jobId, chapterId, body) =>
+      json(
+        ChapterProofreadSchema,
+        `/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/proofread`,
+        "PUT",
+        body,
+      ),
     glossarySample: (bookId, targetLang) =>
       json(
         GlossarySampleSchema,

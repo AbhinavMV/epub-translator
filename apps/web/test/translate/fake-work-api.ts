@@ -2,8 +2,11 @@ import type {
   BatchPlan,
   BatchResultsBody,
   ChapterProgress,
+  ChapterProofread,
+  ProofreadInput,
   RecordBatchBody,
   RecordedBatch,
+  RecordProofreadBody,
   WorkResultBody,
   WorkUnitDto,
 } from "@et/contracts";
@@ -36,6 +39,7 @@ export class FakeWorkApi implements WorkApi {
     final: boolean;
   }[] = [];
   usage = { inputTokens: 0, outputTokens: 0 };
+  readonly proofreadRecords: { chapterId: string; body: RecordProofreadBody }[] = [];
   failPostsWith: ApiRequestError[] = [];
   private held = new Set<string>();
   private leases = new Map<string, string[]>();
@@ -191,6 +195,43 @@ export class FakeWorkApi implements WorkApi {
       bookTitle: "B",
       existing: [],
       targetLang: "en",
+    };
+  }
+
+  async proofreadInput(_jobId: string, chapterId: string): Promise<ProofreadInput> {
+    return {
+      sourceLang: SHARED.sourceLang,
+      target: SHARED.target,
+      bookTitle: SHARED.bookTitle,
+      glossary: [],
+      parts: [
+        this.book.segments
+          .filter(() => this.book.chapterId === chapterId)
+          .map((s) => ({ id: s.id, source: s.text, translation: `T:${s.text}` })),
+      ],
+    };
+  }
+
+  async recordProofread(
+    jobId: string,
+    chapterId: string,
+    body: RecordProofreadBody,
+  ): Promise<ChapterProofread> {
+    this.proofreadRecords.push({ chapterId, body });
+    return {
+      jobId,
+      chapterId,
+      model: body.model,
+      createdAt: "2026-10-28T00:00:00.000Z",
+      usage: body.usage,
+      suggestions: body.edits.map((e) => ({
+        segmentId: e.id,
+        kind: e.kind,
+        before: `T:${e.id}`,
+        after: e.text,
+        reason: e.reason,
+        state: "pending" as const,
+      })),
     };
   }
 }

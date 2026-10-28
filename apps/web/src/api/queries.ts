@@ -2,6 +2,7 @@ import type {
   BookSettings,
   ChapterView,
   JobSummary,
+  ProofreadDecisionBody,
   SuggestGlossaryBody,
   TranslateBody,
 } from "@et/contracts";
@@ -166,6 +167,59 @@ export function useJobAction(jobId: string | undefined) {
       await queryClient.invalidateQueries({
         queryKey: chapterId ? keys.chapter(jobId, chapterId) : ["chapter", jobId],
       });
+    },
+  });
+}
+
+export function useProofreads(jobId: string | undefined) {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.proofreads(jobId ?? ""),
+    queryFn: () => api.listProofreads(jobId ?? ""),
+    enabled: Boolean(jobId),
+  });
+}
+
+export function useProofread(jobId: string | undefined, chapterId: string | undefined) {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.proofread(jobId ?? "", chapterId ?? ""),
+    queryFn: () => api.getProofread(jobId ?? "", chapterId ?? ""),
+    enabled: Boolean(jobId && chapterId),
+  });
+}
+
+export function useProofreadDecision(jobId: string | undefined, chapterId: string | undefined) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (decision: ProofreadDecisionBody) => {
+      if (!jobId || !chapterId) throw new Error("Workspace is not ready");
+      return api.decideProofread(jobId, chapterId, decision);
+    },
+    onSuccess: async (proofread) => {
+      if (!jobId || !chapterId) return;
+      queryClient.setQueryData(keys.proofread(jobId, chapterId), proofread);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.proofreads(jobId) }),
+        queryClient.invalidateQueries({ queryKey: keys.chapter(jobId, chapterId) }),
+      ]);
+    },
+  });
+}
+
+export function useDiscardProofread(jobId: string | undefined, chapterId: string | undefined) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!jobId || !chapterId) throw new Error("Workspace is not ready");
+      await api.discardProofread(jobId, chapterId);
+    },
+    onSuccess: async () => {
+      if (!jobId || !chapterId) return;
+      queryClient.setQueryData(keys.proofread(jobId, chapterId), null);
+      await queryClient.invalidateQueries({ queryKey: keys.proofreads(jobId) });
     },
   });
 }

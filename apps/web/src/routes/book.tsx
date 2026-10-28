@@ -5,23 +5,30 @@ import {
   type TranslateMode,
 } from "@et/contracts";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useApi } from "@/api/api-context";
 import {
   useBook,
   useChapter,
+  useDiscardProofread,
   useJob,
   useJobAction,
+  useProofread,
+  useProofreadDecision,
+  useProofreads,
   useProviders,
   useSaveSettings,
   useWorkspace,
 } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
+import { useProofreadRun } from "@/api/use-proofread-run";
 import { ChapterRail } from "@/components/chapter-rail";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { resolveSelection, type Selection } from "@/components/editor/model-selection";
 import { EditorPanes } from "@/components/editor/panes";
+import { ProofreadMenu } from "@/components/editor/proofread-menu";
+import { ProofreadBar, ProofreadSheet } from "@/components/editor/proofread-review";
 import { EditorToolbar } from "@/components/editor/toolbar";
 import { TranslationError } from "@/components/editor/translation-error";
 import {
@@ -108,6 +115,80 @@ export function BookPage() {
     ? "No AI key yet. Add one under AI keys."
     : "No provider configured. Set ANTHROPIC_API_KEY in apps/api/.env";
 
+  const proofreads = useProofreads(jobId);
+  const proofread = useProofread(jobId, chapterId);
+  const decide = useProofreadDecision(jobId, chapterId);
+  const discard = useDiscardProofread(jobId, chapterId);
+  const proofreadRun = useProofreadRun(jobId);
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  const pendingByChapter = useMemo(
+    () => new Map((proofreads.data ?? []).map((p) => [p.chapterId, p.pending])),
+    [proofreads.data],
+  );
+  const proofreadIds = new Set((proofreads.data ?? []).map((p) => p.chapterId));
+  const translatedIds = chapters
+    .filter((c) => (progressFor(job.data, c.id)?.done ?? 0) > 0)
+    .map((c) => c.id);
+  const pendingHere = useMemo(
+    () =>
+      new Set(
+        (proofread.data?.suggestions ?? [])
+          .filter((s) => s.state === "pending")
+          .map((s) => s.segmentId),
+      ),
+    [proofread.data],
+  );
+  const positions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of chapter.data?.blocks ?? [])
+      if (b.kind === "segment") map.set(b.id, map.size + 1);
+    return map;
+  }, [chapter.data]);
+  const providerLabel = providers.data?.find((p) => p.id === selection?.provider)?.label;
+
+  const { running, done: proofreadDone, error: proofreadError } = proofreadRun.state;
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (running) {
+      wasRunning.current = true;
+      return;
+    }
+    if (!wasRunning.current) return;
+    wasRunning.current = false;
+    if (proofreadError) toast.error(`Proofreading stopped: ${proofreadError}`);
+    else if (proofreadDone > 0) {
+      toast.success(
+        `Proofread ${proofreadDone} chapter${proofreadDone === 1 ? "" : "s"}. Review the suggestions chapter by chapter.`,
+      );
+    }
+  }, [running, proofreadDone, proofreadError]);
+
+  const jumpTo = (segmentId: string) => {
+    setReviewOpen(false);
+    window.setTimeout(() => {
+      const row = scrollRef.current?.querySelector<HTMLElement>(
+        `[data-segment-id="${CSS.escape(segmentId)}"]`,
+      );
+      if (!row) {
+        toast.message("Scroll further down to load that paragraph.");
+        return;
+      }
+      row.scrollIntoView({ block: "center", behavior: "smooth" });
+      row.setAttribute("data-flash", "");
+      window.setTimeout(() => row.removeAttribute("data-flash"), 1600);
+    }, 250);
+  };
+
+  const openSuggestion = (segmentId: string) => {
+    setReviewOpen(true);
+    window.setTimeout(() => {
+      document
+        .querySelector(`[data-suggestion="${CSS.escape(segmentId)}"]`)
+        ?.scrollIntoView({ block: "center" });
+    }, 250);
+  };
+
   if (book.isError) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
@@ -117,7 +198,13 @@ export function BookPage() {
   }
 
   const rail = (
-    <ChapterRail chapters={chapters} job={job.data} activeId={chapterId} onSelect={goTo} />
+    <ChapterRail
+      chapters={chapters}
+      job={job.data}
+      activeId={chapterId}
+      onSelect={goTo}
+      pending={pendingByChapter}
+    />
   );
 
   return (
@@ -141,6 +228,28 @@ export function BookPage() {
         onSaveGlossary={(glossary: GlossaryEntry[]) => persist({ glossary })}
         onSavePrompt={(customPrompt) => persist({ customPrompt })}
         onOpenRail={() => setRailOpen(true)}
+        proofread={
+          <ProofreadMenu
+            scope={{
+              chapterId,
+              chapterTranslated: (chapterProgress?.done ?? 0) > 0,
+              chapterProofread: Boolean(chapterId && proofreadIds.has(chapterId)),
+              unproofread: translatedIds.filter((id) => !proofreadIds.has(id)),
+              translated: translatedIds,
+            }}
+            run={proofreadRun.state}
+            disabledHint={
+              !selection || !jobId
+                ? noProviderHint
+                : translatedIds.length === 0
+                  ? "Translate a chapter first"
+                  : null
+            }
+            modelLabel={`${providerLabel ?? selection?.provider ?? "the AI"} (${selection?.model ?? ""})`}
+            onStart={(ids) => selection && void proofreadRun.start(ids, selection)}
+            onStop={proofreadRun.stop}
+          />
+        }
       />
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-72 shrink-0 flex-col border-r bg-card/40 md:flex">
@@ -194,6 +303,37 @@ export function BookPage() {
             }
           />
           <TranslationError chapterError={chapterProgress?.error} jobError={job.data?.error} />
+          <ProofreadBar proofread={proofread.data} onOpen={() => setReviewOpen(true)} />
+          <ProofreadSheet
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            proofread={proofread.data}
+            chapterTitle={chapter.data?.title ?? ""}
+            positions={positions}
+            busy={decide.isPending || discard.isPending}
+            onDecide={(decision) =>
+              decide.mutate(decision, {
+                onSuccess: (result) => {
+                  const outdated = result.suggestions.filter(
+                    (s) => s.state === "outdated" && decision.accept?.includes(s.segmentId),
+                  ).length;
+                  if (outdated > 0) {
+                    toast.warning(
+                      `${outdated} suggestion${outdated === 1 ? " was" : "s were"} not applied because the paragraph changed after proofreading.`,
+                    );
+                  }
+                },
+                onError: () => toast.error("Could not save your decision"),
+              })
+            }
+            onDiscard={() =>
+              discard.mutate(undefined, {
+                onSuccess: () => setReviewOpen(false),
+                onError: () => toast.error("Could not clear the results"),
+              })
+            }
+            onJump={jumpTo}
+          />
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background">
             <EditorPanes
               view={chapter.data}
@@ -210,6 +350,8 @@ export function BookPage() {
               )}
               onRetry={() => body && chapterId && action.mutate({ kind: "retry", chapterId, body })}
               onClear={() => chapterId && action.mutate({ kind: "clear", chapterId })}
+              suggested={pendingHere}
+              onSuggestion={openSuggestion}
             />
           </div>
         </main>

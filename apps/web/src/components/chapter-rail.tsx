@@ -8,11 +8,13 @@ export function ChapterRail({
   job,
   activeId,
   onSelect,
+  pending,
 }: {
   chapters: ChapterSummary[];
   job: JobSummary | undefined;
   activeId: string | undefined;
   onSelect: (chapterId: string) => void;
+  pending?: ReadonlyMap<string, number>;
 }) {
   return (
     <nav aria-label="Chapters" className="flex flex-col gap-0.5 p-2">
@@ -28,6 +30,7 @@ export function ChapterRail({
             ? chapter.title
             : null;
         const ratio = progress && progress.total > 0 ? progress.done / progress.total : 0;
+        const suggestions = pending?.get(chapter.id) ?? 0;
         return (
           <button
             key={chapter.id}
@@ -49,6 +52,14 @@ export function ChapterRail({
                 title={STATUS_LABEL[status]}
                 className={cn("size-2 rounded-full", STATUS_DOT[status])}
               />
+              {suggestions > 0 && (
+                <span
+                  title={`${suggestions} proofreading suggestion${suggestions === 1 ? "" : "s"}`}
+                  className="rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-900 normal-case dark:bg-amber-950 dark:text-amber-100"
+                >
+                  {suggestions} to review
+                </span>
+              )}
               <span className="ml-auto">{formatCount(chapter.charCount)} chars</span>
             </span>
             <span className="line-clamp-2 text-sm leading-snug font-medium">{label}</span>

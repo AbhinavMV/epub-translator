@@ -6,6 +6,8 @@ import {
   BookSettingsSchema,
   type BookSummary,
   BookSummarySchema,
+  type ChapterProofread,
+  ChapterProofreadSchema,
   type ChapterView,
   ChapterViewSchema,
   type ExportLayout,
@@ -13,6 +15,12 @@ import {
   GlossaryEntrySchema,
   type JobSummary,
   JobSummarySchema,
+  type ProofreadBody,
+  type ProofreadDecisionBody,
+  type ProofreadRun,
+  ProofreadRunSchema,
+  type ProofreadSummary,
+  ProofreadSummarySchema,
   type ProviderInfo,
   ProviderInfoSchema,
   type SuggestGlossaryBody,
@@ -67,6 +75,20 @@ export interface Api {
   clearChapter(jobId: string, chapterId: string): Promise<JobSummary | null>;
   cancelJob(jobId: string): Promise<JobSummary | null>;
   openJobEvents(jobId: string): EventSourceLike;
+  listProofreads(jobId: string): Promise<ProofreadSummary[]>;
+  getProofread(jobId: string, chapterId: string): Promise<ChapterProofread | null>;
+  proofreadChapter(
+    jobId: string,
+    chapterId: string,
+    body: ProofreadBody,
+    signal?: AbortSignal,
+  ): Promise<ProofreadRun>;
+  decideProofread(
+    jobId: string,
+    chapterId: string,
+    decision: ProofreadDecisionBody,
+  ): Promise<ChapterProofread>;
+  discardProofread(jobId: string, chapterId: string): Promise<void>;
   exportUrl(jobId: string, kind: ExportKind, layout?: ExportLayout): string;
   upload: UploadPolicy;
   signedExports: boolean;
@@ -219,6 +241,38 @@ export function createHttpApi(
       jobOrNull(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/clear`),
     cancelJob: (jobId) => jobOrNull(`/jobs/${enc(jobId)}/cancel`),
     openJobEvents: (jobId) => makeEventSource(`/api/jobs/${enc(jobId)}/events`),
+    listProofreads: (jobId) => json(`/jobs/${enc(jobId)}/proofreads`, list(ProofreadSummarySchema)),
+    async getProofread(jobId, chapterId) {
+      try {
+        return await json(
+          `/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/proofread`,
+          ChapterProofreadSchema,
+        );
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 404) return null;
+        throw err;
+      }
+    },
+    proofreadChapter: (jobId, chapterId, body, signal) =>
+      json(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/proofread`, ProofreadRunSchema, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        ...(signal ? { signal } : {}),
+      }),
+    decideProofread: (jobId, chapterId, decision) =>
+      json(
+        `/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/proofread/decisions`,
+        ChapterProofreadSchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(decision),
+        },
+      ),
+    async discardProofread(jobId, chapterId) {
+      await raw(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/proofread`, { method: "DELETE" });
+    },
     upload,
     signedExports: signed,
     async openExport(href) {
