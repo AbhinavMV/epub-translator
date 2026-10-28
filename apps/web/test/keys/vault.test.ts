@@ -153,6 +153,15 @@ describe("vault", () => {
     expect(vault.snapshot().keys.map((k) => k.provider)).toEqual(["openai"]);
   });
 
+  it("reset deletes every envelope and returns to the empty state", async () => {
+    const vault = await unlockedWithKey();
+    await vault.setKey("openai", OTHER);
+    await vault.reset();
+    expect(store.all()).toEqual([]);
+    expect(vault.snapshot()).toEqual({ status: "empty", keys: [] });
+    expect(vault.getKey("anthropic")).toBeNull();
+  });
+
   it("replaces a key and notifies subscribers", async () => {
     const vault = await unlockedWithKey();
     const listener = vi.fn();

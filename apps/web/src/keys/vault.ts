@@ -189,6 +189,13 @@ export class Vault {
     this.publish();
   }
 
+  async reset(): Promise<void> {
+    for (const { provider } of this.infos) await this.store.delete(this.idOf(provider));
+    this.infos = [];
+    this.lock();
+    this.publish();
+  }
+
   getKey(provider: KeyedProvider): string | null {
     if (!this.unlocked) return null;
     this.touch();
