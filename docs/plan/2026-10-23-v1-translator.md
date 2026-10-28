@@ -599,3 +599,10 @@ Supabase project: `epub-translator`, ref `rydwdjnioblhlrlezwrc`, ap-south-1. "Al
 - **T5:** Phase 4 + Phase 9 (`SupabaseBlobStore`, signed upload/import/export, egress LRU, Vercel `services` config, security headers/CSP, deploy docs).
 
 T1 and T2 run first. T3, T4 and T5 start once T1 is merged.
+
+**Ledger (T4, 2026-10-28): client-driven translation and the key vault**
+- `apps/web` may now import `@et/core` (I/O-free translation code) and `@et/providers/browser`; `docs/CODING-STANDARDS.md` is updated to match. The SDK code is loaded by a dynamic import only when `GET /api/config` reports hosted execution.
+- Work protocol: `POST /api/jobs/:id/chapters/:chapterId/lease` (body `{after?}`) returns a work unit or 204; `POST /api/jobs/:id/results`; `POST /api/jobs/:id/chapters/:chapterId/batch-plan`; `GET|POST /api/jobs/:id/batches`; `POST /api/jobs/:id/batches/:batchId/results`; `PATCH /api/jobs/:id/batches/:batchId`; `GET /api/books/:id/glossary/sample`; `GET /api/config`. Every body is a strict zod object, so a field named like a key is rejected.
+- Core: `WorkLeaseRepository` and `WorkLeaseFactory` ports (`ports/work-lease.ts`), `MemoryWorkLeases`, `planWorkUnit`, `applyWorkResult`, `planBatchUnits`, `recordClientBatch`, `applyBatchResult`, `endClientBatch`. `JobRunner` and `BatchRunner` share `segmentRequest` and `recordResults` with them.
+- Vault: per-provider envelopes in IndexedDB scoped by user id, one passphrase and salt per vault, a fresh IV per encryption, AAD `<provider>|v1`, memory-only unlock, 30 minute idle lock, lock on `pagehide` and on a `et:sign-out` window event.
+

@@ -10,7 +10,7 @@ These rules apply to every line of production and test code in this repository.
 - **One responsibility per file (SRP).** Split by responsibility, not by technical layer. A file that needs "and" to describe it should be two files.
 - **Small interfaces (ISP).** Ports expose only what their consumers call. For example, the renderer and the exporter are separate ports even though one adapter package implements both.
 - **Substitutable implementations (LSP).** Every adapter must pass the same behavioural tests as its fake.
-- **`apps/web` imports only `@et/contracts`.** Every server type the UI sees is a zod schema in contracts.
+- **`apps/web` imports `@et/contracts`, plus the I/O-free `@et/core` translation code and the browser-safe `@et/providers/browser` entry for hosted execution.** Every server type the UI sees is a zod schema in contracts. The web app never imports `@et/providers` through its Node-oriented index, `@et/epub` or any store.
 
 ## Code
 
