@@ -1,16 +1,28 @@
 import { UnknownLanguageError } from "@et/contracts";
 import {
+  AccountCreationError,
   BatchNotSupportedError,
+  ConflictError,
   FatalProviderError,
+  ForbiddenError,
   InvalidEpubError,
+  InviteInvalidError,
   NotFoundError,
   ProviderNotConfiguredError,
+  RateLimitedError,
+  UnauthorizedError,
 } from "@et/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 export function errorStatus(err: unknown): ContentfulStatusCode {
+  if (err instanceof UnauthorizedError) return 401;
+  if (err instanceof ForbiddenError) return 403;
   if (err instanceof NotFoundError) return 404;
+  if (err instanceof ConflictError) return 409;
+  if (err instanceof RateLimitedError) return 429;
+  if (err instanceof InviteInvalidError) return 400;
+  if (err instanceof AccountCreationError) return 422;
   if (err instanceof InvalidEpubError) return 422;
   if (
     err instanceof ProviderNotConfiguredError ||
