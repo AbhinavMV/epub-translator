@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { adminRoutes } from "./http/admin.ts";
 import { type AuthDeps, authMiddleware } from "./http/auth.ts";
-import { configRoutes, meRoutes } from "./http/auth-routes.ts";
+import { configRoutes, meRoutes, type UploadPolicy } from "./http/auth-routes.ts";
 import { booksRoutes } from "./http/books.ts";
 import { handleError } from "./http/errors.ts";
 import { invitesRoutes } from "./http/invites.ts";
@@ -33,6 +33,8 @@ export function allowedHostsPolicy(list: string): (host: string) => boolean {
 export interface AppOptions {
   allowHost?: (host: string) => boolean;
   auth?: AuthDeps;
+  uploads?: UploadPolicy;
+  events?: boolean;
 }
 
 export function createApp(services: Services, options: AppOptions = {}) {
@@ -59,7 +61,7 @@ export function createApp(services: Services, options: AppOptions = {}) {
   app
     .use("/api/*", authMiddleware(auth))
     .use("/api/*", requestContext(services, auth !== undefined));
-  app.route("/api/config", configRoutes(auth));
+  app.route("/api/config", configRoutes(auth, options.uploads));
   if (auth) {
     app
       .route("/api/me", meRoutes(auth))
@@ -69,7 +71,7 @@ export function createApp(services: Services, options: AppOptions = {}) {
   }
   return app
     .route("/api/books", booksRoutes(services))
-    .route("/api/jobs", jobsRoutes(services))
+    .route("/api/jobs", jobsRoutes(services, { events: options.events ?? true }))
     .route("/api/providers", providersRoutes(services))
     .notFound((c) => c.json({ error: "Not found" }, 404));
 }

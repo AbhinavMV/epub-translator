@@ -3,14 +3,29 @@ import { Hono } from "hono";
 import { type AuthDeps, isAdmin } from "./auth.ts";
 import type { AppEnv } from "./request-context.ts";
 
-export function configRoutes(auth: AuthDeps | undefined) {
+export interface UploadPolicy {
+  mode: "multipart" | "signed";
+  maxBytes: number;
+}
+
+export const LOCAL_UPLOAD_POLICY: UploadPolicy = { mode: "multipart", maxBytes: 200 * 1024 * 1024 };
+
+export function configRoutes(auth: AuthDeps | undefined, upload: UploadPolicy = LOCAL_UPLOAD_POLICY) {
   const config: AppConfig = auth
     ? {
         authMode: "supabase",
         supabaseUrl: auth.publicConfig.supabaseUrl,
         supabasePublishableKey: auth.publicConfig.supabasePublishableKey,
+        uploadMode: upload.mode,
+        maxUploadBytes: upload.maxBytes,
       }
-    : { authMode: "none", supabaseUrl: null, supabasePublishableKey: null };
+    : {
+        authMode: "none",
+        supabaseUrl: null,
+        supabasePublishableKey: null,
+        uploadMode: upload.mode,
+        maxUploadBytes: upload.maxBytes,
+      };
   return new Hono<AppEnv>().get("/", (c) => c.json(config));
 }
 
