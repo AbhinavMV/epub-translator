@@ -40,12 +40,12 @@ describe("auth middleware", () => {
       { auth: authHarness().auth },
     );
     expect((await app.request("/api/books", { headers: bearer("user-token") })).status).toBe(200);
-    expect(seen).toEqual(["user-id"]);
+    expect(seen).toEqual(["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"]);
   });
 
   it("returns 403 for a disabled user", async () => {
     const { app, users } = hosted();
-    await users.setDisabled("user-id", true);
+    await users.setDisabled("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", true);
     expect((await app.request("/api/books", { headers: bearer("user-token") })).status).toBe(403);
   });
 
@@ -110,7 +110,7 @@ describe("session cookie", () => {
 
   it("is honoured on GET cover and asset routes", async () => {
     const { app, services } = hosted();
-    const book = await seedBook(services, "user-id");
+    const book = await seedBook(services, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     const cookie = { cookie: "et_session=user-token" };
     expect((await app.request(`/api/books/${book}/cover`, { headers: cookie })).status).toBe(200);
     expect(
@@ -120,7 +120,7 @@ describe("session cookie", () => {
 
   it("is ignored on other routes and on non-GET methods", async () => {
     const { app, services } = hosted();
-    const book = await seedBook(services, "user-id");
+    const book = await seedBook(services, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     const cookie = { cookie: "et_session=user-token" };
     expect((await app.request("/api/books", { headers: cookie })).status).toBe(401);
     expect((await app.request(`/api/books/${book}`, { headers: cookie })).status).toBe(401);
@@ -132,7 +132,7 @@ describe("session cookie", () => {
 
   it("does not fall back to the cookie when a bearer header is invalid", async () => {
     const { app, services } = hosted();
-    const book = await seedBook(services, "user-id");
+    const book = await seedBook(services, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     const res = await app.request(`/api/books/${book}/cover`, {
       headers: { ...bearer("bogus"), cookie: "et_session=user-token" },
     });
@@ -141,7 +141,7 @@ describe("session cookie", () => {
 
   it("does not let one user's cookie read another user's book", async () => {
     const { app, services } = hosted();
-    const book = await seedBook(services, "admin-id");
+    const book = await seedBook(services, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     const res = await app.request(`/api/books/${book}/cover`, {
       headers: { cookie: "et_session=user-token" },
     });
@@ -181,7 +181,12 @@ describe("public routes", () => {
   it("returns the current user from /api/me", async () => {
     const { app } = hosted();
     const me = await (await app.request("/api/me", { headers: bearer("admin-token") })).json();
-    expect(me).toEqual({ id: "admin-id", email: ADMIN_EMAIL, role: "admin", isAdmin: true });
+    expect(me).toEqual({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      email: ADMIN_EMAIL,
+      role: "admin",
+      isAdmin: true,
+    });
   });
 });
 

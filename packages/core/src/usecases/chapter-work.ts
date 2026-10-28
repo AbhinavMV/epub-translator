@@ -6,6 +6,13 @@ export interface ChapterWork {
   context: { source: string; target: string }[];
 }
 
+export function chapterSegmentIds(
+  book: { segments: readonly ParsedSegment[] },
+  chapterId: string,
+): string[] {
+  return book.segments.filter((s) => s.chapterId === chapterId).map((s) => s.id);
+}
+
 export function chapterWork(
   segments: readonly ParsedSegment[],
   existing: ReadonlyMap<string, { text: string; status: string }>,

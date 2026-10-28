@@ -55,6 +55,7 @@ export class FakeStorage implements StorageClient {
       move: async (from, to) => {
         const found = store.get(from);
         if (!found) return { error: { message: "not found" } };
+        if (store.has(to)) return { error: { message: "The resource already exists" } };
         store.delete(from);
         store.set(to, found);
         return ok;

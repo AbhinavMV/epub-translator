@@ -49,6 +49,8 @@ export class SupabaseBlobStore implements BlobStore {
   async adopt(from: string, to: string, bytes: Uint8Array): Promise<void> {
     assertOwnedKey(from);
     assertOwnedKey(to);
+    await this.storage.from(this.bucket).remove([to]);
+    this.cache.delete(to);
     const { error } = await this.storage.from(this.bucket).move(from, to);
     if (error) throw new BlobStorageError("move");
     this.cache.set(to, bytes);

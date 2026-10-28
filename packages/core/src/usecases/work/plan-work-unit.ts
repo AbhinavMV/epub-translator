@@ -52,7 +52,10 @@ export async function planWorkUnit(
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
   const settings = await repos.settings.get(job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
-  const translations = await repos.translations.forJob(job.id);
+  const translations = await repos.translations.forSegments(
+    job.id,
+    segments.map((s) => s.id),
+  );
   const { pending } = chapterWork(segments, translations);
   const cursor = input.after ? segments.find((s) => s.id === input.after)?.ordinal : undefined;
   const candidates = cursor === undefined ? pending : pending.filter((s) => s.ordinal > cursor);

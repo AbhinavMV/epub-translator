@@ -10,15 +10,14 @@ import {
   getOrCreateWorkspace,
   InvalidEpubError,
   importBook,
+  libraryBookTitle,
   loadBookBytes,
   NotFoundError,
-  type ParsedBook,
   ProviderNotConfiguredError,
   type Repositories,
   renderChapter,
   requireBook,
   suggestGlossary,
-  translatedTitles,
 } from "@et/core";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -27,17 +26,6 @@ import type { Services } from "../services.ts";
 import { assetUrl, bookDetail, bookSummary } from "./presenters.ts";
 import type { AppEnv } from "./request-context.ts";
 import { validate } from "./validate.ts";
-
-const LIBRARY_TITLE_LANG = "en";
-
-async function libraryTitle(
-  repos: Repositories,
-  bookId: string,
-  parsed: ParsedBook,
-): Promise<string | null> {
-  const job = await repos.jobs.findByBookAndLang(bookId, LIBRARY_TITLE_LANG);
-  return job ? translatedTitles(parsed, await repos.translations.forJob(job.id)).book : null;
-}
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 const ImportBodySchema = z.object({ path: z.string().min(1).max(300) });
@@ -51,7 +39,7 @@ export function booksRoutes(s: Services) {
         const parsed = await books.getParsed(book.id);
         if (parsed) {
           summaries.push(
-            bookSummary(book, parsed, await libraryTitle(c.var.repos, book.id, parsed)),
+            bookSummary(book, parsed, await libraryBookTitle(c.var.repos, book.id, parsed)),
           );
         }
       }
@@ -80,6 +68,7 @@ export function booksRoutes(s: Services) {
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       } finally {
         await uploads.discard(ownerId, path).catch(() => undefined);
+        await uploads.sweep(ownerId);
       }
     })
     .post(
@@ -109,7 +98,7 @@ export function booksRoutes(s: Services) {
           book,
           parsed,
           await c.var.repos.settings.get(id),
-          await libraryTitle(c.var.repos, id, parsed),
+          await libraryBookTitle(c.var.repos, id, parsed),
         ),
       );
     })

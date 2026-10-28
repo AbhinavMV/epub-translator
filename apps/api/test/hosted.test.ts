@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { BookSummarySchema } from "@et/contracts";
 import { ALICE, BOB, createTestDatabase } from "@et/store-postgres/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -47,7 +48,9 @@ beforeAll(async () => {
 });
 afterAll(() => db.close());
 beforeEach(async () => {
-  await db.exec("truncate public.books, public.app_users, public.invites cascade");
+  await db.exec(
+    "truncate public.books, public.app_users, public.invites, public.rate_limits cascade",
+  );
   await db.exec(
     `insert into public.app_users (id, role) values ('${BOB}', 'user') on conflict do nothing`,
   );
@@ -162,6 +165,42 @@ describe("signed upload and import", () => {
       [],
     );
     expect([...storage.objects("books").keys()]).toHaveLength(1);
+  });
+
+  it("re-imports when a stranded blob already sits at the destination", async () => {
+    const sha = createHash("sha256").update(EPUB).digest("hex");
+    storage.seed("books", `${ALICE}/books/${sha}.epub`, new Uint8Array([9, 9]));
+    const path = await upload("alice", ALICE);
+    const res = await app.request(`${HOST}/api/books/import`, post("alice", { path }));
+    expect(res.status).toBe(201);
+    expect([...storage.objects("books").keys()]).toEqual([`${ALICE}/books/${sha}.epub`]);
+    expect(storage.objects("books").get(`${ALICE}/books/${sha}.epub`)?.bytes).toEqual(EPUB);
+  });
+
+  it("sweeps incoming uploads older than two hours on import", async () => {
+    const old = `${ALICE}/incoming/22222222-2222-4222-8222-222222222222.epub`;
+    const fresh = `${ALICE}/incoming/33333333-3333-4333-8333-333333333333.epub`;
+    const others = `${BOB}/incoming/44444444-4444-4444-8444-444444444444.epub`;
+    storage.seed("books", old, EPUB, new Date(Date.now() - 3 * 3_600_000).toISOString());
+    storage.seed("books", fresh, EPUB, new Date(Date.now() - 60_000).toISOString());
+    storage.seed("books", others, EPUB, new Date(Date.now() - 3 * 3_600_000).toISOString());
+    const path = await upload("alice", ALICE);
+    await app.request(`${HOST}/api/books/import`, post("alice", { path }));
+    const keys = [...storage.objects("books").keys()];
+    expect(keys).not.toContain(old);
+    expect(keys).toContain(fresh);
+    expect(keys).toContain(others);
+  });
+
+  it("rate limits upload tickets to 30 an hour per user", async () => {
+    for (let i = 0; i < 30; i++) {
+      const res = await app.request(`${HOST}/api/uploads`, as("alice", { method: "POST" }));
+      expect(res.status).toBe(200);
+    }
+    const limited = await app.request(`${HOST}/api/uploads`, as("alice", { method: "POST" }));
+    expect(limited.status).toBe(429);
+    const other = await app.request(`${HOST}/api/uploads`, as("bob", { method: "POST" }));
+    expect(other.status).toBe(200);
   });
 
   it("gives each owner their own book and blob for identical bytes", async () => {

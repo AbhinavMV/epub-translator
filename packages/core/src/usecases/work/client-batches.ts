@@ -43,7 +43,13 @@ export async function planBatchUnits(
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
   const settings = await repos.settings.get(job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
-  const { pending, context } = chapterWork(segments, await repos.translations.forJob(job.id));
+  const { pending, context } = chapterWork(
+    segments,
+    await repos.translations.forSegments(
+      job.id,
+      segments.map((s) => s.id),
+    ),
+  );
   const {
     model: _model,
     segments: _segments,

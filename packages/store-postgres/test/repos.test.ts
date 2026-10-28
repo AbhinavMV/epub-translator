@@ -161,6 +161,17 @@ describe("PostgresTranslationRepository", () => {
     expect((await repos.translations.forJob("j1")).size).toBe(1);
   });
 
+  it("reads only the requested segments, scoped to the job and owner", async () => {
+    await repos.translations.put("j1", "s1", { text: "a", status: "done" });
+    await repos.translations.put("j1", "s2", { text: "b", status: "done" });
+    await repos.translations.put("j1", "s3", { text: "c", status: "failed", note: "x" });
+    const got = await repos.translations.forSegments("j1", ["s1", "s3", "missing"]);
+    expect([...got.keys()].sort()).toEqual(["s1", "s3"]);
+    expect(got.get("s3")).toEqual({ text: "c", status: "failed", note: "x" });
+    expect((await repos.translations.forSegments("j1", [])).size).toBe(0);
+    expect((await repos.translations.forSegments("other", ["s1"])).size).toBe(0);
+  });
+
   it("keeps the reason a segment failed", async () => {
     await repos.translations.put("j1", "s1", { text: "", status: "failed", note: "declined" });
     await repos.translations.put("j1", "s2", { text: "ok", status: "done" });

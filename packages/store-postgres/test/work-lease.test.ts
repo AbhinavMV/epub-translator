@@ -73,6 +73,24 @@ describe("PostgresWorkLeaseRepository", () => {
     expect(await repo.leaseNext("j1", "ch-0", [["s0"]], TTL)).not.toBeNull();
   });
 
+  it("releases a chapter's leases without touching other chapters or owners", async () => {
+    const repo = leases();
+    await repo.leaseNext("j1", "ch-0", [["s0"]], TTL);
+    await repo.leaseNext("j1", "ch-1", [["s0"]], TTL);
+    expect(await leases(BOB).releaseForChapter("j1", "ch-0")).toBe(0);
+    expect(await repo.releaseForChapter("j1", "ch-0")).toBe(1);
+    expect(await repo.leaseNext("j1", "ch-0", [["s0"]], TTL)).not.toBeNull();
+    expect(await repo.leaseNext("j1", "ch-1", [["s0"]], TTL)).toBeNull();
+  });
+
+  it("releases every lease of a job", async () => {
+    const repo = leases();
+    await repo.leaseNext("j1", "ch-0", [["s0"]], TTL);
+    await repo.leaseNext("j1", "ch-1", [["s0"]], TTL);
+    expect(await repo.releaseForJob("j1")).toBe(2);
+    expect(await repo.leaseNext("j1", "ch-1", [["s0"]], TTL)).not.toBeNull();
+  });
+
   it("skips candidates that overlap a live lease", async () => {
     const repo = leases();
     await repo.leaseNext("j1", "ch-0", [["s0", "s1"]], TTL);

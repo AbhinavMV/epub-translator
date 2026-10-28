@@ -2,13 +2,16 @@ import { type JobEvent, LOCAL_OWNER_ID } from "@et/contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   JobRunner,
+  MemoryWorkLeaseFactory,
   NotFoundError,
   ProviderNotConfiguredError,
+  planWorkUnit,
   type SegmentBatchRequest,
   type SegmentBatchResult,
   type TranslationProvider,
 } from "../../src/index.ts";
 import {
+  counterIds,
   fixedClock,
   type MemoryBooks,
   type MemoryJobs,
@@ -92,6 +95,72 @@ beforeEach(async () => {
     },
     { chapterConcurrency: 2, contextSize: 8, maxChars: 4000, maxCount: 1 },
   );
+});
+
+describe("JobRunner work leases", () => {
+  const limits = { maxChars: 4000, maxCount: 1, contextSize: 8 };
+  let leases: MemoryWorkLeaseFactory;
+  let leased: JobRunner;
+
+  const lease = async (chapterId = "ch-0") =>
+    (
+      await planWorkUnit(factory.forOwner(OWNER), leases.forOwner(OWNER), {
+        jobId: "j1",
+        chapterId,
+        ...limits,
+      })
+    )?.segments.map((s) => s.id) ?? null;
+
+  beforeEach(() => {
+    leases = new MemoryWorkLeaseFactory(fixedClock, counterIds("lease"));
+    leased = new JobRunner(
+      {
+        factory,
+        leases,
+        providers: () => provider,
+        events: { publish: () => {} },
+        sleep: async () => {},
+      },
+      { chapterConcurrency: 2, contextSize: 8, maxChars: 4000, maxCount: 1 },
+    );
+  });
+
+  it("clearChapter frees the chapter's leases but keeps other chapters'", async () => {
+    expect(await lease()).toEqual(["a.xhtml#0"]);
+    expect(await lease()).toEqual(["a.xhtml#1"]);
+    expect(await lease("ch-1")).toEqual(["b.xhtml#0"]);
+    await leased.clearChapter(OWNER, "j1", "ch-0");
+    expect(await lease()).toEqual(["a.xhtml#0"]);
+    expect(await lease("ch-1")).toBeNull();
+  });
+
+  it("retryChapter frees leases so the next lease starts from the first segment", async () => {
+    provider.gate = new Promise(() => {});
+    expect(await lease()).toEqual(["a.xhtml#0"]);
+    expect(await lease()).toEqual(["a.xhtml#1"]);
+    await leased.retryChapter(OWNER, "j1", "ch-0", body);
+    expect(await lease()).toEqual(["a.xhtml#0"]);
+  });
+
+  it("cancel frees every lease of the job", async () => {
+    expect(await lease()).toEqual(["a.xhtml#0"]);
+    expect(await lease("ch-1")).toEqual(["b.xhtml#0"]);
+    await leased.cancel(OWNER, "j1");
+    expect(await lease()).toEqual(["a.xhtml#0"]);
+    expect(await lease("ch-1")).toEqual(["b.xhtml#0"]);
+  });
+});
+
+describe("JobRunner reads", () => {
+  it("translating one chapter never reads another chapter's translations by id", async () => {
+    await translations.put("j1", "b.xhtml#0", { text: "Keep", status: "done" });
+    translations.resetCalls();
+    await runner.translateChapter(OWNER, "j1", "ch-0", body);
+    await runner.whenIdle();
+    const asked = translations.forSegmentsCalls.flat();
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((id) => id.startsWith("a.xhtml"))).toBe(true);
+  });
 });
 
 describe("JobRunner", () => {

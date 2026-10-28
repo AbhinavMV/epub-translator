@@ -55,6 +55,32 @@ export class PostgresBookRepository implements BookRepository {
     );
   }
 
+  async insertIfAbsent(book: StoredBook, parsed: ParsedBook): Promise<StoredBook> {
+    return withOwner(this.sql, this.ownerId, async (tx) => {
+      await tx.query(
+        `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::text::jsonb)
+         ON CONFLICT (owner_id, sha256) DO NOTHING`,
+        [
+          this.ownerId,
+          book.id,
+          book.sha256,
+          book.title,
+          book.author,
+          book.sourceLang,
+          book.coverHref,
+          book.createdAt,
+          JSON.stringify(parsed),
+        ],
+      );
+      const rows = await tx.query<BookRow>(
+        `SELECT ${COLUMNS} FROM books WHERE owner_id = $1 AND sha256 = $2`,
+        [this.ownerId, book.sha256],
+      );
+      return toBook(rows[0] as BookRow);
+    });
+  }
+
   async get(id: string): Promise<StoredBook | null> {
     const rows = await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query<BookRow>(`SELECT ${COLUMNS} FROM books WHERE owner_id = $1 AND id = $2`, [

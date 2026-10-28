@@ -45,6 +45,13 @@ export class SqliteBookRepository implements BookRepository {
       );
   }
 
+  async insertIfAbsent(book: StoredBook, parsed: ParsedBook): Promise<StoredBook> {
+    const existing = await this.findBySha256(book.sha256);
+    if (existing) return existing;
+    await this.insert(book, parsed);
+    return book;
+  }
+
   async get(id: string): Promise<StoredBook | null> {
     const row = this.db.prepare(`SELECT ${COLUMNS} FROM books WHERE id = ?`).get(id) as
       | BookRow

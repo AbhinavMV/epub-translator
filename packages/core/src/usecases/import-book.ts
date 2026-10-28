@@ -32,6 +32,5 @@ export async function importBook(deps: ImportBookDeps, bytes: Uint8Array): Promi
     createdAt: deps.clock.now().toISOString(),
   };
   await deps.blobs.put(bookBlobKey(sha256), bytes);
-  await deps.books.insert(book, parsed);
-  return book;
+  return deps.books.insertIfAbsent(book, parsed);
 }

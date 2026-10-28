@@ -15,6 +15,7 @@ describe("migrations", () => {
       "0004_storage_supabase.sql",
       "0005_rate_limits.sql",
       "0006_exports_text_supabase.sql",
+      "0007_private_owner_role.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
@@ -61,5 +62,49 @@ describe("migrations", () => {
     const storage = readFileSync(join(MIGRATIONS_DIR, "0004_storage_supabase.sql"), "utf8");
     expect(storage).toContain("(storage.foldername(name))[1] = (select auth.uid()::text)");
     expect(storage).toContain("on conflict (id) do nothing");
+  });
+});
+
+describe("0007_private_owner_role", () => {
+  it("drops the storage object policies when the storage schema exists", async () => {
+    const db = new PGlite();
+    const sql = pgliteSql(db);
+    await db.exec(`
+      create schema storage;
+      create table storage.objects (id int, bucket_id text, name text);
+      alter table storage.objects enable row level security;
+      create role authenticated nologin;
+      create policy et_objects_select_own on storage.objects for select to authenticated using (true);
+      create policy et_objects_insert_own on storage.objects for insert to authenticated with check (true);
+      create policy et_objects_delete_own on storage.objects for delete to authenticated using (true);
+      create policy other_policy on storage.objects for select to authenticated using (true);
+      create schema auth;
+      create function auth.uid() returns uuid language sql as 'select null::uuid';
+      create role anon nologin;
+    `);
+    const only = loadMigrations().filter((m) => m.name === "0007_private_owner_role.sql");
+    await db.exec(
+      "create table public.books (owner_id uuid); create table public.book_settings (owner_id uuid); create table public.jobs (owner_id uuid); create table public.translations (owner_id uuid); create table public.provider_batches (owner_id uuid); create table public.work_leases (owner_id uuid);",
+    );
+    await applyMigrations(sql, only);
+    const rows = await sql.query<{ policyname: string }>(
+      "select policyname from pg_policies where schemaname = 'storage'",
+    );
+    expect(rows.map((r) => r.policyname)).toEqual(["other_policy"]);
+    await db.close();
+  });
+
+  it("is idempotent when applied twice by hand", async () => {
+    const { db } = await createTestDatabase();
+    const m = loadMigrations().find((x) => x.name === "0007_private_owner_role.sql");
+    await db.exec(m?.sql ?? "");
+    await db.exec(m?.sql ?? "");
+    await db.close();
+  });
+
+  it("ships apply-0007.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0007.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0007_private_owner_role.sql"), "utf8");
+    expect(apply).toBe(m);
   });
 });

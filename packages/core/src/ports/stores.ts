@@ -6,6 +6,7 @@ import type { BatchRepository } from "./batch-repository.ts";
 
 export interface BookRepository {
   insert(book: StoredBook, parsed: ParsedBook): Promise<void>;
+  insertIfAbsent(book: StoredBook, parsed: ParsedBook): Promise<StoredBook>;
   get(id: string): Promise<StoredBook | null>;
   findBySha256(sha256: string): Promise<StoredBook | null>;
   getParsed(id: string): Promise<ParsedBook | null>;
@@ -21,6 +22,7 @@ export interface BookSettingsRepository {
 
 export interface JobRepository {
   insert(job: Job): Promise<void>;
+  insertIfAbsent(job: Job): Promise<Job>;
   get(id: string): Promise<Job | null>;
   findByBookAndLang(bookId: string, targetLang: string): Promise<Job | null>;
   listByBook(bookId: string): Promise<Job[]>;
@@ -31,6 +33,10 @@ export interface JobRepository {
 export interface TranslationRepository {
   get(jobId: string, segmentId: string): Promise<SegmentTranslation | null>;
   forJob(jobId: string): Promise<Map<string, SegmentTranslation>>;
+  forSegments(
+    jobId: string,
+    segmentIds: readonly string[],
+  ): Promise<Map<string, SegmentTranslation>>;
   put(jobId: string, segmentId: string, translation: SegmentTranslation): Promise<void>;
   deleteMany(jobId: string, segmentIds: readonly string[]): Promise<void>;
 }

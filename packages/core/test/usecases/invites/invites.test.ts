@@ -31,7 +31,7 @@ function setup(now = T0) {
     );
   const accept = (
     body: { token: string; email: string; password: string },
-    deps: { rateLimiter?: LimitedAfter } = {},
+    deps: { rateLimiter?: LimitedAfter; adminEmails?: ReadonlySet<string> } = {},
     at = now,
   ) =>
     acceptInvite(
@@ -42,6 +42,7 @@ function setup(now = T0) {
         hasher: fakeHasher,
         clock: { now: () => at },
         rateLimiter: deps.rateLimiter ?? allowAll,
+        adminEmails: deps.adminEmails ?? new Set(),
       },
       { ...body, clientKey: "1.2.3.4" },
     );
@@ -73,6 +74,23 @@ describe("createInvite", () => {
     const { create } = setup();
     const { invite } = await create({ email: "Reader@Example.COM" });
     expect(invite.email).toBe("reader@example.com");
+  });
+});
+
+describe("acceptInvite admin emails", () => {
+  it("refuses an ADMIN_EMAILS address, in any case, and keeps the invite unused", async () => {
+    const { create, accept, admin, invites } = setup();
+    const { token } = await create();
+    const adminEmails = new Set(["boss@example.com"]);
+    await expect(
+      accept({ token, email: " Boss@Example.com ", password: "long-enough-pw" }, { adminEmails }),
+    ).rejects.toThrow(InviteInvalidError);
+    expect(admin.users.size).toBe(0);
+    expect([...invites.rows.values()].every((i) => !i.usedAt)).toBe(true);
+    await accept(
+      { token, email: "reader@example.com", password: "long-enough-pw" },
+      { adminEmails },
+    );
   });
 });
 

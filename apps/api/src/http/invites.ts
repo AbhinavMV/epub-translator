@@ -7,9 +7,8 @@ import { validate } from "./validate.ts";
 
 export function clientKey(headers: Headers): string {
   return (
-    headers.get("x-vercel-forwarded-for") ??
-    headers.get("x-real-ip") ??
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    headers.get("x-real-ip")?.trim() ||
+    headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ||
     "unknown"
   );
 }

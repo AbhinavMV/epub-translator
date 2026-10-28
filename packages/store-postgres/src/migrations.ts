@@ -33,6 +33,16 @@ export async function applyMigrations(
   await sql.exec(
     "create table if not exists public.schema_migrations (name text primary key, applied_at timestamptz not null default now())",
   );
+  await sql.exec(
+    `alter table public.schema_migrations enable row level security;
+    do $$ declare r text; begin
+      foreach r in array array['anon', 'authenticated'] loop
+        if exists (select from pg_roles where rolname = r) then
+          execute format('revoke all on public.schema_migrations from %I', r);
+        end if;
+      end loop;
+    end $$;`,
+  );
   const done = new Set(
     (await sql.query<{ name: string }>("select name from public.schema_migrations")).map(
       (r) => r.name,

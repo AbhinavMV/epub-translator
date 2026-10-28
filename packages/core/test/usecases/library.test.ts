@@ -83,6 +83,18 @@ describe("deleteBook", () => {
     expect(cancelled).toEqual([job.id]);
   });
 
+  it("keeps the row when the blob cannot be deleted so the delete can be retried", async () => {
+    const deps = libraryDeps();
+    const book = await importBook(deps, bytes);
+    deps.blobs.delete = async () => {
+      throw new Error("storage down");
+    };
+    await expect(
+      deleteBook({ ...deps, jobs: new MemoryJobs(), runner: { cancel: async () => {} } }, book.id),
+    ).rejects.toThrow("storage down");
+    expect(await deps.books.get(book.id)).not.toBeNull();
+  });
+
   it("removes the row and the blob", async () => {
     const deps = libraryDeps();
     const book = await importBook(deps, bytes);

@@ -56,6 +56,32 @@ export class PostgresJobRepository implements JobRepository {
     );
   }
 
+  async insertIfAbsent(job: Job): Promise<Job> {
+    return withOwner(this.sql, this.ownerId, async (tx) => {
+      await tx.query(
+        `INSERT INTO jobs (owner_id, ${COLUMNS})
+         VALUES ($1, $2, $3, $4, $5, $6, $7::int, $8::int, $9::timestamptz)
+         ON CONFLICT (owner_id, book_id, target_lang) DO NOTHING`,
+        [
+          this.ownerId,
+          job.id,
+          job.bookId,
+          job.targetLang,
+          job.sourceLang,
+          job.error,
+          job.usage.inputTokens,
+          job.usage.outputTokens,
+          job.createdAt,
+        ],
+      );
+      const rows = await tx.query<JobRow>(
+        `SELECT ${COLUMNS} FROM jobs WHERE owner_id = $1 AND book_id = $2 AND target_lang = $3`,
+        [this.ownerId, job.bookId, job.targetLang],
+      );
+      return toJob(rows[0] as JobRow);
+    });
+  }
+
   async get(id: string): Promise<Job | null> {
     const rows = await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query<JobRow>(`SELECT ${COLUMNS} FROM jobs WHERE owner_id = $1 AND id = $2`, [

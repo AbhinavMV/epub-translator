@@ -150,6 +150,29 @@ describe("SqliteTranslationRepository", () => {
     expect([...(await repo.forJob("j1")).keys()]).toEqual(["s2"]);
   });
 
+  it("reads only the requested segments", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    await new SqliteJobRepository(db).insert({
+      id: "j1",
+      bookId: "b1",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: book.createdAt,
+    });
+    const repo = new SqliteTranslationRepository(db);
+    await repo.put("j1", "s1", { text: "a", status: "done" });
+    await repo.put("j1", "s2", { text: "b", status: "done" });
+    await repo.put("j1", "s3", { text: "", status: "failed", note: "x" });
+    const got = await repo.forSegments("j1", ["s1", "s3", "missing"]);
+    expect([...got.keys()].sort()).toEqual(["s1", "s3"]);
+    expect(got.get("s3")).toEqual({ text: "", status: "failed", note: "x" });
+    expect((await repo.forSegments("j1", [])).size).toBe(0);
+    const many = Array.from({ length: 2000 }, (_, i) => `x${i}`);
+    expect((await repo.forSegments("j1", [...many, "s2"])).size).toBe(1);
+  });
+
   it("keeps the reason a segment failed", async () => {
     await new SqliteBookRepository(db).insert(book, parsed);
     await new SqliteJobRepository(db).insert({

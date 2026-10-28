@@ -18,6 +18,7 @@ import {
   planBatchUnits,
   planWorkUnit,
   recordClientBatch,
+  releaseWorkLease,
   requireBook,
   type SegmentTranslation,
 } from "@et/core";
@@ -65,6 +66,14 @@ export function workRoutes(s: Services) {
         ...WORK_LIMITS,
       });
       return unit ? c.json(unit) : c.body(null, 204);
+    })
+    .delete("/:id/leases/:leaseId", async (c) => {
+      await releaseWorkLease(
+        s.leases.forOwner(c.var.ownerId),
+        c.req.param("id"),
+        c.req.param("leaseId"),
+      );
+      return c.body(null, 204);
     })
     .post("/:id/results", validate("json", WorkResultBodySchema), async (c) => {
       const body = c.req.valid("json");

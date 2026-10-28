@@ -46,8 +46,10 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
   const providers = new ProviderCatalog(registry, options.discoverModels ?? false);
   const factory = new SqliteStoreFactory(db);
   const events = new JobEventBus();
+  const leases = new MemoryWorkLeaseFactory(systemClock, uuidGenerator);
   const runner = new JobRunner({
     factory,
+    leases,
     providers: (id) => providers.provider(id),
     events,
     sleep: nodeSleep,
@@ -60,7 +62,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
   return {
     db,
     factory,
-    leases: new MemoryWorkLeaseFactory(systemClock, uuidGenerator),
+    leases,
     repos: factory.forOwner(LOCAL_OWNER_ID),
     ownerOf: () => LOCAL_OWNER_ID,
     blobs,

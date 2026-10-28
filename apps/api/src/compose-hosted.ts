@@ -23,6 +23,7 @@ import { SupabaseSignedUploads } from "./infra/supabase-uploads.ts";
 import { ProviderCatalog } from "./provider-catalog.ts";
 import type { EpubAdapters, Services } from "./services.ts";
 
+const UPLOAD_TICKETS_PER_HOUR = 30;
 export const HOSTED_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const HostedEnvSchema = z.object({ DATABASE_URL: z.string().min(1) });
@@ -51,6 +52,7 @@ export function composeHosted(
   const sql = overrides.sql ?? createPostgresSql(DATABASE_URL);
   const storage = overrides.storage ?? createSupabaseStorage(auth.supabaseUrl, auth.secretKey);
   const factory = new PostgresStoreFactory(sql);
+  const leases = new PostgresWorkLeaseFactory(factory);
   const blobs = new SupabaseBlobStore(storage);
   const events = new JobEventBus();
   const providers = new ProviderCatalog(buildProviderRegistry({}), false, true);
@@ -58,17 +60,19 @@ export function composeHosted(
 
   const services: Services = {
     factory,
-    leases: new PostgresWorkLeaseFactory(factory),
+    leases,
     ownerOf: () => {
       throw new Error("Hosted requests are always authenticated");
     },
     blobs,
     blobsFor: (ownerId) => new OwnerScopedBlobs(blobs, ownerId),
-    uploads: new SupabaseSignedUploads(storage, blobs, () => uuidGenerator.next()),
+    uploads: new SupabaseSignedUploads(storage, blobs, () => uuidGenerator.next(), systemClock),
+    uploadLimiter: new PostgresRateLimiter(sql, systemClock, UPLOAD_TICKETS_PER_HOUR, 3_600_000),
     exports: new SupabaseExportStore(storage, systemClock),
     events,
     runner: new JobRunner({
       factory,
+      leases,
       providers: (id) => providers.provider(id),
       events,
       sleep: nodeSleep,
