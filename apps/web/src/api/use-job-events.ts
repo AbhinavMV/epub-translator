@@ -1,6 +1,7 @@
 import { type JobEvent, JobEventSchema, type JobSummary } from "@et/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useHosted } from "@/keys/hosted-context";
 import { useApi } from "./api-context";
 import { keys } from "./keys";
 
@@ -9,9 +10,10 @@ const INVALIDATE_MS = 400;
 export function useJobEvents(jobId: string | undefined) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const hosted = useHosted();
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId || hosted) return;
     const source = api.openJobEvents(jobId);
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -75,5 +77,5 @@ export function useJobEvents(jobId: string | undefined) {
       source.close();
       for (const t of timers.values()) clearTimeout(t);
     };
-  }, [api, jobId, queryClient]);
+  }, [api, hosted, jobId, queryClient]);
 }

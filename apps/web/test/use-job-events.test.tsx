@@ -7,6 +7,10 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api, EventSourceLike } from "@/api/client";
 import { keys } from "@/api/keys";
 import { useJobEvents } from "@/api/use-job-events";
+import { type Hosted, HostedProvider } from "@/keys/hosted-context";
+import { MemoryEnvelopeStore } from "@/keys/memory-store";
+import { UnlockBus } from "@/keys/unlock-bus";
+import { Vault } from "@/keys/vault";
 import { makeJob } from "./fixtures";
 
 class FakeSource implements EventSourceLike {
@@ -91,5 +95,21 @@ describe("useJobEvents", () => {
     const { unmount } = renderHook(() => useJobEvents("job1"), { wrapper });
     unmount();
     expect(source.closed).toBe(true);
+  });
+
+  it("opens no event stream in hosted mode, where the route does not exist", () => {
+    const open = vi.fn(() => new FakeSource());
+    const api = { openJobEvents: open } as unknown as Api;
+    const vault = new Vault({ store: new MemoryEnvelopeStore(), scope: "u" });
+    const hosted = { vault, unlock: new UnlockBus(), runtime: {} } as unknown as Hosted;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <HostedProvider hosted={hosted}>
+        <ApiProvider api={api}>
+          <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+        </ApiProvider>
+      </HostedProvider>
+    );
+    renderHook(() => useJobEvents("job1"), { wrapper });
+    expect(open).not.toHaveBeenCalled();
   });
 });
