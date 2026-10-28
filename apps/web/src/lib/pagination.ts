@@ -26,6 +26,14 @@ export function pageCount({
   return Math.max(1, Math.round((scrollWidth + gap) / (pageWidth + gap)));
 }
 
+export function shouldFetchNextPart(
+  position: { page: number; count: number },
+  hasMore: boolean,
+  loading: boolean,
+): boolean {
+  return hasMore && !loading && position.page >= position.count - 2;
+}
+
 export function clampPage(page: number, count: number): number {
   return Math.min(Math.max(0, count - 1), Math.max(0, page));
 }

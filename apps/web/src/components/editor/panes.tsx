@@ -3,6 +3,7 @@ import { ChevronDown, Copy, Eraser, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Html } from "@/components/html";
+import { PartSentinel } from "@/components/part-sentinel";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type LanguageAttrs, languageAttrs } from "@/lib/language-attrs";
@@ -81,6 +82,9 @@ export function EditorPanes({
   targetLang,
   hasTranslation,
   canRetry,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
   onRetry,
   onClear,
 }: {
@@ -91,6 +95,9 @@ export function EditorPanes({
   targetLang: string;
   hasTranslation: boolean;
   canRetry: boolean;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   onRetry: () => void;
   onClear: () => void;
 }) {
@@ -199,6 +206,7 @@ export function EditorPanes({
           ),
         )
       )}
+      <PartSentinel hasMore={hasMore} loading={loadingMore} onVisible={() => onLoadMore?.()} />
     </div>
   );
 }
