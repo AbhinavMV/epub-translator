@@ -172,6 +172,25 @@ describe("lease and results", () => {
     expect(bad.status).toBe(400);
   });
 
+  it("frees a lease on DELETE so the segments can be leased again", async () => {
+    const unit = WorkUnitSchema.parse(await (await lease()).json());
+    expect((await lease()).status).toBe(204);
+    const del = await app.request(`/api/jobs/${jobId}/leases/${unit.leaseId}`, send("DELETE"));
+    expect(del.status).toBe(204);
+    expect(WorkUnitSchema.parse(await (await lease()).json()).segments).toHaveLength(2);
+    expect(
+      (await app.request(`/api/jobs/${jobId}/leases/${unit.leaseId}`, send("DELETE"))).status,
+    ).toBe(204);
+  });
+
+  it("frees leases when the chapter is cleared, retried or the job cancelled", async () => {
+    await lease();
+    await app.request(`/api/jobs/${jobId}/chapters/ch-0/clear`, send("POST"));
+    expect((await lease()).status).toBe(200);
+    await app.request(`/api/jobs/${jobId}/cancel`, send("POST"));
+    expect((await lease()).status).toBe(200);
+  });
+
   it("404s for an unknown chapter", async () => {
     const res = await app.request(`/api/jobs/${jobId}/chapters/zzz/lease`, send("POST"));
     expect(res.status).toBe(404);

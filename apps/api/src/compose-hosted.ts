@@ -51,6 +51,7 @@ export function composeHosted(
   const sql = overrides.sql ?? createPostgresSql(DATABASE_URL);
   const storage = overrides.storage ?? createSupabaseStorage(auth.supabaseUrl, auth.secretKey);
   const factory = new PostgresStoreFactory(sql);
+  const leases = new PostgresWorkLeaseFactory(factory);
   const blobs = new SupabaseBlobStore(storage);
   const events = new JobEventBus();
   const providers = new ProviderCatalog(buildProviderRegistry({}), false, true);
@@ -58,7 +59,7 @@ export function composeHosted(
 
   const services: Services = {
     factory,
-    leases: new PostgresWorkLeaseFactory(factory),
+    leases,
     ownerOf: () => {
       throw new Error("Hosted requests are always authenticated");
     },
@@ -69,6 +70,7 @@ export function composeHosted(
     events,
     runner: new JobRunner({
       factory,
+      leases,
       providers: (id) => providers.provider(id),
       events,
       sleep: nodeSleep,

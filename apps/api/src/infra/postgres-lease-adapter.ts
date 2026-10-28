@@ -26,6 +26,12 @@ export class PostgresWorkLeaseFactory implements WorkLeaseFactory {
       async release(leaseId) {
         await repo.release(leaseId);
       },
+      async releaseForChapter(jobId, chapterId) {
+        await repo.releaseForChapter(jobId, chapterId);
+      },
+      async releaseForJob(jobId) {
+        await repo.releaseForJob(jobId);
+      },
     };
   }
 }
