@@ -13,7 +13,13 @@ if (refreshed.upgraded + refreshed.failed > 0) {
   console.log(`[api] re-parsed ${refreshed.upgraded} book(s), ${refreshed.failed} failed`);
 }
 const server = serve(
-  { fetch: createApp(services).fetch, port: config.port, hostname: config.host },
+  {
+    fetch: createApp(services, {
+      config: { authMode: "none", clientExecution: config.env.CLIENT_EXECUTION === "1" },
+    }).fetch,
+    port: config.port,
+    hostname: config.host,
+  },
   (info) => {
     console.log(`[api] listening on http://${info.address}:${info.port} (data: ${config.dataDir})`);
   },

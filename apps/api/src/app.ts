@@ -1,10 +1,13 @@
+import type { PublicConfig } from "@et/contracts";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { booksRoutes } from "./http/books.ts";
+import { configRoutes, LOCAL_PUBLIC_CONFIG } from "./http/config.ts";
 import { handleError } from "./http/errors.ts";
 import { jobsRoutes } from "./http/jobs.ts";
 import { providersRoutes } from "./http/providers.ts";
 import { type AppEnv, requestContext } from "./http/request-context.ts";
+import { glossarySampleRoutes, workRoutes } from "./http/work.ts";
 import type { Services } from "./services.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -17,6 +20,7 @@ export const isLoopbackHost = (host: string): boolean => LOCAL_HOSTS.has(hostnam
 
 export interface AppOptions {
   allowHost?: (host: string) => boolean;
+  config?: PublicConfig;
 }
 
 export function createApp(services: Services, options: AppOptions = {}) {
@@ -31,9 +35,12 @@ export function createApp(services: Services, options: AppOptions = {}) {
     })
     .use(secureHeaders())
     .onError(handleError)
+    .route("/api/config", configRoutes(options.config ?? LOCAL_PUBLIC_CONFIG))
     .use("/api/*", requestContext(services))
     .route("/api/books", booksRoutes(services))
+    .route("/api/books", glossarySampleRoutes())
     .route("/api/jobs", jobsRoutes(services))
+    .route("/api/jobs", workRoutes(services))
     .route("/api/providers", providersRoutes(services))
     .notFound((c) => c.json({ error: "Not found" }, 404));
 }
