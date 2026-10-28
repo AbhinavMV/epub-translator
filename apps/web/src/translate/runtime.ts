@@ -50,7 +50,7 @@ export class ClientRuntime {
   constructor(private readonly deps: RuntimeDeps) {
     this.loop = new WorkLoop({
       api: deps.api,
-      bundleFor: (p) => this.requireBundle(p),
+      bundleFor: (p, model) => this.requireBundle(p, model),
       redact: (p, text) => redactKey(text, deps.vault.getKey(p) ?? ""),
       sleep: deps.sleep,
       ...(deps.concurrency ? { concurrency: deps.concurrency } : {}),
@@ -189,7 +189,10 @@ export class ClientRuntime {
         } else {
           await this.loop.runChapter(jobId, chapterId, run, {
             signal: state.controller.signal,
-            onProgress: () => this.emit({ kind: "progress", jobId }),
+            onProgress: () => {
+              this.deps.vault.keepAlive();
+              this.emit({ kind: "progress", jobId });
+            },
           });
         }
       } catch (err) {
@@ -214,16 +217,20 @@ export class ClientRuntime {
   }
 
   private batchDeps() {
-    return { api: this.deps.api, bundleFor: (p: KeyedProvider) => this.bundleFor(p) };
+    return {
+      api: this.deps.api,
+      bundleFor: (p: KeyedProvider, model: string) => this.bundleFor(p, model),
+    };
   }
 
   private bundleFor(provider: KeyedProvider, model = ""): BrowserProvider | null {
     const key = this.deps.vault.getKey(provider);
     if (!key) return null;
-    const cached = this.bundles.get(provider);
+    const cacheKey = `${provider}\u0000${model}`;
+    const cached = this.bundles.get(cacheKey);
     if (cached && cached.key === key) return cached.bundle;
     const bundle = (this.deps.createBundle ?? createBrowserProvider)(provider, key, model);
-    this.bundles.set(provider, { key, bundle });
+    this.bundles.set(cacheKey, { key, bundle });
     return bundle;
   }
 
@@ -235,7 +242,10 @@ export class ClientRuntime {
 
   private onVaultChange(): void {
     const { status, keys } = this.deps.vault.snapshot();
-    if (status !== "unlocked") for (const key of this.bundles.keys()) this.bundles.delete(key);
+    if (status !== "unlocked") {
+      this.bundles.clear();
+      this.abortAll();
+    }
     this.emit({ kind: "providers" });
     if (status !== "unlocked") return;
     for (const { provider } of keys) {
@@ -254,6 +264,16 @@ export class ClientRuntime {
           this.emit({ kind: "providers" });
         });
     }
+  }
+
+  private abortAll(): void {
+    const jobs = new Set<string>();
+    for (const [key, state] of this.chapters) {
+      state.controller.abort();
+      jobs.add(key.slice(0, key.indexOf("\u0000")));
+    }
+    this.chapters.clear();
+    for (const jobId of jobs) this.emit({ kind: "progress", jobId });
   }
 
   private emit(event: RuntimeEvent): void {

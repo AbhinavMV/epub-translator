@@ -202,6 +202,9 @@ export function BookPage() {
               sourceLang={(book.data?.sourceLang ?? "src").slice(0, 2)}
               targetLang={targetLang}
               hasTranslation={(chapterProgress?.done ?? 0) > 0}
+              hasMore={chapter.hasMore}
+              loadingMore={chapter.loadingMore}
+              onLoadMore={chapter.loadMore}
               canRetry={Boolean(
                 selection && chapterId && (chapterProgress?.done ?? 0) > 0 && !busy,
               )}

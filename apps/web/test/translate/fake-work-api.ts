@@ -1,5 +1,6 @@
 import type {
   BatchPlan,
+  BatchResultsBody,
   ChapterProgress,
   RecordBatchBody,
   RecordedBatch,
@@ -15,13 +16,25 @@ export interface FakeBook {
   segments: { id: string; text: string }[];
 }
 
+const SHARED: BatchPlan["shared"] = {
+  sourceLang: "ja",
+  target: getTargetLanguage("en"),
+  bookTitle: "B",
+  context: [],
+};
+
 export class FakeWorkApi implements WorkApi {
   readonly results = new Map<string, { text: string; status: string; note?: string }>();
   readonly posted: WorkResultBody[] = [];
   readonly leaseCalls: (string | undefined)[] = [];
   readonly batches: RecordedBatch[] = [];
   readonly ended: { id: string; status: string; error?: string }[] = [];
-  readonly batchPosts: { id: string; segments: WorkResultBody["segments"] }[] = [];
+  readonly batchPosts: {
+    id: string;
+    segments: WorkResultBody["segments"];
+    usage: BatchResultsBody["usage"];
+    final: boolean;
+  }[] = [];
   usage = { inputTokens: 0, outputTokens: 0 };
   failPostsWith: ApiRequestError[] = [];
   private held = new Set<string>();
@@ -70,6 +83,15 @@ export class FakeWorkApi implements WorkApi {
     };
   }
 
+  readonly releaseCalls: string[] = [];
+  async deleteLease(_jobId: string, leaseId: string): Promise<void> {
+    this.releaseCalls.push(leaseId);
+    const ids = this.leases.get(leaseId);
+    if (!ids) throw new ApiRequestError("Lease not found", 404);
+    this.leases.delete(leaseId);
+    for (const id of ids) this.held.delete(id);
+  }
+
   progress(): ChapterProgress {
     const all = this.book.segments.map((s) => this.results.get(s.id)?.status);
     const done = all.filter((s) => s === "done").length;
@@ -106,9 +128,18 @@ export class FakeWorkApi implements WorkApi {
     return this.progress();
   }
 
-  plan: BatchPlan = { units: [] };
-  async batchPlan(): Promise<BatchPlan> {
-    return this.plan;
+  plan: BatchPlan = { shared: SHARED, units: [], nextOffset: null };
+  planPageSize = Number.POSITIVE_INFINITY;
+  readonly planOffsets: number[] = [];
+  async batchPlan(_jobId: string, _chapterId: string, offset = 0): Promise<BatchPlan> {
+    this.planOffsets.push(offset);
+    const units = this.plan.units.slice(offset, offset + this.planPageSize);
+    const end = offset + units.length;
+    return {
+      shared: this.plan.shared,
+      units,
+      nextOffset: end < this.plan.units.length ? end : null,
+    };
   }
 
   async listBatches(): Promise<RecordedBatch[]> {
@@ -130,14 +161,15 @@ export class FakeWorkApi implements WorkApi {
     return batch;
   }
 
-  async postBatchResults(
-    _jobId: string,
-    batchId: string,
-    body: { segments: WorkResultBody["segments"] },
-  ) {
-    this.batchPosts.push({ id: batchId, segments: body.segments });
+  async postBatchResults(_jobId: string, batchId: string, body: BatchResultsBody) {
+    this.batchPosts.push({
+      id: batchId,
+      segments: body.segments,
+      usage: body.usage,
+      final: body.final,
+    });
     const batch = this.batches.find((b) => b.id === batchId);
-    if (batch) batch.status = "ended";
+    if (batch && body.final) batch.status = "ended";
     return this.progress();
   }
 

@@ -14,6 +14,8 @@ export interface EpubAssets {
   read(bytes: Uint8Array, href: string): Promise<{ bytes: Uint8Array; mediaType: string } | null>;
 }
 
+export type RenderedChapter = Omit<ChapterView, "part" | "partCount">;
+
 export interface ChapterRenderer {
   render(
     bytes: Uint8Array,
@@ -21,7 +23,7 @@ export interface ChapterRenderer {
     chapterId: string,
     translations: Translations,
     assetUrl: (href: string) => string,
-  ): Promise<ChapterView>;
+  ): Promise<RenderedChapter>;
 }
 
 export interface ExportOptions {

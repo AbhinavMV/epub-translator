@@ -151,7 +151,14 @@ export const ChapterViewSchema = z.object({
   title: z.string(),
   prevChapterId: z.string().nullable(),
   nextChapterId: z.string().nullable(),
+  part: z.number().int().min(0),
+  partCount: z.number().int().min(1),
   blocks: z.array(ChapterBlockSchema),
+});
+
+export const ChapterPartQuerySchema = z.object({
+  jobId: z.string().optional(),
+  part: z.coerce.number().int().min(0).default(0),
 });
 export type ChapterView = z.infer<typeof ChapterViewSchema>;
 

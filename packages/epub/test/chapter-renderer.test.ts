@@ -1,5 +1,4 @@
-import type { ChapterView } from "@et/contracts";
-import { NotFoundError } from "@et/core";
+import { NotFoundError, type RenderedChapter } from "@et/core";
 import { describe, expect, it } from "vitest";
 import { XmlChapterRenderer, YauzlEpubAssets } from "../src/index.ts";
 import { FIXTURE_COVER_BYTES } from "./fixtures/build-fixture.ts";
@@ -8,9 +7,9 @@ import { parsedFixture, prefixed, translateAll } from "./support.ts";
 const renderer = new XmlChapterRenderer();
 const assetUrl = (href: string) => `/api/assets/${href}`;
 
-type SegmentBlock = Extract<ChapterView["blocks"][number], { kind: "segment" }>;
+type SegmentBlock = Extract<RenderedChapter["blocks"][number], { kind: "segment" }>;
 
-function segments(view: ChapterView): SegmentBlock[] {
+function segments(view: RenderedChapter): SegmentBlock[] {
   return view.blocks.filter((b): b is SegmentBlock => b.kind === "segment");
 }
 

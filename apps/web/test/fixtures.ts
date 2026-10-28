@@ -25,6 +25,8 @@ export function makeChapter(): ChapterView {
     title: "Chapter One",
     prevChapterId: null,
     nextChapterId: "c2",
+    part: 0,
+    partCount: 1,
     blocks: [
       {
         kind: "segment",

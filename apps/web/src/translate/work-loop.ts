@@ -15,7 +15,7 @@ const POST_ATTEMPTS = 3;
 
 export interface LoopDeps {
   api: WorkApi;
-  bundleFor(provider: KeyedProvider): BrowserProvider;
+  bundleFor(provider: KeyedProvider, model: string): BrowserProvider;
   redact(provider: KeyedProvider, text: string): string;
   sleep: Sleep;
   concurrency?: () => number;
@@ -55,7 +55,7 @@ export class WorkLoop {
   ): Promise<ChapterProgress | null> {
     const { api } = this.deps;
     const translator = new SegmentTranslator(
-      this.deps.bundleFor(run.provider).provider,
+      this.deps.bundleFor(run.provider, run.model).provider,
       this.deps.sleep,
     );
     const stop = new AbortController();
@@ -67,11 +67,15 @@ export class WorkLoop {
     let last: ChapterProgress | null = null;
     let failure: unknown = null;
     let leasing: Promise<unknown> = Promise.resolve();
+    const unsettled = new Set<string>();
 
     const nextUnit = (): Promise<WorkUnitDto | null> => {
       const turn = leasing.then(async () => {
         const unit = await api.lease(jobId, chapterId, cursor);
-        if (unit) cursor = unit.segments.at(-1)?.id ?? cursor;
+        if (unit) {
+          cursor = unit.segments.at(-1)?.id ?? cursor;
+          unsettled.add(unit.leaseId);
+        }
         return unit;
       });
       leasing = turn.catch(() => undefined);
@@ -102,6 +106,7 @@ export class WorkLoop {
               : [];
           });
           const progress = await this.post(jobId, unit.leaseId, segments, outcome.usage);
+          unsettled.delete(unit.leaseId);
           if (progress) {
             last = progress;
             hooks.onProgress?.(progress);
@@ -119,6 +124,7 @@ export class WorkLoop {
       );
     } finally {
       hooks.signal.removeEventListener("abort", relay);
+      await Promise.allSettled([...unsettled].map((id) => api.deleteLease(jobId, id)));
     }
     if (failure !== null && !hooks.signal.aborted) throw this.describe(run.provider, failure);
     return last;

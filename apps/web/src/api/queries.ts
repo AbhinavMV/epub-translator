@@ -1,5 +1,18 @@
-import type { BookSettings, JobSummary, SuggestGlossaryBody, TranslateBody } from "@et/contracts";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  BookSettings,
+  ChapterView,
+  JobSummary,
+  SuggestGlossaryBody,
+  TranslateBody,
+} from "@et/contracts";
+import {
+  type InfiniteData,
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useApi } from "./api-context";
 import { keys } from "./keys";
 
@@ -44,18 +57,42 @@ export function useJob(jobId: string | undefined) {
   });
 }
 
+function joinParts(data: InfiniteData<ChapterView, number>): ChapterView {
+  const first = data.pages[0] as ChapterView;
+  const last = data.pages[data.pages.length - 1] as ChapterView;
+  return {
+    ...first,
+    part: last.part,
+    partCount: last.partCount,
+    blocks: data.pages.flatMap((p) => p.blocks),
+  };
+}
+
 export function useChapter(
   bookId: string,
   chapterId: string | undefined,
   jobId: string | undefined,
 ) {
   const api = useApi();
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: keys.chapter(jobId ?? "", chapterId ?? ""),
-    queryFn: () => api.getChapter(bookId, chapterId ?? "", jobId ?? ""),
+    queryFn: ({ pageParam }) => api.getChapter(bookId, chapterId ?? "", jobId ?? "", pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last) => (last.part + 1 < last.partCount ? last.part + 1 : undefined),
+    select: joinParts,
     enabled: Boolean(chapterId && jobId),
     placeholderData: keepPreviousData,
   });
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+  return {
+    data: query.data,
+    isPending: query.isPending,
+    hasMore: hasNextPage,
+    loadingMore: isFetchingNextPage,
+    loadMore: () => {
+      if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+    },
+  };
 }
 
 export function useUploadBook() {
