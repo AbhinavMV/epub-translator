@@ -109,7 +109,7 @@ describe("row level security", () => {
 
   it("sees nothing without a user, and nothing as anon", async () => {
     const none = await sql.transaction(async (tx) => {
-      await tx.exec("set local role authenticated");
+      await tx.exec("set local role et_owner");
       return tx.query("select * from books");
     });
     expect(none).toEqual([]);
@@ -119,6 +119,51 @@ describe("row level security", () => {
         return tx.query("select * from books");
       }),
     ).rejects.toThrow(/permission denied/);
+  });
+
+  describe.each(["authenticated", "anon"])("the %s data-api role", (role) => {
+    const asRole = <T>(text: string) =>
+      sql.transaction(async (tx) => {
+        await tx.exec(`set local role ${role}`);
+        await tx.query("select set_config('request.jwt.claims', $1, true)", [
+          JSON.stringify({ sub: BOB, role }),
+        ]);
+        return tx.query<T & object>(text);
+      });
+
+    it.each(OWNER_TABLES)("cannot select from %s", async (table) => {
+      await expect(asRole(`select * from ${table}`)).rejects.toThrow(/permission denied/);
+    });
+
+    it.each(OWNER_TABLES)("cannot insert into, update or delete from %s", async (table) => {
+      await expect(asRole(`insert into ${table} default values`)).rejects.toThrow(
+        /permission denied/,
+      );
+      await expect(asRole(`update ${table} set owner_id = owner_id`)).rejects.toThrow(
+        /permission denied/,
+      );
+      await expect(asRole(`delete from ${table}`)).rejects.toThrow(/permission denied/);
+    });
+
+    it("cannot read schema_migrations", async () => {
+      await expect(asRole("select * from schema_migrations")).rejects.toThrow(/permission denied/);
+    });
+  });
+
+  it("enables RLS on schema_migrations", async () => {
+    const [row] = await sql.query<{ relrowsecurity: boolean }>(
+      "select relrowsecurity from pg_class where oid = 'public.schema_migrations'::regclass",
+    );
+    expect(row?.relrowsecurity).toBe(true);
+  });
+
+  it("lets et_owner read its rows through the request.jwt.claim.sub setting too", async () => {
+    const rows = await sql.transaction(async (tx) => {
+      await tx.exec("set local role et_owner");
+      await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [BOB]);
+      return tx.query("select id from books");
+    });
+    expect(rows).toHaveLength(1);
   });
 
   it("does not leak the role or claims after the transaction", async () => {
@@ -143,9 +188,13 @@ describe("server-only tables", () => {
   });
 
   it("lets a user read only their own app_users row", async () => {
-    const rows = await withOwner(sql, ALICE, (tx) =>
-      tx.query<{ id: string }>("select id from app_users"),
-    );
+    const rows = await sql.transaction(async (tx) => {
+      await tx.exec("set local role authenticated");
+      await tx.query("select set_config('request.jwt.claims', $1, true)", [
+        JSON.stringify({ sub: ALICE }),
+      ]);
+      return tx.query<{ id: string }>("select id from app_users");
+    });
     expect(rows.map((r) => r.id)).toEqual([ALICE]);
   });
 

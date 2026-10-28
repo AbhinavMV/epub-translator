@@ -8,7 +8,10 @@ const SUPABASE_STUBS = `
   create schema if not exists auth;
   create table if not exists auth.users (id uuid primary key);
   create or replace function auth.uid() returns uuid language sql stable as $$
-    select nullif(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub', '')::uuid
+    select coalesce(
+      nullif(current_setting('request.jwt.claim.sub', true), ''),
+      nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub'
+    )::uuid
   $$;
   do $$ begin
     if not exists (select from pg_roles where rolname = 'anon') then create role anon nologin; end if;
