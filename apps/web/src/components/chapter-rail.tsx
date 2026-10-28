@@ -1,4 +1,5 @@
 import { type ChapterSummary, CONTENTS_CHAPTER_ID, type JobSummary } from "@et/contracts";
+import { contentsFirst } from "@/lib/chapter-order";
 import { progressFor, STATUS_DOT, STATUS_LABEL } from "@/lib/chapter-status";
 import { formatCount } from "@/lib/text";
 import { cn } from "@/lib/utils";
@@ -18,13 +19,13 @@ export function ChapterRail({
 }) {
   return (
     <nav aria-label="Chapters" className="flex flex-col gap-0.5 p-2">
-      {chapters.map((chapter) => {
+      {contentsFirst(chapters).map((chapter) => {
         const progress = progressFor(job, chapter.id);
         const status = progress?.status ?? "idle";
         const active = chapter.id === activeId;
         const translated = job?.titles.chapters[chapter.id];
-        const label =
-          chapter.id === CONTENTS_CHAPTER_ID ? "Title & contents" : (translated ?? chapter.title);
+        const generated = chapter.id === CONTENTS_CHAPTER_ID;
+        const label = generated ? "Book title & navigation" : (translated ?? chapter.title);
         const original =
           translated && chapter.id !== CONTENTS_CHAPTER_ID && translated !== chapter.title
             ? chapter.title
@@ -45,7 +46,7 @@ export function ChapterRail({
             )}
           >
             <span className="flex items-center gap-2 font-mono text-[11px] tracking-wide uppercase opacity-70">
-              <span>{String(chapter.index + 1).padStart(2, "0")}</span>
+              {!generated && <span>{String(chapter.index + 1).padStart(2, "0")}</span>}
               <span
                 role="img"
                 aria-label={STATUS_LABEL[status]}

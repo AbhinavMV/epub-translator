@@ -31,9 +31,12 @@ describe("ChapterRail titles", () => {
     expect(screen.getAllByText("第一章")).toHaveLength(1);
   });
 
-  it("labels the contents chapter as the title and contents", () => {
+  it("lists the generated title and navigation item first, without a chapter number", () => {
     rail({ book: null, chapters: {} });
-    expect(screen.getByText("Title & contents")).toBeInTheDocument();
+    const items = screen.getAllByRole("button");
+    expect(items[0]).toHaveTextContent("Book title & navigation");
+    expect(items[0]).not.toHaveTextContent("00");
+    expect(items[1]).toHaveTextContent("01");
     expect(screen.queryByText("Contents")).toBeNull();
   });
 });

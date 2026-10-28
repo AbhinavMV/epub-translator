@@ -39,6 +39,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useHosted } from "@/keys/hosted-context";
+import { contentsFirst } from "@/lib/chapter-order";
 import {
   hasAnyTranslation,
   isBusy,
@@ -66,8 +67,11 @@ export function BookPage() {
   const hosted = useHosted();
   useHostedSync(hosted, jobId);
 
-  const chapters = book.data?.chapters ?? [];
-  const chapterId = chapters.find((c) => c.id === search.chapter)?.id ?? chapters[0]?.id;
+  const chapters = contentsFirst(book.data?.chapters ?? []);
+  const chapterId =
+    chapters.find((c) => c.id === search.chapter)?.id ??
+    chapters.find((c) => c.id !== CONTENTS_CHAPTER_ID)?.id ??
+    chapters[0]?.id;
   const chapterIndex = chapters.findIndex((c) => c.id === chapterId);
   const chapter = useChapter(bookId, chapterId, jobId);
   const chapterProgress = progressFor(job.data, chapterId ?? "");
