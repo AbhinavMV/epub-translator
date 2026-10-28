@@ -111,6 +111,11 @@ export class MemoryTranslations implements TranslationRepository {
   }
   readonly forJobCalls: string[] = [];
   readonly forSegmentsCalls: string[][] = [];
+  readonly statusesForJobCalls: string[] = [];
+  async statusesForJob(jobId: string) {
+    this.statusesForJobCalls.push(jobId);
+    return new Map([...this.job(jobId)].map(([id, t]) => [id, t.status] as const));
+  }
   async forJob(jobId: string) {
     this.forJobCalls.push(jobId);
     return new Map(this.job(jobId));
@@ -123,6 +128,7 @@ export class MemoryTranslations implements TranslationRepository {
   resetCalls() {
     this.forJobCalls.length = 0;
     this.forSegmentsCalls.length = 0;
+    this.statusesForJobCalls.length = 0;
   }
   async put(jobId: string, segmentId: string, t: SegmentTranslation) {
     this.job(jobId).set(segmentId, t);

@@ -18,7 +18,7 @@ import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
 import { chapterSegmentIds, chapterWork } from "./chapter-work.ts";
 import { type ChapterRuntime, chapterProgress, jobSummary } from "./job-progress.ts";
 import { requireBook } from "./load-book.ts";
-import { translatedTitles } from "./translated-titles.ts";
+import { titleSegmentIds, translatedTitles } from "./translated-titles.ts";
 import { recordResults } from "./work/record-results.ts";
 import { segmentRequest } from "./work/request.ts";
 
@@ -166,20 +166,23 @@ export class JobRunner {
 
   private async summaryOf(repos: Repositories, jobId: string): Promise<JobSummary> {
     const { job, parsed } = await this.requireJob(repos, jobId);
-    const translations = await repos.translations.forJob(jobId);
+    const statuses = new Map(
+      [...(await repos.translations.statusesForJob(jobId))].map(([id, status]) => [id, { status }]),
+    );
     const progress = [];
     for (const c of parsed.chapters) {
       progress.push(
         chapterProgress(
           parsed,
           c.id,
-          translations,
+          statuses,
           await this.runtimeOf(repos, jobId, c.id),
           this.errors.get(key(jobId, c.id)) ?? null,
         ),
       );
     }
-    return jobSummary(job, progress, translatedTitles(parsed, translations));
+    const titles = await repos.translations.forSegments(jobId, titleSegmentIds(parsed));
+    return jobSummary(job, progress, translatedTitles(parsed, titles));
   }
 
   private isIdle(): boolean {

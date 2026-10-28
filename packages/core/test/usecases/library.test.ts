@@ -135,6 +135,23 @@ describe("getOrCreateWorkspace", () => {
   });
 });
 
+describe("renderChapter reads", () => {
+  it("reads only the rendered chapter's translations", async () => {
+    const lib = libraryDeps();
+    const book = await importBook(lib, bytes);
+    const translations = new MemoryTranslations();
+    await translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
+    await translations.put("j1", "b.xhtml#0", { text: "Three", status: "done" });
+    const renderer = new RecordingRenderer();
+    await renderChapter(
+      { books: lib.books, blobs: lib.blobs, translations, renderer },
+      { bookId: book.id, jobId: "j1", chapterId: "ch-0", assetUrl: (h) => h },
+    );
+    expect(translations.forJobCalls).toEqual([]);
+    expect([...(renderer.lastTranslations?.keys() ?? [])]).toEqual(["a.xhtml#0"]);
+  });
+});
+
 describe("renderChapter", () => {
   it("passes the job's translations to the renderer", async () => {
     const lib = libraryDeps();

@@ -9,6 +9,7 @@ import {
   type SegmentBatchRequest,
   type SegmentBatchResult,
   type TranslationProvider,
+  titleSegmentIds,
 } from "../../src/index.ts";
 import {
   counterIds,
@@ -152,12 +153,25 @@ describe("JobRunner work leases", () => {
 });
 
 describe("JobRunner reads", () => {
+  it("builds the job summary from statuses without reading every translation's text", async () => {
+    await translations.put("j1", "a.xhtml#0", { text: "One", status: "done" });
+    translations.resetCalls();
+    const summary = await runner.summary(OWNER, "j1");
+    expect(translations.forJobCalls).toEqual([]);
+    expect(translations.statusesForJobCalls).toEqual(["j1"]);
+    expect(summary.progress.find((p) => p.chapterId === "ch-0")).toMatchObject({
+      done: 1,
+      total: 2,
+    });
+  });
+
   it("translating one chapter never reads another chapter's translations by id", async () => {
     await translations.put("j1", "b.xhtml#0", { text: "Keep", status: "done" });
     translations.resetCalls();
     await runner.translateChapter(OWNER, "j1", "ch-0", body);
     await runner.whenIdle();
-    const asked = translations.forSegmentsCalls.flat();
+    const titleIds = new Set(titleSegmentIds(sampleParsed));
+    const asked = translations.forSegmentsCalls.flat().filter((id) => !titleIds.has(id));
     expect(asked.length).toBeGreaterThan(0);
     expect(asked.every((id) => id.startsWith("a.xhtml"))).toBe(true);
   });

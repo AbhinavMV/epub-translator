@@ -33,6 +33,8 @@ export interface JobRepository {
 export interface TranslationRepository {
   get(jobId: string, segmentId: string): Promise<SegmentTranslation | null>;
   forJob(jobId: string): Promise<Map<string, SegmentTranslation>>;
+  /** Status only (no text), for progress summaries that run often. */
+  statusesForJob(jobId: string): Promise<Map<string, SegmentTranslation["status"]>>;
   forSegments(
     jobId: string,
     segmentIds: readonly string[],

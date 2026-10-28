@@ -16,7 +16,7 @@ export interface ChapterRuntime {
 export function chapterProgress(
   book: ParsedBook,
   chapterId: string,
-  translations: ReadonlyMap<string, SegmentTranslation>,
+  translations: ReadonlyMap<string, Pick<SegmentTranslation, "status">>,
   runtime: ChapterRuntime | undefined,
   error: string | null,
 ): ChapterProgress {

@@ -171,6 +171,13 @@ describe("SqliteTranslationRepository", () => {
     expect((await repo.forSegments("j1", [])).size).toBe(0);
     const many = Array.from({ length: 2000 }, (_, i) => `x${i}`);
     expect((await repo.forSegments("j1", [...many, "s2"])).size).toBe(1);
+    expect(await repo.statusesForJob("j1")).toEqual(
+      new Map([
+        ["s1", "done"],
+        ["s2", "done"],
+        ["s3", "failed"],
+      ]),
+    );
   });
 
   it("keeps the reason a segment failed", async () => {

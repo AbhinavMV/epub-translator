@@ -30,6 +30,13 @@ export class SqliteTranslationRepository implements TranslationRepository {
     return new Map(rows.map((r) => [r.segment_id, toTranslation(r)]));
   }
 
+  async statusesForJob(jobId: string): Promise<Map<string, SegmentTranslation["status"]>> {
+    const rows = this.db
+      .prepare("SELECT segment_id, status FROM translations WHERE job_id = ?")
+      .all(jobId) as { segment_id: string; status: SegmentTranslation["status"] }[];
+    return new Map(rows.map((r) => [r.segment_id, r.status]));
+  }
+
   async forSegments(
     jobId: string,
     segmentIds: readonly string[],

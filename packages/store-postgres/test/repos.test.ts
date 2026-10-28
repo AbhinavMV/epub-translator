@@ -170,6 +170,13 @@ describe("PostgresTranslationRepository", () => {
     expect(got.get("s3")).toEqual({ text: "c", status: "failed", note: "x" });
     expect((await repos.translations.forSegments("j1", [])).size).toBe(0);
     expect((await repos.translations.forSegments("other", ["s1"])).size).toBe(0);
+    expect(await repos.translations.statusesForJob("j1")).toEqual(
+      new Map([
+        ["s1", "done"],
+        ["s2", "done"],
+        ["s3", "failed"],
+      ]),
+    );
   });
 
   it("keeps the reason a segment failed", async () => {

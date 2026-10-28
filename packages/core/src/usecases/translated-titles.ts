@@ -68,9 +68,14 @@ export async function libraryBookTitle(
 ): Promise<string | null> {
   const job = await repos.jobs.findByBookAndLang(bookId, LIBRARY_TITLE_LANG);
   if (!job) return null;
+  return translatedTitles(book, await repos.translations.forSegments(job.id, titleSegmentIds(book)))
+    .book;
+}
+
+export function titleSegmentIds(book: ParsedBook): string[] {
   const ids = new Set(
     book.segments.filter((s) => s.chapterId === CONTENTS_CHAPTER_ID).map((s) => s.id),
   );
   ids.add(TITLE_SEGMENT_ID);
-  return translatedTitles(book, await repos.translations.forSegments(job.id, [...ids])).book;
+  return [...ids];
 }

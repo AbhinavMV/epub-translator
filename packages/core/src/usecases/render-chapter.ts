@@ -30,7 +30,10 @@ export async function renderChapter(
     throw new NotFoundError("Chapter", input.chapterId);
   }
   const bytes = await loadBookBytes(deps.blobs, book);
-  const translations = input.jobId ? await deps.translations.forJob(input.jobId) : new Map();
+  const ids = parsed.segments.filter((s) => s.chapterId === input.chapterId).map((s) => s.id);
+  const translations = input.jobId
+    ? await deps.translations.forSegments(input.jobId, ids)
+    : new Map();
   const whole = await deps.renderer.render(
     bytes,
     parsed,
