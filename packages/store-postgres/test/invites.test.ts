@@ -99,6 +99,15 @@ describe("PostgresAppUserRepository", () => {
     expect((await users.list()).map((u) => u.id)).toEqual([ALICE, BOB]);
   });
 
+  it("deletes an app user", async () => {
+    const users = new PostgresAppUserRepository(sql);
+    await users.upsert({ id: ALICE, role: "user" });
+    await users.upsert({ id: BOB, role: "user" });
+    await users.delete(ALICE);
+    await users.delete(ALICE);
+    expect((await users.list()).map((u) => u.id)).toEqual([BOB]);
+  });
+
   it("rejects an unknown role", async () => {
     const users = new PostgresAppUserRepository(sql);
     await expect(users.upsert({ id: ALICE, role: "root" as "admin" })).rejects.toThrow();

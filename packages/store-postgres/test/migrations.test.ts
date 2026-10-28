@@ -13,9 +13,12 @@ describe("migrations", () => {
       "0002_library_tables.sql",
       "0003_library_rls.sql",
       "0004_storage_supabase.sql",
+      "0005_rate_limits.sql",
+      "0006_exports_text_supabase.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
+      "0006_exports_text_supabase.sql",
     ]);
   });
 
