@@ -8,6 +8,8 @@ A local web app that takes an EPUB and translates it chapter by chapter into Eng
 - **Japanese books work.** Vertical (`vertical-rl`), right-to-left books come out horizontal and left-to-right. Ruby readings (furigana) are never sent to the model.
 - **Interruptions are safe.** Every paragraph is stored as it finishes, so an interrupted chapter resumes where it stopped.
 - **Prompt caching** (Anthropic) is on, so repeated requests reuse the cached system prompt.
+- **AI proofreading is opt-in and reviewable.** A second pass checks the translation against the original and proposes edits with a reason. Nothing changes until you accept a suggestion.
+- **Runs locally or hosted.** Locally, keys stay in a `.env` file on your machine. The invite-only hosted mode (Vercel + Supabase) keeps each user's keys in their own browser.
 
 ## Setup
 
@@ -31,11 +33,15 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
      - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h.
      - **Glossary → Suggest from book** proposes names and terms using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
    - **Translating:**
-     - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Title & contents** (book title, author, publisher, TOC labels), so translated titles appear early. **Translate title & contents** does just that part.
+     - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail), so translated titles appear early. **Translate title & contents** does just that part.
      - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
    - **When something fails:**
      - A failed passage says why, for example that the model declined it and under which policy category.
      - Errors that stop a chapter (bad key, rate limits) appear in a banner with a fix hint. A fatal error also stops the rest of that job's queue.
+   - **Proofreading:**
+     - **Proofread** checks this chapter, the chapters not yet proofread, or the whole book. Chapters run one at a time and carry names forward so they stay consistent. Multi-chapter runs ask first, because each sends the chapter text again.
+     - Suggestions are tagged accuracy, consistency, terminology or fluency, and show as word diffs with a reason. Accept or reject them one by one or all at once.
+     - Edits are vetted before they are shown (inline placeholders must still match the source). A suggestion whose paragraph changed since proofreading is marked outdated rather than applied.
 3. **Reader:**
    - Views: Translation, Interleaved or Side-by-side.
    - Layouts: **Scroll** or **Paged** (←/→, Space, tap or swipe).
@@ -61,10 +67,13 @@ flowchart LR
   seg["packages/segmenter<br/>DOM ⇄ placeholder text"]:::pure
   epub["packages/epub<br/>zip, OPF, render, export"]:::adapter
   prov["packages/providers<br/>Claude, OpenAI, Gemini, fake"]:::adapter
-  store["packages/store-sqlite<br/>repositories"]:::adapter
+  store["packages/store-sqlite<br/>local repositories"]:::adapter
+  pg["packages/store-postgres<br/>hosted repositories, RLS"]:::adapter
 
   web -- "HTTP / SSE" --> api
   web --> contracts
+  web --> core
+  web -- "browser entry" --> prov
   api --> core
   api --> epub
   api --> prov
@@ -74,16 +83,18 @@ flowchart LR
   epub --> seg
   prov --> core
   store --> core
+  api --> pg
+  pg --> core
 
-  linkStyle 0 color:#2b2620
+  linkStyle 0,3 color:#2b2620
   classDef app fill:#b4532a,stroke:#7a3519,color:#ffffff
   classDef pure fill:#2b2620,stroke:#16140f,color:#f7f3ec
   classDef adapter fill:#efe4cf,stroke:#8a7a5c,color:#2b2620
 ```
 
-- **`core` is pure.** It holds the domain types, the ports (`EpubParser`, `ChapterRenderer`, `EpubExporter`, `TranslationProvider`, repositories) and the use cases (import, workspace, `JobRunner`, render, export). It has no I/O, and Biome enforces that.
-- **Adapters implement the ports.** `apps/api/src/services.ts` is the only place they are wired together.
-- **`apps/web` talks to the API only through `@et/contracts`.**
+- **`core` is pure.** It holds the domain types, the ports (`EpubParser`, `ChapterRenderer`, `EpubExporter`, `TranslationProvider`, `Proofreader`, repositories) and the use cases (import, workspace, `JobRunner`, proofread, render, export). It has no I/O, and Biome enforces that.
+- **Adapters implement the ports.** `apps/api/src/compose-local.ts` (SQLite, files on disk, server-side keys) and `compose-hosted.ts` (Postgres, Supabase Storage and Auth) are the only places they are wired together.
+- **`apps/web` talks to the API through `@et/contracts`.** In hosted mode it also runs translation and proofreading itself, using the I/O-free parts of `@et/core` and the browser-safe `@et/providers/browser` entry.
 
 See `docs/CODING-STANDARDS.md` for the rules, `docs/research/` for the design research and `docs/plan/` for the implementation plan.
 
@@ -92,8 +103,9 @@ See `docs/CODING-STANDARDS.md` for the rules, `docs/research/` for the design re
 - **Another target language:** add an entry to `TARGET_LANGUAGES` in `packages/contracts/src/languages.ts` (code, name, `dir`, `writingMode`). The prompt, export metadata and spine direction follow from it.
 - **Another LLM provider:**
   1. Implement `TranslationProvider` in `packages/providers/src/<name>.ts`: `listModels()`, plus `translateSegments()` returning a `SegmentBatchResult`.
-  2. Add it to `buildProviderRegistry`, and add its id to `ProviderIdSchema`.
-  3. Use cases need no changes.
+  2. Optionally add the matching batch provider (`batch/`), glossary term extractor (`terms/`) and `Proofreader` (`proofread/`).
+  3. Add it to `buildProviderRegistry` and, for hosted mode, `createBrowserProvider` in `packages/providers/src/browser.ts`, and add its id to `ProviderIdSchema`.
+  4. Use cases need no changes.
 
 ## Development
 
