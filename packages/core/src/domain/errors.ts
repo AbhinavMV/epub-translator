@@ -104,3 +104,10 @@ export class UnplacedBookError extends Error {
     this.name = "UnplacedBookError";
   }
 }
+
+export class SampleChunkOutOfRangeError extends Error {
+  constructor(chunk: number, chunks: number) {
+    super(`Sample chunk ${chunk} is out of range: the sample has ${chunks}`);
+    this.name = "SampleChunkOutOfRangeError";
+  }
+}

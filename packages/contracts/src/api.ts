@@ -207,12 +207,27 @@ export const TranslateBodySchema = z.object({
 });
 export type TranslateBody = z.input<typeof TranslateBodySchema>;
 
+export const SampleSizeSchema = z.enum(["standard", "large", "volume"]);
+export type SampleSize = z.infer<typeof SampleSizeSchema>;
+
 export const SuggestGlossaryBodySchema = z.object({
   provider: ProviderIdSchema,
   model: z.string().min(1),
   targetLang: z.string().min(1).optional(),
+  sampleSize: SampleSizeSchema.optional(),
+  chunk: z.number().int().min(0).optional(),
 });
 export type SuggestGlossaryBody = z.infer<typeof SuggestGlossaryBodySchema>;
+
+export const GlossarySamplePlanQuerySchema = z.object({
+  size: SampleSizeSchema.default("large"),
+});
+
+export const GlossarySamplePlanSchema = z.object({
+  requests: z.number().int().positive(),
+  chars: z.number().int().nonnegative(),
+});
+export type GlossarySamplePlan = z.infer<typeof GlossarySamplePlanSchema>;
 
 export const ProviderInfoSchema = z.object({
   id: ProviderIdSchema,
