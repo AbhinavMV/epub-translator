@@ -15,6 +15,12 @@ import {
   GlossaryEntrySchema,
   type JobSummary,
   JobSummarySchema,
+  type Project,
+  type ProjectDetail,
+  ProjectDetailSchema,
+  ProjectSchema,
+  type ProjectSummary,
+  ProjectSummarySchema,
   type ProofreadBody,
   type ProofreadDecisionBody,
   type ProofreadRun,
@@ -55,6 +61,9 @@ export interface GlossarySuggestion {
 }
 
 export interface Api {
+  listProjects(): Promise<ProjectSummary[]>;
+  getProject(id: string): Promise<ProjectDetail>;
+  renameProject(id: string, name: string): Promise<Project>;
   listBooks(): Promise<BookSummary[]>;
   uploadBook(file: File): Promise<BookSummary>;
   getBook(id: string): Promise<BookDetail>;
@@ -176,6 +185,14 @@ export function createHttpApi(
   const enc = encodeURIComponent;
 
   return {
+    listProjects: () => json("/projects", list(ProjectSummarySchema)),
+    getProject: (id) => json(`/projects/${enc(id)}`, ProjectDetailSchema),
+    renameProject: (id, name) =>
+      json(`/projects/${enc(id)}`, ProjectSchema, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      }),
     listBooks: () => json("/books", list(BookSummarySchema)),
     async uploadBook(file) {
       if (signed) {

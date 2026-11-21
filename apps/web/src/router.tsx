@@ -13,6 +13,7 @@ import { AdminPage } from "@/routes/admin";
 import { BookPage } from "@/routes/book";
 import { InvitePage } from "@/routes/invite";
 import { LibraryPage } from "@/routes/library";
+import { ProjectPage } from "@/routes/project";
 import { ReaderPage } from "@/routes/reader";
 import { ResetPasswordPage } from "@/routes/reset";
 import { SignInPage } from "@/routes/signin";
@@ -68,6 +69,12 @@ const libraryRoute = createRoute({
   component: LibraryPage,
 });
 
+const projectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/projects/$projectId",
+  component: ProjectPage,
+});
+
 const bookRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/books/$bookId",
@@ -91,6 +98,7 @@ const routeTree = rootRoute.addChildren([
   inviteRoute,
   resetRoute,
   libraryRoute,
+  projectRoute,
   bookRoute,
   readerRoute,
   adminRoute,

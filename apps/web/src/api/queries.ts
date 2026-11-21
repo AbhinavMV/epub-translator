@@ -17,6 +17,32 @@ import {
 import { useApi } from "./api-context";
 import { keys } from "./keys";
 
+export function useProjects() {
+  const api = useApi();
+  return useQuery({ queryKey: keys.projects, queryFn: () => api.listProjects() });
+}
+
+export function useProject(id: string) {
+  const api = useApi();
+  return useQuery({ queryKey: keys.project(id), queryFn: () => api.getProject(id) });
+}
+
+export function useRenameProject(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.renameProject(id, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.projects }),
+  });
+}
+
+function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: keys.books }),
+    queryClient.invalidateQueries({ queryKey: keys.projects }),
+  ]);
+}
+
 export function useBooks() {
   const api = useApi();
   return useQuery({ queryKey: keys.books, queryFn: () => api.listBooks() });
@@ -101,7 +127,7 @@ export function useUploadBook() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => api.uploadBook(file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.books }),
+    onSuccess: () => invalidateLibrary(queryClient),
   });
 }
 
@@ -110,7 +136,7 @@ export function useDeleteBook() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deleteBook(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.books }),
+    onSuccess: () => invalidateLibrary(queryClient),
   });
 }
 

@@ -8,6 +8,8 @@ import type {
   ChapterView,
   JobEvent,
   JobSummary,
+  Project,
+  ProjectDetail,
   ProofreadKind,
   ProviderInfo,
   SegmentStatus,
@@ -194,6 +196,7 @@ interface SegState {
 
 export function createMockApi(): Api {
   const books = new Map<string, { summary: BookSummary; settings: BookSettings }>();
+  const projects = new Map<string, Project>();
   const jobs = new Map<string, JobSummary>();
   const segs = new Map<string, SegState>();
   const sources = new Map<string, Set<MockSource>>();
@@ -204,6 +207,9 @@ export function createMockApi(): Api {
 
   const segCount = CHAPTERS.reduce((n, c) => n + c.pairs.length, 0);
   const addBook = (id: string, title: string) => {
+    const createdAt = new Date().toISOString();
+    const projectId = `project-${id}`;
+    projects.set(projectId, { id: projectId, name: title, createdAt });
     books.set(id, {
       summary: {
         id,
@@ -213,7 +219,9 @@ export function createMockApi(): Api {
         coverUrl: coverFor(title),
         chapterCount: CHAPTERS.length,
         segmentCount: segCount,
-        createdAt: new Date().toISOString(),
+        createdAt,
+        projectId,
+        volumeNumber: 1,
       },
       settings: { customPrompt: "", glossary: [], provider: null, model: null },
     });
@@ -361,7 +369,35 @@ export function createMockApi(): Api {
     setChapterProgress(jobId, progressFor(jobId, c, "idle"));
   };
 
+  const booksOf = (projectId: string) =>
+    [...books.values()]
+      .map((b) => b.summary)
+      .filter((b) => b.projectId === projectId)
+      .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
+
   const api: Api = {
+    listProjects: () =>
+      delay(
+        [...projects.values()].map((p) => {
+          const first = booksOf(p.id)[0];
+          return {
+            ...p,
+            volumeCount: booksOf(p.id).length,
+            coverUrl: first?.coverUrl ?? null,
+          };
+        }),
+      ),
+    async getProject(id): Promise<ProjectDetail> {
+      const project = projects.get(id);
+      if (!project) throw new Error("Project not found");
+      return delay({ ...project, books: booksOf(id) });
+    },
+    async renameProject(id, name) {
+      const project = projects.get(id);
+      if (!project) throw new Error("Project not found");
+      project.name = name.trim();
+      return delay({ ...project });
+    },
     listBooks: () => delay([...books.values()].map((b) => b.summary)),
     async uploadBook(file) {
       const id = `mock-${books.size + 1}`;

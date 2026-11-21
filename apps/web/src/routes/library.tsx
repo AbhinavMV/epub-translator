@@ -1,18 +1,17 @@
 import { toast } from "sonner";
 import { useApi } from "@/api/api-context";
-import { useBooks, useDeleteBook, useUploadBook } from "@/api/queries";
+import { useProjects, useUploadBook } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
-import { BookCard } from "@/components/book-card";
+import { ProjectCard } from "@/components/project-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UploadDropzone } from "@/components/upload-dropzone";
 
 export function LibraryPage() {
   const api = useApi();
-  const books = useBooks();
+  const projects = useProjects();
   const upload = useUploadBook();
-  const remove = useDeleteBook();
 
   const onUpload = (file: File) => {
     toast.promise(upload.mutateAsync(file), {
@@ -48,23 +47,18 @@ export function LibraryPage() {
           id="library-heading"
           className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase"
         >
-          Library {books.data ? `· ${books.data.length}` : ""}
+          Library {projects.data ? `· ${projects.data.length}` : ""}
         </h2>
-        {books.isPending ? (
+        {projects.isPending ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {[0, 1, 2, 3].map((i) => (
               <Skeleton key={i} className="aspect-[2/3] w-full rounded-xl" />
             ))}
           </div>
-        ) : books.data && books.data.length > 0 ? (
+        ) : projects.data && projects.data.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {books.data.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                deleting={remove.isPending}
-                onDelete={() => remove.mutate(book.id)}
-              />
+            {projects.data.map((project) => (
+              <ProjectCard key={project.id} project={project} />
             ))}
           </div>
         ) : (
