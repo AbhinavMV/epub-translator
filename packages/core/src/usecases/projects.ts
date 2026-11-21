@@ -35,6 +35,17 @@ export async function requireProject(
   return { project, books: await deps.books.listByProject(projectId) };
 }
 
+export async function setVolumeNumber(
+  deps: Pick<ProjectDeps, "books">,
+  bookId: string,
+  volumeNumber: number,
+): Promise<StoredBook> {
+  const book = await deps.books.get(bookId);
+  if (!book?.projectId) throw new NotFoundError("Book", bookId);
+  await deps.books.place(bookId, book.projectId, volumeNumber);
+  return { ...book, volumeNumber };
+}
+
 export async function renameProject(
   deps: Pick<ProjectDeps, "projects">,
   projectId: string,

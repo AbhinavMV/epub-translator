@@ -38,7 +38,7 @@ describe("listProjects", () => {
   it("lists every project with its books in volume order, empty ones included", async () => {
     const deps = library();
     const one = await importTitled(deps, "魔女の旅々 2", 1);
-    const two = await importTitled(deps, "魔女の旅々 1", 2);
+    const two = await importTitled(deps, "Spice and Wolf 1", 2);
     await deps.books.place(two.id, one.projectId ?? "", 1);
     await deps.projects.create({ id: "empty", name: "Empty", createdAt: "2026-10-01" });
 
