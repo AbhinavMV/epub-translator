@@ -1,6 +1,9 @@
 import {
   BookSettingsSchema,
   ChapterPartQuerySchema,
+  type ImportPlacement,
+  ImportPlacementSchema,
+  SetVolumeNumberBodySchema,
   SuggestGlossaryBodySchema,
 } from "@et/contracts";
 import {
@@ -8,15 +11,18 @@ import {
   type BlobStore,
   deleteBook,
   getOrCreateWorkspace,
+  type ImportPreview,
   InvalidEpubError,
   importBook,
   libraryBookTitle,
   loadBookBytes,
   NotFoundError,
   ProviderNotConfiguredError,
+  previewImport,
   type Repositories,
   renderChapter,
   requireBook,
+  setVolumeNumber,
   suggestGlossary,
 } from "@et/core";
 import { Hono } from "hono";
@@ -28,7 +34,32 @@ import type { AppEnv } from "./request-context.ts";
 import { validate } from "./validate.ts";
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
-const ImportBodySchema = z.object({ path: z.string().min(1).max(300) });
+const UploadPathSchema = z.object({ path: z.string().min(1).max(300) });
+const ImportBodySchema = UploadPathSchema.extend({ placement: ImportPlacementSchema.optional() });
+
+async function previewBody(repos: Repositories, preview: ImportPreview) {
+  if (preview.kind === "new") return preview;
+  const { parsed } = await requireBook(repos.books, preview.book.id);
+  return { kind: preview.kind, book: bookSummary(preview.book, parsed) };
+}
+
+function placementField(value: unknown): ImportPlacement | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  try {
+    const result = ImportPlacementSchema.safeParse(JSON.parse(value));
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
+}
+
+async function uploadedFile(c: { req: { parseBody(): Promise<Record<string, unknown>> } }) {
+  const body = await c.req.parseBody();
+  const file = body.file;
+  if (!(file instanceof File)) throw new InvalidEpubError("Missing file field");
+  return { bytes: new Uint8Array(await file.arrayBuffer()), placement: body.placement };
+}
 
 export function booksRoutes(s: Services) {
   return new Hono<AppEnv>()
@@ -45,11 +76,18 @@ export function booksRoutes(s: Services) {
       }
       return c.json(summaries);
     })
+    .post("/import/preview", validate("json", UploadPathSchema), async (c) => {
+      const uploads = s.uploads;
+      if (!uploads) return c.json({ error: "Not found" }, 404);
+      const bytes = await uploads.read(c.var.ownerId, c.req.valid("json").path);
+      const preview = await previewImport({ ...s, ...c.var.repos, blobs: c.var.blobs }, bytes);
+      return c.json(await previewBody(c.var.repos, preview));
+    })
     .post("/import", validate("json", ImportBodySchema), async (c) => {
       const uploads = s.uploads;
       if (!uploads) return c.json({ error: "Not found" }, 404);
       const { ownerId, blobs } = c.var;
-      const { path } = c.req.valid("json");
+      const { path, placement } = c.req.valid("json");
       const { books } = c.var.repos;
       try {
         const bytes = await uploads.read(ownerId, path);
@@ -64,6 +102,7 @@ export function booksRoutes(s: Services) {
             },
           },
           bytes,
+          placement,
         );
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       } finally {
@@ -72,6 +111,19 @@ export function booksRoutes(s: Services) {
       }
     })
     .post(
+      "/preview",
+      bodyLimit({
+        maxSize: MAX_UPLOAD_BYTES,
+        onError: (c) => c.json({ error: "File too large (max 200 MB)" }, 413),
+      }),
+      async (c) => {
+        if (s.uploads) return c.json({ error: "Not found" }, 404);
+        const { bytes } = await uploadedFile(c);
+        const preview = await previewImport({ ...s, ...c.var.repos, blobs: c.var.blobs }, bytes);
+        return c.json(await previewBody(c.var.repos, preview));
+      },
+    )
+    .post(
       "/",
       bodyLimit({
         maxSize: MAX_UPLOAD_BYTES,
@@ -79,17 +131,28 @@ export function booksRoutes(s: Services) {
       }),
       async (c) => {
         if (s.uploads) return c.json({ error: "Not found" }, 404);
-        const body = await c.req.parseBody();
-        const file = body.file;
-        if (!(file instanceof File)) throw new InvalidEpubError("Missing file field");
+        const upload = await uploadedFile(c);
+        const placement = placementField(upload.placement);
+        if (placement === null) return c.json({ error: "Invalid placement" }, 400);
         const { books } = c.var.repos;
         const book = await importBook(
           { ...s, ...c.var.repos, blobs: c.var.blobs },
-          new Uint8Array(await file.arrayBuffer()),
+          upload.bytes,
+          placement,
         );
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);
       },
     )
+    .patch("/:id/volume", validate("json", SetVolumeNumberBodySchema), async (c) => {
+      const { repos } = c.var;
+      const book = await setVolumeNumber(
+        repos,
+        c.req.param("id"),
+        c.req.valid("json").volumeNumber,
+      );
+      const { parsed } = await requireBook(repos.books, book.id);
+      return c.json(bookSummary(book, parsed, await libraryBookTitle(repos, book.id, parsed)));
+    })
     .get("/:id", async (c) => {
       const id = c.req.param("id");
       const { book, parsed } = await requireBook(c.var.repos.books, id);

@@ -15,6 +15,14 @@ const SUMMARY = {
   createdAt: "2026-10-28T00:00:00.000Z",
 };
 
+const PREVIEW = {
+  kind: "new",
+  title: "T 2",
+  seriesTitle: "T",
+  volumeNumber: 2,
+  project: null,
+};
+
 function reply(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -23,13 +31,13 @@ function reply(body: unknown, status = 200) {
 }
 
 describe("signed upload", () => {
-  it("asks for a ticket, uploads straight to storage, then imports by path", async () => {
+  it("uploads once to storage, previews by path, then imports into the chosen project", async () => {
     const calls: [string, RequestInit | undefined][] = [];
     const fetchFn = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
       calls.push([String(url), init]);
-      return String(url) === "/api/uploads"
-        ? reply({ path: "u/incoming/x.epub", token: "tok" })
-        : reply(SUMMARY, 201);
+      if (String(url) === "/api/uploads") return reply({ path: "u/incoming/x.epub", token: "tok" });
+      if (String(url) === "/api/books/import/preview") return reply(PREVIEW);
+      return reply(SUMMARY, 201);
     });
     const uploader = vi.fn(async () => {});
     const api = createHttpApi(fetchFn as typeof fetch, undefined, {
@@ -37,10 +45,21 @@ describe("signed upload", () => {
       uploader,
     });
     const file = new File(["x"], "b.epub");
-    await api.uploadBook(file);
+    const pending = await api.prepareImport(file);
+    expect(pending.preview).toEqual(PREVIEW);
+    await pending.commit({ projectId: "p1", volumeNumber: null });
+    expect(uploader).toHaveBeenCalledTimes(1);
     expect(uploader).toHaveBeenCalledWith("u/incoming/x.epub", "tok", file);
-    expect(calls.map(([u]) => u)).toEqual(["/api/uploads", "/api/books/import"]);
+    expect(calls.map(([u]) => u)).toEqual([
+      "/api/uploads",
+      "/api/books/import/preview",
+      "/api/books/import",
+    ]);
     expect(JSON.parse(String(calls[1]?.[1]?.body))).toEqual({ path: "u/incoming/x.epub" });
+    expect(JSON.parse(String(calls[2]?.[1]?.body))).toEqual({
+      path: "u/incoming/x.epub",
+      placement: { projectId: "p1", volumeNumber: null },
+    });
   });
 
   it("does not import when the storage upload fails", async () => {
@@ -51,15 +70,31 @@ describe("signed upload", () => {
         throw new Error("boom");
       },
     });
-    await expect(api.uploadBook(new File(["x"], "b.epub"))).rejects.toThrow(/upload to storage/i);
+    await expect(api.prepareImport(new File(["x"], "b.epub"))).rejects.toThrow(
+      /upload to storage/i,
+    );
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps multipart as the default", async () => {
-    const fetchFn = vi.fn(async () => reply(SUMMARY, 201));
+  it("keeps multipart as the default, sending the placement with the file", async () => {
+    const fetchFn = vi.fn(async (url: RequestInfo | URL) =>
+      String(url) === "/api/books/preview" ? reply(PREVIEW) : reply(SUMMARY, 201),
+    );
     const api = createHttpApi(fetchFn as typeof fetch);
-    await api.uploadBook(new File(["x"], "b.epub"));
-    expect(fetchFn).toHaveBeenCalledWith("/api/books", expect.objectContaining({ method: "POST" }));
+    const pending = await api.prepareImport(new File(["x"], "b.epub"));
+    await pending.commit({ projectName: "New", volumeNumber: 2 });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "/api/books/preview",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const [, init] = fetchFn.mock.calls[1] as unknown as [string, RequestInit];
+    expect(fetchFn.mock.calls[1]?.[0]).toBe("/api/books");
+    const form = init.body as FormData;
+    expect(form.get("file")).toBeInstanceOf(File);
+    expect(JSON.parse(String(form.get("placement")))).toEqual({
+      projectName: "New",
+      volumeNumber: 2,
+    });
     expect(api.signedExports).toBe(false);
   });
 });

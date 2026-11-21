@@ -15,6 +15,7 @@ import type {
   ProviderInfo,
   SegmentStatus,
 } from "@et/contracts";
+import { parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
 import type { Api, EventSourceLike } from "./client";
 
 type Pair = readonly [ja: string, en: string];
@@ -208,10 +209,15 @@ export function createMockApi(): Api {
   const proofreads = new Map<string, ChapterProofread>();
 
   const segCount = CHAPTERS.reduce((n, c) => n + c.pairs.length, 0);
-  const addBook = (id: string, title: string) => {
+  const addBook = (
+    id: string,
+    title: string,
+    placement: { projectId: string; volumeNumber: number } | null = null,
+  ) => {
     const createdAt = new Date().toISOString();
-    const projectId = `project-${id}`;
-    projects.set(projectId, { id: projectId, name: title, createdAt });
+    const projectId = placement?.projectId ?? `project-${id}`;
+    if (!projects.has(projectId))
+      projects.set(projectId, { id: projectId, name: title, createdAt });
     books.set(id, {
       summary: {
         id,
@@ -223,7 +229,7 @@ export function createMockApi(): Api {
         segmentCount: segCount,
         createdAt,
         projectId,
-        volumeNumber: 1,
+        volumeNumber: placement?.volumeNumber ?? 1,
       },
       settings: { provider: null, model: null },
     });
@@ -420,12 +426,50 @@ export function createMockApi(): Api {
       return delay(structuredClone(next));
     },
     listBooks: () => delay([...books.values()].map((b) => b.summary)),
-    async uploadBook(file) {
-      const id = `mock-${books.size + 1}`;
-      addBook(id, file.name.replace(/\.epub$/i, ""));
-      const book = books.get(id);
-      if (!book) throw new Error("unreachable");
-      return delay(book.summary, 700);
+    async prepareImport(file) {
+      const title = file.name.replace(/\.epub$/i, "");
+      const { seriesTitle, volumeNumber } = parseVolumeTitle(title);
+      const match = seriesTitle
+        ? [...books.values()].find(
+            (b) => parseVolumeTitle(b.summary.title).seriesTitle === seriesTitle,
+          )
+        : undefined;
+      const project = projects.get(match?.summary.projectId ?? "");
+      return delay({
+        preview: {
+          kind: "new" as const,
+          title,
+          seriesTitle,
+          volumeNumber,
+          project: project ? { ...project } : null,
+        },
+        async commit(placement) {
+          const id = `mock-${books.size + 1}`;
+          let projectId = `project-${id}`;
+          if ("projectId" in placement) projectId = placement.projectId;
+          else {
+            projects.set(projectId, {
+              id: projectId,
+              name: placement.projectName.trim(),
+              createdAt: new Date().toISOString(),
+            });
+          }
+          const volume =
+            placement.volumeNumber ??
+            volumeNumber ??
+            unnumberedVolumeNumber(booksOf(projectId).map((b) => b.volumeNumber ?? null));
+          addBook(id, title, { projectId, volumeNumber: volume });
+          const book = books.get(id);
+          if (!book) throw new Error("unreachable");
+          return delay(book.summary, 700);
+        },
+      });
+    },
+    async setVolumeNumber(bookId, volumeNumber) {
+      const book = books.get(bookId);
+      if (!book) throw new Error("Book not found");
+      book.summary = { ...book.summary, volumeNumber };
+      return delay(book.summary);
     },
     async getBook(id): Promise<BookDetail> {
       const book = books.get(id);

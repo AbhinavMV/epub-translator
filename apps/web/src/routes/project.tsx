@@ -5,12 +5,12 @@ import { toast } from "sonner";
 import { useDeleteBook, useProject, useRenameProject } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
-import { BookCard } from "@/components/book-card";
 import { ProjectTermsSection } from "@/components/project/project-terms";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProjectVolume } from "@/components/volume-number-editor";
 
 function ProjectName({ projectId, name }: { projectId: string; name: string }) {
   const rename = useRenameProject(projectId);
@@ -113,7 +113,7 @@ export function ProjectPage() {
         ) : project.data.books.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {project.data.books.map((book) => (
-              <BookCard
+              <ProjectVolume
                 key={book.id}
                 book={book}
                 deleting={remove.isPending}
