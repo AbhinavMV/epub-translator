@@ -5,6 +5,7 @@ import { SqliteBookRepository } from "./book-repo.ts";
 import { SqliteBookSettingsRepository } from "./book-settings-repo.ts";
 import type { Database } from "./db.ts";
 import { SqliteJobRepository } from "./job-repo.ts";
+import { SqliteProjectRepository } from "./project-repo.ts";
 import { SqliteProofreadRepository } from "./proofread-repo.ts";
 import { SqliteTranslationRepository } from "./translation-repo.ts";
 
@@ -20,6 +21,7 @@ export class SqliteStoreFactory implements StoreFactory {
 
   constructor(db: Database) {
     this.local = {
+      projects: new SqliteProjectRepository(db),
       books: new SqliteBookRepository(db),
       settings: new SqliteBookSettingsRepository(db),
       jobs: new SqliteJobRepository(db),
