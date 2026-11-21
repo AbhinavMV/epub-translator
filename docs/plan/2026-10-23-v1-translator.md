@@ -608,7 +608,7 @@ T1 and T2 run first. T3, T4 and T5 start once T1 is merged.
 
 ## Amendment F (2026-11-21): projects own the glossary and custom prompt
 
-Decision: [ADR 0001](../adr/0001-glossary-belongs-to-project.md). Terms: [GLOSSARY.md](../../GLOSSARY.md). This amendment overrides Amendment A's per-book `customPrompt` and `glossary`, Amendment B's "cache-stable per book" (the system prompt now carries the project's terms), and Amendment E's repository list.
+Decision: [ADR 0001](../adr/0001-glossary-belongs-to-project.md). Terms: [GLOSSARY.md](../../GLOSSARY.md). This amendment overrides Amendment A's per-book `customPrompt` and `glossary`, Amendment B's "cache-stable per book" and its "Additional instructions" line (the system prompt now carries the project's glossary, and a non-empty custom prompt replaces the default style guidance), and Amendment E's repository list.
 
 - Every book belongs to exactly one project and has a volume number. Book settings keep only the last-used provider and model (`PUT /api/books/:id/settings {provider, model}`). The project holds the glossary, the custom prompt and any glossary conflicts.
 - `Repositories` gains `projects` and `projectSettings`. Postgres migrations 0009 to 0012 add `projects`, `project_settings`, `projects.series_title` and make `books.project_id` NOT NULL; the SQLite schema upgrades itself.
