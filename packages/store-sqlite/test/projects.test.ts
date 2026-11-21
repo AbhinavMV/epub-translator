@@ -8,10 +8,12 @@ import {
   type Database,
   migrate,
   openDatabase,
+  openDatabaseSnapshot,
   SqliteBookRepository,
   SqliteJobRepository,
   SqliteProjectRepository,
   SqliteTranslationRepository,
+  schemaVersion,
 } from "../src/index.ts";
 
 const parsed: ParsedBook = {
@@ -150,5 +152,31 @@ describe("projects migration", () => {
       "Hello",
     );
     upgraded.close();
+  });
+
+  it("snapshots an older file into a migrated in-memory copy without touching the file", async () => {
+    dir = mkdtempSync(join(tmpdir(), "et-projects-"));
+    const path = join(dir, "translator.db");
+    const old = new BetterSqlite3(path);
+    migrate(old, 4);
+    old
+      .prepare(
+        "INSERT INTO books (id, sha256, title, created_at, parsed_json) VALUES ('b1', 's', '本 2', '2026-10-01T00:00:00.000Z', ?)",
+      )
+      .run(JSON.stringify(parsed));
+    old.close();
+
+    const copy = openDatabaseSnapshot(path);
+    const projects = new SqliteProjectRepository(copy);
+    await projects.create({ id: "p1", name: "本", createdAt: "2026-10-01T00:00:00.000Z" });
+    await new SqliteBookRepository(copy).place("b1", "p1", 2);
+    copy.close();
+
+    const file = new BetterSqlite3(path, { readonly: true });
+    expect(schemaVersion(file)).toBe(4);
+    expect(file.prepare("SELECT name FROM sqlite_master WHERE name = 'projects'").all()).toEqual(
+      [],
+    );
+    file.close();
   });
 });

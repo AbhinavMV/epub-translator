@@ -52,6 +52,13 @@ export class PostgresStoreFactory implements StoreFactory {
     };
   }
 
+  async bookOwners(): Promise<string[]> {
+    const rows = await this.sql.query<{ owner_id: string }>(
+      "select distinct owner_id::text as owner_id from public.books order by 1",
+    );
+    return rows.map((r) => r.owner_id);
+  }
+
   leasesForOwner(ownerId: string): PostgresWorkLeaseRepository {
     assertOwner(ownerId);
     return new PostgresWorkLeaseRepository(this.sql, ownerId, this.options);
