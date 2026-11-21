@@ -23,7 +23,7 @@ const MARKERS: [RegExp, (captured: string | undefined) => number | null][] = [
   [new RegExp(String.raw`[(\[【「]\s*${PART}\s*巻?\s*[)\]】」]`), toPart],
   [new RegExp(`${PART}巻$`), toPart],
   [new RegExp(String.raw`(?<=\s)${PART}$`), toPart],
-  [new RegExp(String.raw`(?<=[^\d.])\s*${NUMBER}$`), toNumber],
+  [new RegExp(String.raw`(?<=[^\d.])\s*${NUMBER}(?:\s*~[^~]+~)?$`), toNumber],
 ];
 
 const TRAILING_LABEL = /\s*[([【][^()[\]【】\d上中下]*[)\]】]$/;
