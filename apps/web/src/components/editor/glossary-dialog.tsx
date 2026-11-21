@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { GlossaryConflictList, type GlossaryConflictsProps } from "./glossary-conflicts";
 
 interface Row {
   key: number;
@@ -31,14 +32,31 @@ export function GlossaryDialog({
   saving,
   onSave,
   suggestions,
+  conflicts,
 }: {
   glossary: GlossaryEntry[] | undefined;
   saving: boolean;
   onSave: (glossary: GlossaryEntry[]) => Promise<unknown>;
   suggestions: (add: (entries: GlossaryEntry[]) => void) => ReactNode;
+  conflicts?: Omit<GlossaryConflictsProps, "onResolve"> & {
+    onResolve: (source: string, target: string) => Promise<GlossaryEntry | undefined>;
+  };
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const [conflictsOnly, setConflictsOnly] = useState(false);
+  const conflictCount = conflicts?.conflicts.length ?? 0;
+  const showConflicts = conflictsOnly && conflictCount > 0;
+
+  const resolve = async (source: string, target: string) => {
+    const entry = await conflicts?.onResolve(source, target);
+    if (!entry) return;
+    setRows((rs) =>
+      rs.map((r) =>
+        r.source.trim() === source ? { ...r, target: entry.target, note: entry.note ?? "" } : r,
+      ),
+    );
+  };
 
   const count = glossary?.length ?? 0;
   const update = (key: number, patch: Partial<Row>) =>
@@ -67,7 +85,10 @@ export function GlossaryDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setRows(toRows(glossary ?? []));
+        if (next) {
+          setRows(toRows(glossary ?? []));
+          setConflictsOnly(false);
+        }
         setOpen(next);
       }}
     >
@@ -91,53 +112,87 @@ export function GlossaryDialog({
           </DialogDescription>
         </DialogHeader>
         {suggestions(addSuggestions)}
-        <ScrollArea className="max-h-[50vh] pr-3">
-          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-            <span>Source</span>
-            <span>Target</span>
-            <span>Note</span>
-            <span className="w-8" />
+        {conflictCount > 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant={showConflicts ? "outline" : "secondary"}
+              size="sm"
+              aria-pressed={!showConflicts}
+              onClick={() => setConflictsOnly(false)}
+            >
+              All terms
+            </Button>
+            <Button
+              variant={showConflicts ? "secondary" : "outline"}
+              size="sm"
+              aria-pressed={showConflicts}
+              onClick={() => setConflictsOnly(true)}
+            >
+              {conflictCount} {conflictCount === 1 ? "conflict" : "conflicts"}
+            </Button>
           </div>
-          <div className="flex flex-col gap-2">
-            {rows.map((r) => (
-              <div key={r.key} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
-                <Input
-                  aria-label="Source term"
-                  value={r.source}
-                  onChange={(e) => update(r.key, { source: e.target.value })}
-                />
-                <Input
-                  aria-label="Target term"
-                  value={r.target}
-                  onChange={(e) => update(r.key, { target: e.target.value })}
-                />
-                <Input
-                  aria-label="Note"
-                  value={r.note}
-                  onChange={(e) => update(r.key, { note: e.target.value })}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Remove entry"
-                  onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-            {rows.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No terms yet. Add character names and recurring terms.
-              </p>
-            )}
-          </div>
-        </ScrollArea>
+        )}
+        {showConflicts && conflicts ? (
+          <ScrollArea className="max-h-[50vh] pr-3">
+            <p className="pb-3 text-sm text-muted-foreground">
+              Merged volumes rendered these terms differently. Translation uses the rendering in
+              force until you pick one.
+            </p>
+            <GlossaryConflictList
+              conflicts={conflicts.conflicts}
+              volumeLabel={conflicts.volumeLabel}
+              onResolve={resolve}
+            />
+          </ScrollArea>
+        ) : (
+          <ScrollArea className="max-h-[50vh] pr-3">
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+              <span>Source</span>
+              <span>Target</span>
+              <span>Note</span>
+              <span className="w-8" />
+            </div>
+            <div className="flex flex-col gap-2">
+              {rows.map((r) => (
+                <div key={r.key} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                  <Input
+                    aria-label="Source term"
+                    value={r.source}
+                    onChange={(e) => update(r.key, { source: e.target.value })}
+                  />
+                  <Input
+                    aria-label="Target term"
+                    value={r.target}
+                    onChange={(e) => update(r.key, { target: e.target.value })}
+                  />
+                  <Input
+                    aria-label="Note"
+                    value={r.note}
+                    onChange={(e) => update(r.key, { note: e.target.value })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Remove entry"
+                    onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+              {rows.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No terms yet. Add character names and recurring terms.
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        )}
         <Button
           variant="outline"
           size="sm"
           className="self-start"
-          disabled={rows.length >= MAX_ENTRIES}
+          disabled={showConflicts || rows.length >= MAX_ENTRIES}
           onClick={() =>
             setRows((rs) => [...rs, { key: rowKey++, source: "", target: "", note: "" }])
           }

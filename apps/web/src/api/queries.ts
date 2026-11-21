@@ -5,6 +5,7 @@ import type {
   JobSummary,
   ProjectTerms,
   ProofreadDecisionBody,
+  ResolveGlossaryConflict,
   SuggestGlossaryBody,
   TranslateBody,
 } from "@et/contracts";
@@ -53,6 +54,15 @@ export function useSaveProjectTerms(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (terms: ProjectTerms) => api.saveProjectTerms(id, terms),
+    onSuccess: (settings) => queryClient.setQueryData(keys.projectSettings(id), settings),
+  });
+}
+
+export function useResolveGlossaryConflict(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (choice: ResolveGlossaryConflict) => api.resolveGlossaryConflict(id, choice),
     onSuccess: (settings) => queryClient.setQueryData(keys.projectSettings(id), settings),
   });
 }

@@ -35,6 +35,7 @@ import {
   ProofreadSummarySchema,
   type ProviderInfo,
   ProviderInfoSchema,
+  type ResolveGlossaryConflict,
   type SuggestGlossaryBody,
   type TranslateBody,
   type Usage,
@@ -77,6 +78,7 @@ export interface Api {
   renameProject(id: string, name: string): Promise<Project>;
   getProjectSettings(id: string): Promise<ProjectSettings>;
   saveProjectTerms(id: string, terms: ProjectTerms): Promise<ProjectSettings>;
+  resolveGlossaryConflict(id: string, choice: ResolveGlossaryConflict): Promise<ProjectSettings>;
   listBooks(): Promise<BookSummary[]>;
   prepareImport(file: File): Promise<PendingImport>;
   setVolumeNumber(bookId: string, volumeNumber: number): Promise<BookSummary>;
@@ -213,6 +215,12 @@ export function createHttpApi(
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(terms),
+      }),
+    resolveGlossaryConflict: (id, choice) =>
+      json(`/projects/${enc(id)}/glossary-conflicts/resolve`, ProjectSettingsSchema, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(choice),
       }),
     listBooks: () => json("/books", list(BookSummarySchema)),
     async prepareImport(file) {

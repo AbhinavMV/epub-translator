@@ -1,6 +1,6 @@
-import type { BookSummary, ProjectTerms } from "@et/contracts";
+import type { BookSummary, GlossaryRendering, ProjectTerms } from "@et/contracts";
 import { toast } from "sonner";
-import { useProjectSettings, useSaveProjectTerms } from "@/api/queries";
+import { useProjectSettings, useResolveGlossaryConflict, useSaveProjectTerms } from "@/api/queries";
 import { GlossaryDialog } from "@/components/editor/glossary-dialog";
 import { PromptDialog } from "@/components/editor/prompt-dialog";
 import { ProjectGlossarySuggestions } from "./project-glossary-suggestions";
@@ -16,7 +16,22 @@ export function ProjectTermsSection({
 }) {
   const settings = useProjectSettings(projectId);
   const save = useSaveProjectTerms(projectId);
+  const resolveConflict = useResolveGlossaryConflict(projectId);
   const data = settings.data;
+
+  const volumeLabel = (rendering: GlossaryRendering) => {
+    if (rendering.volumeNumber !== null) return `Volume ${rendering.volumeNumber}`;
+    return books.find((b) => b.id === rendering.bookId)?.title ?? "Unnumbered volume";
+  };
+
+  const resolve = (source: string, target: string) =>
+    resolveConflict
+      .mutateAsync({ source, target })
+      .then((next) => next.glossary.find((e) => e.source === source))
+      .catch((error: unknown) => {
+        toast.error("Could not resolve the glossary conflict");
+        throw error;
+      });
 
   const persist = (patch: Partial<ProjectTerms>) => {
     if (!data) return Promise.resolve();
@@ -42,6 +57,11 @@ export function ProjectTermsSection({
           saving={save.isPending}
           onSave={(glossary) => persist({ glossary })}
           suggestions={(add) => <ProjectGlossarySuggestions books={books} onAdd={add} />}
+          conflicts={
+            data
+              ? { conflicts: data.glossaryConflicts, volumeLabel, onResolve: resolve }
+              : undefined
+          }
         />
         <PromptDialog
           value={data?.customPrompt}

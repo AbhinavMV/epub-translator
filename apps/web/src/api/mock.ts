@@ -425,6 +425,24 @@ export function createMockApi(): Api {
       projectSettings.set(id, next);
       return delay(structuredClone(next));
     },
+    async resolveGlossaryConflict(id, { source, target }) {
+      const current = projectSettings.get(id);
+      const conflict = current?.glossaryConflicts.find((c) => c.source === source);
+      const picked =
+        conflict && [conflict.inForce, ...conflict.alternatives].find((r) => r.target === target);
+      if (!current || !conflict || !picked) throw new Error("Glossary conflict not found");
+      const next = {
+        ...current,
+        glossary: current.glossary.map((e) =>
+          e.source === source
+            ? { source, target, ...(picked.note ? { note: picked.note } : {}) }
+            : e,
+        ),
+        glossaryConflicts: current.glossaryConflicts.filter((c) => c !== conflict),
+      };
+      projectSettings.set(id, next);
+      return delay(structuredClone(next));
+    },
     listBooks: () => delay([...books.values()].map((b) => b.summary)),
     async prepareImport(file) {
       const title = file.name.replace(/\.epub$/i, "");
