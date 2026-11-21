@@ -212,8 +212,33 @@ describe("projects api", () => {
         createdAt: book.createdAt,
         volumeCount: 1,
         coverUrl: `/api/books/${book.id}/cover`,
+        fullyTranslatedLang: null,
       },
     ]);
+  });
+
+  it("reports a project fully translated once every segment is done or flagged", async () => {
+    const { app, services } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    const workspace = JobSummarySchema.parse(
+      await (await app.request(`/api/books/${book.id}/workspace?targetLang=fr`)).json(),
+    );
+    const fullyTranslated = async () => {
+      const [summary] = z
+        .array(ProjectSummarySchema)
+        .parse(await (await app.request("/api/projects")).json());
+      const detail = ProjectDetailSchema.parse(
+        await (await app.request(`/api/projects/${book.projectId}`)).json(),
+      );
+      return [summary?.fullyTranslatedLang, detail.fullyTranslatedLang];
+    };
+    await services.repos.translations.put(workspace.id, "a.xhtml#0", { text: "a", status: "done" });
+    expect(await fullyTranslated()).toEqual([null, null]);
+    await services.repos.translations.put(workspace.id, "a.xhtml#1", {
+      text: "b",
+      status: "flagged",
+    });
+    expect(await fullyTranslated()).toEqual(["fr", "fr"]);
   });
 
   it("project page lists books in volume order and shows volume 1's cover in the library", async () => {
