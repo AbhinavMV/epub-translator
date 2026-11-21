@@ -37,6 +37,15 @@ export class SqliteTranslationRepository implements TranslationRepository {
     return new Map(rows.map((r) => [r.segment_id, r.status]));
   }
 
+  async translatedCount(jobId: string): Promise<number> {
+    const row = this.db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM translations WHERE job_id = ? AND status IN ('done', 'flagged')",
+      )
+      .get(jobId) as { n: number };
+    return row.n;
+  }
+
   async forSegments(
     jobId: string,
     segmentIds: readonly string[],

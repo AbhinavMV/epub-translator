@@ -89,11 +89,13 @@ export type Project = z.infer<typeof ProjectSchema>;
 export const ProjectSummarySchema = ProjectSchema.extend({
   volumeCount: z.number(),
   coverUrl: z.string().nullable(),
+  fullyTranslatedLang: z.string().nullable().optional(),
 });
 export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
 
 export const ProjectDetailSchema = ProjectSchema.extend({
   books: z.array(BookSummarySchema),
+  fullyTranslatedLang: z.string().nullable().optional(),
 });
 export type ProjectDetail = z.infer<typeof ProjectDetailSchema>;
 

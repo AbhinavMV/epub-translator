@@ -386,6 +386,20 @@ export function createMockApi(): Api {
       .filter((b) => b.projectId === projectId)
       .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
 
+  const fullyTranslatedLang = (projectId: string) => {
+    const volumes = booksOf(projectId);
+    const complete = (lang: string) =>
+      volumes.every((b) =>
+        [...jobs.values()].some(
+          (j) => j.bookId === b.id && j.targetLang === lang && j.status === "done",
+        ),
+      );
+    const langs = [...new Set([...jobs.values()].map((j) => j.targetLang))].sort(
+      (a, b) => Number(b === "en") - Number(a === "en"),
+    );
+    return volumes.length > 0 ? (langs.find(complete) ?? null) : null;
+  };
+
   const api: Api = {
     listProjects: () =>
       delay(
@@ -395,13 +409,18 @@ export function createMockApi(): Api {
             ...p,
             volumeCount: booksOf(p.id).length,
             coverUrl: first?.coverUrl ?? null,
+            fullyTranslatedLang: fullyTranslatedLang(p.id),
           };
         }),
       ),
     async getProject(id): Promise<ProjectDetail> {
       const project = projects.get(id);
       if (!project) throw new Error("Project not found");
-      return delay({ ...project, books: booksOf(id) });
+      return delay({
+        ...project,
+        books: booksOf(id),
+        fullyTranslatedLang: fullyTranslatedLang(id),
+      });
     },
     async renameProject(id, name) {
       const project = projects.get(id);

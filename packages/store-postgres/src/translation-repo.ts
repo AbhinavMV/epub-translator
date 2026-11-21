@@ -50,6 +50,17 @@ export class PostgresTranslationRepository implements TranslationRepository {
     return new Map(rows.map((r) => [r.segment_id, r.status]));
   }
 
+  async translatedCount(jobId: string): Promise<number> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<{ n: number }>(
+        `SELECT COUNT(*)::int AS n FROM translations
+         WHERE owner_id = $1 AND job_id = $2 AND status IN ('done', 'flagged')`,
+        [this.ownerId, jobId],
+      ),
+    );
+    return rows[0]?.n ?? 0;
+  }
+
   async forSegments(
     jobId: string,
     segmentIds: readonly string[],

@@ -112,6 +112,23 @@ describe("Library", () => {
     await userEvent.click(await screen.findByRole("link", { name: /魔女の旅々/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/projects/p1"));
   });
+
+  it("badges fully translated projects, naming the language unless it is English", async () => {
+    const [first, second] = summaries as [ProjectSummary, ProjectSummary];
+    renderAt("/", {
+      listProjects: vi.fn(async () => [
+        { ...first, fullyTranslatedLang: "en" },
+        { ...second, id: "p2", fullyTranslatedLang: "fr" },
+        { ...second, id: "p3", name: "Untranslated", fullyTranslatedLang: null },
+      ]),
+    });
+    const english = await screen.findByRole("link", { name: /魔女の旅々/ });
+    expect(within(english).getByText("Translated")).toBeInTheDocument();
+    const french = screen.getByRole("link", { name: /Empty project/ });
+    expect(within(french).getByText("Translated · French")).toBeInTheDocument();
+    const none = screen.getByRole("link", { name: /Untranslated/ });
+    expect(within(none).queryByText(/^Translated/)).not.toBeInTheDocument();
+  });
 });
 
 describe("Project page", () => {
@@ -126,6 +143,24 @@ describe("Project page", () => {
       "href",
       "/books/v25",
     );
+  });
+
+  it("badges the header when the project is fully translated", async () => {
+    renderAt("/projects/p1", {
+      getProject: vi.fn(async () => ({ ...detail, fullyTranslatedLang: "pt-BR" })),
+    });
+    const header = (await screen.findByRole("heading", { level: 1 })).closest("header");
+    expect(
+      within(header as HTMLElement).getByText("Translated · Brazilian Portuguese"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no header badge while a volume is incomplete", async () => {
+    renderAt("/projects/p1", {
+      getProject: vi.fn(async () => ({ ...detail, fullyTranslatedLang: null })),
+    });
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByText(/^Translated/)).not.toBeInTheDocument();
   });
 
   it("renames the project", async () => {
