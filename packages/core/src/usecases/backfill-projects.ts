@@ -35,8 +35,10 @@ export interface BackfillPlan {
 
 interface PlannedProject extends BackfillProject {
   createdAt: string;
-  series: string;
+  seriesTitle: string | null;
 }
+
+const parsedSeries = (book: StoredBook) => parseVolumeTitle(book.title).seriesTitle;
 
 function seriesOf(book: StoredBook) {
   const { seriesTitle, volumeNumber } = parseVolumeTitle(book.title);
@@ -47,16 +49,18 @@ async function missingSeriesTitles(
   deps: BackfillDeps,
   books: readonly StoredBook[],
 ): Promise<BackfillSeriesTitle[]> {
-  const firstVolume = new Map<string, StoredBook>();
+  const firstSeries = new Map<string, string>();
   for (const book of [...books].sort(compareVolumes)) {
-    if (book.projectId && !firstVolume.has(book.projectId)) firstVolume.set(book.projectId, book);
+    const series = parsedSeries(book);
+    if (book.projectId && series && !firstSeries.has(book.projectId)) {
+      firstSeries.set(book.projectId, series);
+    }
   }
   const missing: BackfillSeriesTitle[] = [];
-  for (const [projectId, book] of firstVolume) {
+  for (const [projectId, seriesTitle] of firstSeries) {
     if (await deps.projects.seriesTitle(projectId)) continue;
     const project = await deps.projects.get(projectId);
-    if (project)
-      missing.push({ projectId, name: project.name, seriesTitle: seriesOf(book).series });
+    if (project) missing.push({ projectId, name: project.name, seriesTitle });
   }
   return missing;
 }
@@ -82,7 +86,7 @@ async function plan(deps: BackfillDeps, books: readonly StoredBook[]): Promise<P
     planned.push({
       projectId,
       name: project?.name ?? series,
-      series,
+      seriesTitle: members.map(parsedSeries).find(Boolean) || null,
       createdAt: members.map((b) => b.createdAt).sort()[0] ?? "",
       books: members
         .map((book) => ({
@@ -121,14 +125,14 @@ export async function backfillProjects(
           createdAt: project.createdAt,
         });
       }
-      await deps.projects.adoptSeriesTitle(projectId, project.series);
+      if (project.seriesTitle) await deps.projects.adoptSeriesTitle(projectId, project.seriesTitle);
       for (const placement of project.books) {
         await deps.books.place(placement.bookId, projectId, placement.volumeNumber);
       }
     }
   }
   return {
-    projects: planned.map(({ createdAt: _, series: __, ...project }) => project),
+    projects: planned.map(({ createdAt: _, seriesTitle: __, ...project }) => project),
     seriesTitles,
   };
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   importBook,
   listProjects,
+  moveBook,
   NotFoundError,
   renameProject,
   requireProject,
@@ -73,5 +74,15 @@ describe("renameProject", () => {
 
   it("throws NotFoundError for an unknown project", async () => {
     await expect(renameProject(library(), "missing", "x")).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("moveBook", () => {
+  it("gives a project without a series title the moved book's series", async () => {
+    const deps = library();
+    const book = await importTitled(deps, "魔女の旅々 3", 1);
+    await deps.projects.create({ id: "blank", name: "Blank", createdAt: "2026-10-24" });
+    await moveBook(deps, book.id, "blank");
+    expect(await deps.projects.seriesTitle("blank")).toBe("魔女の旅々");
   });
 });

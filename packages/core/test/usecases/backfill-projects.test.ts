@@ -145,5 +145,9 @@ describe("backfillProjects", () => {
     const deps = await library(unplaced("n", "第2巻"));
     const plan = await backfillProjects(deps, { apply: false });
     expect(plan.projects[0]).toMatchObject({ name: "第2巻", books: [{ volumeNumber: 2 }] });
+    await backfillProjects(deps, { apply: true });
+    const [project] = await deps.projects.list();
+    expect(await deps.projects.seriesTitle(project?.id ?? "")).toBeNull();
+    expect((await backfillProjects(deps, { apply: false })).seriesTitles).toEqual([]);
   });
 });
