@@ -483,7 +483,7 @@ The user supplied a screenshot of Dusk Translate's editor and asked for that lay
 - Chapter status is `idle | queued | running | done | partial | failed`.
 - The job-level statuses `paused`/`cancelled` are dropped, and the job summary status is derived from its chapters.
 
-**New per-book settings** are stored in a `book_settings` table:
+**New per-book settings** are stored in a `book_settings` table (the glossary and custom prompt later moved to the project; see Amendment F):
 - `customPrompt` (the "Edit prompt" dialog), appended to the system prompt under "Additional instructions from the reader:";
 - `glossary: {source, target, note?}[]` (the "Glossary" dialog), rendered into the system prompt as a term list;
 - the last-used provider and model.
@@ -607,3 +607,18 @@ T1 and T2 run first. T3, T4 and T5 start once T1 is merged.
 - Core: `WorkLeaseRepository` and `WorkLeaseFactory` ports (`ports/work-lease.ts`), `MemoryWorkLeases`, `planWorkUnit`, `applyWorkResult`, `planBatchUnits`, `recordClientBatch`, `applyBatchResult`, `endClientBatch`. `JobRunner` and `BatchRunner` share `segmentRequest` and `recordResults` with them.
 - Vault: per-provider envelopes in IndexedDB scoped by user id, one passphrase and salt per vault, a fresh IV per encryption, AAD `<provider>|v1`, memory-only unlock, 30 minute idle lock, lock on `pagehide` and on a `et:sign-out` window event.
 
+## Amendment F (2026-11-21): projects own the glossary and custom prompt
+
+Decision: [ADR 0001](../adr/0001-glossary-belongs-to-project.md). Terms: [GLOSSARY.md](../../GLOSSARY.md). This amendment overrides Amendment A's per-book `customPrompt` and `glossary`, Amendment B's "cache-stable per book" and its "Additional instructions" line (the system prompt now carries the project's glossary, and a non-empty custom prompt replaces the default style guidance), and Amendment E's repository list.
+
+- Every book belongs to exactly one project and has a volume number. Book settings keep only the last-used provider and model (`PUT /api/books/:id/settings {provider, model}`). The project holds the glossary, the custom prompt and any glossary conflicts.
+- `Repositories` gains `projects` and `projectSettings`. Postgres migrations 0009 to 0012 add `projects`, `project_settings`, `projects.series_title` and make `books.project_id` NOT NULL; the SQLite schema upgrades itself.
+- Existing libraries are upgraded by two scripts in `apps/api`, each a dry run unless `--apply` is given: `backfill:projects` places books in projects, then `merge:project-settings` moves the glossary and custom prompt each book had before projects onto its project and records glossary conflicts. Both take `--sqlite <path>` or `--postgres [--owner <uuid>]` (reads `DATABASE_URL`). The Supabase order is in `docs/deploy-vercel-supabase.md`.
+
+**Endpoints:**
+- `GET /api/projects` lists projects with a volume count and cover; `GET /api/projects/:id` returns one with its book summaries.
+- `PATCH /api/projects/:id {name}` renames; `DELETE /api/projects/:id` deletes the project and all its books (204).
+- `GET /api/projects/:id/settings` returns `{customPrompt, glossary, glossaryConflicts}`; `PUT /api/projects/:id/settings {customPrompt, glossary}` saves the terms (at most 2,000 glossary entries and a 4,000-character custom prompt).
+- `POST /api/projects/:id/glossary-conflicts/resolve {source, target}` puts the picked rendering in force and drops the conflict.
+- `PATCH /api/books/:id/volume {volumeNumber}` sets a volume number; `PATCH /api/books/:id/project {projectId}` moves a book, which carries no terms with it.
+- Import is previewed, then committed with a placement: `{projectId, volumeNumber}` or `{projectName, volumeNumber}`, where a null `volumeNumber` means the next one. The preview returns `{kind: "duplicate", book}` or `{kind: "new", title, seriesTitle, volumeNumber, project}`, where `project` is the suggested one. Local mode uses `POST /api/books/preview` and `POST /api/books` (multipart `file`, plus an optional `placement` field holding that JSON); hosted mode uses `POST /api/books/import/preview {path}` and `POST /api/books/import {path, placement?}` after a signed upload. Each pair returns 404 in the other mode. Without a placement, import joins the suggested project or creates one named after the series title.

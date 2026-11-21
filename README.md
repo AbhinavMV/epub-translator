@@ -23,20 +23,25 @@ pnpm dev                                 # api on 127.0.0.1:8787, web on http://
 
 Keys stay in `apps/api/.env` on your machine. The browser only sees whether a provider is configured. Data (the SQLite database and uploaded books) lives in `apps/api/data/`.
 
-**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and then `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`, in that order. Each prints what it would do; add `--apply` to write. The SQLite schema upgrades itself when the API, or either script with `--apply`, opens the file. Run the backfill again after upgrading from an earlier projects build: it records each project's series title, which import uses to find a project whose books were all deleted. The second moves each book's glossary and prompt onto its project (translations use no glossary until it runs), keeping the higher volume's rendering when volumes disagree and recording the others as glossary conflicts.
+**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and then `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`, in that order (the path is relative to `apps/api`). Each prints what it would do; add `--apply` to write. The SQLite schema upgrades itself when the API, or either script with `--apply`, opens the file.
+
+- The backfill places every book in a project, grouping books by series title and reading each volume number from the title. Run it again after upgrading from an earlier projects build: it records each project's series title, which import uses to find a project whose books were all deleted.
+- The merge moves the glossary and custom prompt each book had before projects onto its project; translations use no glossary or custom prompt until it runs. Where volumes disagree on a term, the higher volume's rendering stays in force and the others are recorded as a glossary conflict. It writes nothing while a book has no project, skips a project whose glossary or custom prompt has already been saved, and leaves out a project whose merged glossary exceeds 2,000 entries.
 
 **Without a key:** set `ENABLE_FAKE_PROVIDER=1` in `apps/api/.env` to get "Offline test (no translation)", which echoes the source with a `[en]` prefix so you can try the whole flow for free.
 
 ## Using it
 
-1. **Library:** drop an `.epub` file. Each book is a volume of a project.
+1. **Library:** lists your projects. Drop an `.epub` file to import it as a volume of a project. **Add to a project** suggests the project with the same series title (the book's title without its volume marker), or **New project** named after the series; you can pick any project instead. **Volume number** is read from the title; left empty, the book becomes volume 1, or the next number after the project's highest volume. Volume numbers may be fractional (2.5).
 2. **Project:** the glossary and custom prompt belong to the project, so every volume uses the same terms.
    - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Suggested renderings follow the custom prompt and match the renderings already in the glossary, so names, honorifics and forms of address stay consistent. Review the suggestions, then save. **Edit prompt** shows the fixed fidelity and format rules read-only and lets you replace the default style guidance with your own custom prompt.
-   - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with.
+   - The glossary editor lists any glossary conflicts left by merging volumes' old glossaries, with each rendering and its volume. The one marked in force is used until you pick one.
+   - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with. Changing a term does not retranslate earlier volumes.
    - The pencil beside the name renames the project. Once a volume has an English translation of its title, **Use translated title** opens the rename field filled with the lowest-numbered such volume's translated title, volume marker removed; nothing changes until you save.
+   - Change a volume's number, move a volume to another project (it carries no glossary terms with it), or delete a volume. Deleting the project deletes all its volumes and their translations.
 3. **Editor:**
    - **Choosing how to translate:**
-     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and prompt.
+     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and custom prompt.
    - **Translating:**
      - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail), so translated titles appear early. **Translate title & contents** does just that part.
      - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
