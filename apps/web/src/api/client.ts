@@ -13,6 +13,8 @@ import {
   type ExportLayout,
   type GlossaryEntry,
   GlossaryEntrySchema,
+  type GlossarySamplePlan,
+  GlossarySamplePlanSchema,
   type ImportPlacement,
   type ImportPreview,
   ImportPreviewSchema,
@@ -36,6 +38,7 @@ import {
   type ProviderInfo,
   ProviderInfoSchema,
   type ResolveGlossaryConflict,
+  type SampleSize,
   type SuggestGlossaryBody,
   type TranslateBody,
   type Usage,
@@ -87,7 +90,12 @@ export interface Api {
   getBook(id: string): Promise<BookDetail>;
   deleteBook(id: string): Promise<void>;
   saveSettings(id: string, settings: BookSettings): Promise<BookSettings>;
-  suggestGlossary(bookId: string, body: SuggestGlossaryBody): Promise<GlossarySuggestion>;
+  planGlossarySample(bookId: string, size: SampleSize): Promise<GlossarySamplePlan>;
+  suggestGlossary(
+    bookId: string,
+    body: SuggestGlossaryBody,
+    signal?: AbortSignal,
+  ): Promise<GlossarySuggestion>;
   getWorkspace(bookId: string, targetLang: string): Promise<JobSummary>;
   getChapter(bookId: string, chapterId: string, jobId: string, part?: number): Promise<ChapterView>;
   listProviders(): Promise<ProviderInfo[]>;
@@ -287,11 +295,14 @@ export function createHttpApi(
         headers: { "content-type": "application/json" },
         body: JSON.stringify(settings),
       }),
-    async suggestGlossary(bookId, body) {
+    planGlossarySample: (bookId, size) =>
+      json(`/books/${enc(bookId)}/glossary/plan?size=${enc(size)}`, GlossarySamplePlanSchema),
+    async suggestGlossary(bookId, body, signal) {
       const res = await raw(`/books/${enc(bookId)}/glossary/suggest`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
+        ...(signal ? { signal } : {}),
       });
       const terms = list(GlossaryEntrySchema).parse(await res.json());
       const input = res.headers.get("x-usage-input-tokens");

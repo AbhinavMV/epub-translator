@@ -2,6 +2,7 @@ import {
   BatchPlanQuerySchema,
   BatchResultsBodySchema,
   BatchStatusBodySchema,
+  GlossarySamplePlanQuerySchema,
   GlossarySampleQuerySchema,
   LeaseBodySchema,
   RecordBatchBodySchema,
@@ -11,8 +12,6 @@ import {
 import {
   applyBatchResult,
   applyWorkResult,
-  buildSample,
-  DEFAULT_SAMPLE_CHARS,
   endClientBatch,
   type ProviderBatch,
   planBatchUnits,
@@ -22,6 +21,8 @@ import {
   releaseWorkLease,
   requireBook,
   type SegmentTranslation,
+  sampleChunk,
+  samplePlan,
 } from "@et/core";
 import { Hono } from "hono";
 import type { Services } from "../services.ts";
@@ -142,20 +143,26 @@ export function workRoutes(s: Services) {
 }
 
 export function glossarySampleRoutes() {
-  return new Hono<AppEnv>().get(
-    "/:id/glossary/sample",
-    validate("query", GlossarySampleQuerySchema),
-    async (c) => {
+  return new Hono<AppEnv>()
+    .get("/:id/glossary/plan", validate("query", GlossarySamplePlanQuerySchema), async (c) => {
+      const { parsed } = await requireBook(c.var.repos.books, c.req.param("id"));
+      return c.json(samplePlan(parsed, c.req.valid("query").size));
+    })
+    .get("/:id/glossary/sample", validate("query", GlossarySampleQuerySchema), async (c) => {
       const bookId = c.req.param("id");
+      const query = c.req.valid("query");
       const { book, parsed } = await requireBook(c.var.repos.books, bookId);
+      const { sample, chunks } = sampleChunk(parsed, query.size, query.chunk);
+      const { customPrompt, glossary } = await projectTermsFor(c.var.repos, bookId);
       c.header("cache-control", "no-store");
       return c.json({
-        sample: buildSample(parsed, DEFAULT_SAMPLE_CHARS),
+        sample,
+        chunks,
         sourceLang: parsed.sourceLang ?? book.sourceLang,
         bookTitle: book.title,
-        existing: (await projectTermsFor(c.var.repos, bookId)).glossary,
-        targetLang: c.req.valid("query").targetLang,
+        existing: glossary,
+        customPrompt,
+        targetLang: query.targetLang,
       });
-    },
-  );
+    });
 }

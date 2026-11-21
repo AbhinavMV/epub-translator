@@ -28,9 +28,9 @@ const KIND_LABEL: Record<ProofreadKind, string> = {
 
 const KIND_STYLE: Record<ProofreadKind, string> = {
   accuracy: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
-  consistency: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
+  consistency: "bg-flag/15 text-foreground",
   terminology: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-100",
-  fluency: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100",
+  fluency: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
   other: "bg-secondary text-secondary-foreground",
 };
 

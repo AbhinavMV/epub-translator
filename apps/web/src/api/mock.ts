@@ -6,6 +6,8 @@ import type {
   ChapterProgress,
   ChapterProofread,
   ChapterView,
+  GlossaryEntry,
+  GlossarySamplePlan,
   JobEvent,
   JobSummary,
   Project,
@@ -13,10 +15,31 @@ import type {
   ProjectSettings,
   ProofreadKind,
   ProviderInfo,
+  SampleSize,
   SegmentStatus,
 } from "@et/contracts";
-import { parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
+import { compareTargetLanguages } from "@et/contracts";
+import { compareVolumes, parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
 import type { Api, EventSourceLike } from "./client";
+
+const MOCK_SAMPLE_PLANS: Record<SampleSize, GlossarySamplePlan> = {
+  standard: { requests: 1, chars: 12_000 },
+  large: { requests: 1, chars: 40_000 },
+  volume: { requests: 3, chars: 112_400 },
+};
+
+const MOCK_SUGGESTIONS: GlossaryEntry[][] = [
+  [
+    { source: "天使様", target: "Angel", note: "nickname for Mahiru" },
+    { source: "椎名真昼", target: "Mahiru Shiina", note: "female lead" },
+    { source: "藤宮周", target: "Amane Fujimiya", note: "protagonist" },
+  ],
+  [
+    { source: "椎名真昼", target: "Shiina Mahiru" },
+    { source: "赤澤樹", target: "Itsuki Akazawa", note: "Amane's friend" },
+  ],
+  [{ source: "白河千歳", target: "Chitose Shirakawa" }],
+];
 
 type Pair = readonly [ja: string, en: string];
 
@@ -142,7 +165,7 @@ const PROVIDERS: ProviderInfo[] = [
 
 function coverFor(title: string): string {
   const glyph = title.slice(0, 2);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9a37a"/><stop offset="1" stop-color="#b4532a"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="165" font-size="54" text-anchor="middle" fill="#fff8ee" font-family="serif">${glyph}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fb3f2"/><stop offset="1" stop-color="#2f6fde"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="165" font-size="54" text-anchor="middle" fill="#ffffff" font-family="serif">${glyph}</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
@@ -379,9 +402,27 @@ export function createMockApi(): Api {
 
   const booksOf = (projectId: string) =>
     [...books.values()]
-      .map((b) => b.summary)
+      .map((b) => ({
+        ...b.summary,
+        translatedTitle: jobs.get(`job-${b.summary.id}-en`)?.titles.book ?? null,
+      }))
       .filter((b) => b.projectId === projectId)
-      .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
+      .sort(compareVolumes);
+
+  const fullyTranslatedLang = (projectId: string) => {
+    const volumes = booksOf(projectId);
+    const translated = (job: JobSummary) => job.progress.reduce((n, p) => n + p.done, 0);
+    const complete = (lang: string) =>
+      volumes.every((b) =>
+        [...jobs.values()].some(
+          (j) => j.bookId === b.id && j.targetLang === lang && translated(j) >= b.segmentCount,
+        ),
+      );
+    const langs = [...new Set([...jobs.values()].map((j) => j.targetLang))].sort(
+      compareTargetLanguages,
+    );
+    return volumes.length > 0 ? (langs.find(complete) ?? null) : null;
+  };
 
   const api: Api = {
     listProjects: () =>
@@ -392,13 +433,18 @@ export function createMockApi(): Api {
             ...p,
             volumeCount: booksOf(p.id).length,
             coverUrl: first?.coverUrl ?? null,
+            fullyTranslatedLang: fullyTranslatedLang(p.id),
           };
         }),
       ),
     async getProject(id): Promise<ProjectDetail> {
       const project = projects.get(id);
       if (!project) throw new Error("Project not found");
-      return delay({ ...project, books: booksOf(id) });
+      return delay({
+        ...project,
+        books: booksOf(id),
+        fullyTranslatedLang: fullyTranslatedLang(id),
+      });
     },
     async renameProject(id, name) {
       const project = projects.get(id);
@@ -528,14 +574,13 @@ export function createMockApi(): Api {
       if (book) book.settings = settings;
       return delay(settings);
     },
-    async suggestGlossary() {
+    async planGlossarySample(_bookId, size) {
+      return delay(MOCK_SAMPLE_PLANS[size]);
+    },
+    async suggestGlossary(_bookId, body) {
       return delay(
         {
-          terms: [
-            { source: "天使様", target: "Angel", note: "nickname for Mahiru" },
-            { source: "椎名真昼", target: "Mahiru Shiina", note: "female lead" },
-            { source: "藤宮周", target: "Amane Fujimiya", note: "protagonist" },
-          ],
+          terms: MOCK_SUGGESTIONS[(body.chunk ?? 0) % MOCK_SUGGESTIONS.length] ?? [],
           usage: { inputTokens: 5120, outputTokens: 210 },
         },
         900,

@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { BookSummarySchema, ImportPreviewSchema, ProjectDetailSchema } from "@et/contracts";
+import {
+  BookSummarySchema,
+  GlossarySamplePlanSchema,
+  GlossarySampleSchema,
+  ImportPreviewSchema,
+  ProjectDetailSchema,
+  ProjectSummarySchema,
+  WorkUnitSchema,
+} from "@et/contracts";
 import { ALICE, BOB, createTestDatabase } from "@et/store-postgres/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
@@ -272,6 +280,93 @@ describe("signed upload and import", () => {
   it("requires authentication", async () => {
     const res = await app.request(`${HOST}/api/uploads`, { method: "POST" });
     expect(res.status).toBe(401);
+  });
+});
+
+describe("glossary sample", () => {
+  it("carries the project's custom prompt and glossary for suggestions in the browser", async () => {
+    const path = await upload("alice", ALICE);
+    const book = BookSummarySchema.parse(
+      await (await app.request(`${HOST}/api/books/import`, post("alice", { path }))).json(),
+    );
+    const glossary = [{ source: "魔王", target: "Demon King" }];
+    const put = await app.request(
+      `${HOST}/api/projects/${book.projectId}/settings`,
+      as("alice", {
+        method: "PUT",
+        body: JSON.stringify({ customPrompt: "Keep honorifics.", glossary }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(put.status).toBe(200);
+
+    const res = await app.request(`${HOST}/api/books/${book.id}/glossary/sample`, as("alice"));
+    const sample = GlossarySampleSchema.parse(await res.json());
+    expect(sample.customPrompt).toBe("Keep honorifics.");
+    expect(sample.existing).toEqual(glossary);
+  });
+
+  it("serves a chosen chunk of an entire volume with the chunk count, and its plan", async () => {
+    const path = await upload("alice", ALICE);
+    const book = BookSummarySchema.parse(
+      await (await app.request(`${HOST}/api/books/import`, post("alice", { path }))).json(),
+    );
+    const plan = GlossarySamplePlanSchema.parse(
+      await (
+        await app.request(`${HOST}/api/books/${book.id}/glossary/plan?size=volume`, as("alice"))
+      ).json(),
+    );
+    expect(plan.requests).toBe(1);
+    const res = await app.request(
+      `${HOST}/api/books/${book.id}/glossary/sample?size=volume&chunk=0`,
+      as("alice"),
+    );
+    const sample = GlossarySampleSchema.parse(await res.json());
+    expect(sample.chunks).toBe(1);
+    expect(sample.sample.length).toBe(plan.chars);
+    const past = await app.request(
+      `${HOST}/api/books/${book.id}/glossary/sample?size=volume&chunk=1`,
+      as("alice"),
+    );
+    expect(past.status).toBe(400);
+  });
+});
+
+describe("fully translated projects", () => {
+  it("reports the language once results posted from the browser cover every segment", async () => {
+    const path = await upload("alice", ALICE);
+    const book = BookSummarySchema.parse(
+      await (await app.request(`${HOST}/api/books/import`, post("alice", { path }))).json(),
+    );
+    const job = (await (
+      await app.request(`${HOST}/api/books/${book.id}/workspace?targetLang=en`, as("alice"))
+    ).json()) as { id: string };
+    const fullyTranslated = async () => {
+      const list = ProjectSummarySchema.array().parse(
+        await (await app.request(`${HOST}/api/projects`, as("alice"))).json(),
+      );
+      const detail = ProjectDetailSchema.parse(
+        await (await app.request(`${HOST}/api/projects/${book.projectId}`, as("alice"))).json(),
+      );
+      return [list[0]?.fullyTranslatedLang, detail.fullyTranslatedLang];
+    };
+    expect(await fullyTranslated()).toEqual([null, null]);
+
+    const unit = WorkUnitSchema.parse(
+      await (
+        await app.request(`${HOST}/api/jobs/${job.id}/chapters/ch-0/lease`, post("alice", {}))
+      ).json(),
+    );
+    const results = await app.request(
+      `${HOST}/api/jobs/${job.id}/results`,
+      post("alice", {
+        leaseId: unit.leaseId,
+        segments: [{ id: "a.xhtml#0", text: "One two", status: "done" }],
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
+    );
+    expect(results.status).toBe(200);
+    expect(await fullyTranslated()).toEqual(["en", "en"]);
   });
 });
 

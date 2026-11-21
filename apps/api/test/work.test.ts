@@ -2,6 +2,7 @@ import {
   BatchPlanSchema,
   BookSummarySchema,
   ChapterProgressSchema,
+  GlossarySamplePlanSchema,
   GlossarySampleSchema,
   JobSummarySchema,
   PublicConfigSchema,
@@ -266,17 +267,41 @@ describe("client batches", () => {
 });
 
 describe("glossary sample", () => {
-  it("returns the sample, source language and existing glossary", async () => {
+  it("returns the sample, source language, existing glossary and custom prompt", async () => {
     const book = BookSummarySchema.parse(await (await app.request(`/api/books/${bookId}`)).json());
     const glossary = [{ source: "一", target: "one" }];
     await app.request(
       `/api/projects/${book.projectId}/settings`,
-      send("PUT", { customPrompt: "", glossary }),
+      send("PUT", { customPrompt: "Keep honorifics.", glossary }),
     );
     const res = await app.request(`/api/books/${bookId}/glossary/sample?targetLang=fr`);
     const sample = GlossarySampleSchema.parse(await res.json());
     expect(sample).toMatchObject({ sourceLang: "ja", bookTitle: "本", targetLang: "fr" });
     expect(sample.sample).toContain("一二");
     expect(sample.existing).toEqual(glossary);
+    expect(sample.customPrompt).toBe("Keep honorifics.");
+  });
+
+  it("samples the requested size and chunk and reports the chunk count", async () => {
+    const res = await app.request(`/api/books/${bookId}/glossary/sample?size=volume&chunk=0`);
+    const sample = GlossarySampleSchema.parse(await res.json());
+    expect(sample.chunks).toBe(1);
+    expect(sample.sample).toBe("一\n一二\n三!");
+    const large = GlossarySampleSchema.parse(
+      await (await app.request(`/api/books/${bookId}/glossary/sample`)).json(),
+    );
+    expect(large.chunks).toBe(1);
+  });
+
+  it("rejects a chunk past the end and an unknown size", async () => {
+    expect(
+      (await app.request(`/api/books/${bookId}/glossary/sample?size=volume&chunk=1`)).status,
+    ).toBe(400);
+    expect((await app.request(`/api/books/${bookId}/glossary/sample?size=huge`)).status).toBe(400);
+  });
+
+  it("plans the requests and characters for a sample size", async () => {
+    const res = await app.request(`/api/books/${bookId}/glossary/plan?size=volume`);
+    expect(GlossarySamplePlanSchema.parse(await res.json())).toEqual({ requests: 1, chars: 7 });
   });
 });

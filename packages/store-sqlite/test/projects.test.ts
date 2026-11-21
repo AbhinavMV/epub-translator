@@ -148,6 +148,19 @@ describe("projects migration", () => {
     if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
+  it("counts the segments of books stored before segments were counted", async () => {
+    const old = new BetterSqlite3(":memory:");
+    migrate(old, 7);
+    old
+      .prepare(
+        "INSERT INTO books (id, sha256, title, created_at, parsed_json) VALUES ('b1', 's', '本 2', '2026-10-01T00:00:00.000Z', ?)",
+      )
+      .run(JSON.stringify(parsed));
+    migrate(old);
+    expect(await new SqliteBookRepository(old).segmentCounts(["b1"])).toEqual(new Map([["b1", 1]]));
+    old.close();
+  });
+
   it("keeps existing books, jobs and translations and leaves them unplaced", async () => {
     dir = mkdtempSync(join(tmpdir(), "et-projects-"));
     const path = join(dir, "translator.db");

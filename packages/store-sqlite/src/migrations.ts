@@ -80,6 +80,10 @@ const MIGRATIONS: readonly string[] = [
   ALTER TABLE projects ADD COLUMN series_title TEXT;
   CREATE INDEX projects_series_title ON projects (series_title);
   `,
+  `
+  ALTER TABLE books ADD COLUMN segment_count INTEGER NOT NULL DEFAULT 0;
+  UPDATE books SET segment_count = COALESCE(json_array_length(parsed_json, '$.segments'), 0);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

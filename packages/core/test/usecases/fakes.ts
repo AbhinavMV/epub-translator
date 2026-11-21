@@ -56,6 +56,14 @@ export class MemoryBooks implements BookRepository {
   async getParsed(id: string) {
     return this.rows.get(id)?.parsed ?? null;
   }
+  async segmentCounts(ids: readonly string[]) {
+    const counts = new Map<string, number>();
+    for (const id of ids) {
+      const row = this.rows.get(id);
+      if (row) counts.set(id, row.parsed.segments.length);
+    }
+    return counts;
+  }
   async updateParsed(id: string, parsed: ParsedBook) {
     const row = this.rows.get(id);
     if (row) row.parsed = parsed;
@@ -208,6 +216,9 @@ export class MemoryTranslations implements TranslationRepository {
   async statusesForJob(jobId: string) {
     this.statusesForJobCalls.push(jobId);
     return new Map([...this.job(jobId)].map(([id, t]) => [id, t.status] as const));
+  }
+  async translatedCount(jobId: string) {
+    return [...this.job(jobId).values()].filter((t) => t.status !== "failed").length;
   }
   async forJob(jobId: string) {
     this.forJobCalls.push(jobId);

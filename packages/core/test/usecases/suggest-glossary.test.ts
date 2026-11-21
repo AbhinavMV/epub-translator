@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSample,
   FatalProviderError,
+  SampleChunkOutOfRangeError,
   suggestGlossary,
   type TermExtractionRequest,
   type TermExtractionResult,
@@ -89,6 +90,28 @@ describe("suggestGlossary", () => {
 
     expect(out.terms.map((t) => t.source)).toEqual(["B", "C"]);
     expect(extractor.last?.existing).toEqual([{ source: "A", target: "x" }]);
+  });
+
+  it("passes the project's custom prompt to the extractor", async () => {
+    const extractor = new StubExtractor({ kind: "ok", usage, terms: [] });
+    const { deps } = await setup(extractor);
+    await seedProjectTerms(deps, "b1", { customPrompt: "Keep honorifics.", glossary: [] });
+
+    await suggestGlossary(deps, input, signal);
+
+    expect(extractor.last?.instructions).toBe("Keep honorifics.");
+  });
+
+  it("samples the requested size and chunk", async () => {
+    const extractor = new StubExtractor({ kind: "ok", usage, terms: [] });
+    const { deps } = await setup(extractor);
+
+    await suggestGlossary(deps, { ...input, sampleSize: "volume", chunk: 0 }, signal);
+    expect(extractor.last?.sample).toBe("第一章\n第二章\n一\n二!?\n三");
+
+    await expect(
+      suggestGlossary(deps, { ...input, sampleSize: "volume", chunk: 1 }, signal),
+    ).rejects.toBeInstanceOf(SampleChunkOutOfRangeError);
   });
 
   it("caps suggestions at the maximum", async () => {

@@ -89,11 +89,13 @@ export type Project = z.infer<typeof ProjectSchema>;
 export const ProjectSummarySchema = ProjectSchema.extend({
   volumeCount: z.number(),
   coverUrl: z.string().nullable(),
+  fullyTranslatedLang: z.string().nullable(),
 });
 export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
 
 export const ProjectDetailSchema = ProjectSchema.extend({
   books: z.array(BookSummarySchema),
+  fullyTranslatedLang: z.string().nullable(),
 });
 export type ProjectDetail = z.infer<typeof ProjectDetailSchema>;
 
@@ -207,12 +209,27 @@ export const TranslateBodySchema = z.object({
 });
 export type TranslateBody = z.input<typeof TranslateBodySchema>;
 
+export const SampleSizeSchema = z.enum(["standard", "large", "volume"]);
+export type SampleSize = z.infer<typeof SampleSizeSchema>;
+
 export const SuggestGlossaryBodySchema = z.object({
   provider: ProviderIdSchema,
   model: z.string().min(1),
   targetLang: z.string().min(1).optional(),
+  sampleSize: SampleSizeSchema.optional(),
+  chunk: z.number().int().min(0).optional(),
 });
 export type SuggestGlossaryBody = z.infer<typeof SuggestGlossaryBodySchema>;
+
+export const GlossarySamplePlanQuerySchema = z.object({
+  size: SampleSizeSchema.default("large"),
+});
+
+export const GlossarySamplePlanSchema = z.object({
+  requests: z.number().int().positive(),
+  chars: z.number().int().nonnegative(),
+});
+export type GlossarySamplePlan = z.infer<typeof GlossarySamplePlanSchema>;
 
 export const ProviderInfoSchema = z.object({
   id: ProviderIdSchema,

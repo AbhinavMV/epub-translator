@@ -65,6 +65,7 @@ const projects: ProjectSummary[] = [
     createdAt: "2026-10-02T00:00:00.000Z",
     volumeCount: 1,
     coverUrl: null,
+    fullyTranslatedLang: null,
   },
   {
     id: "p2",
@@ -72,6 +73,7 @@ const projects: ProjectSummary[] = [
     createdAt: "2026-10-01T00:00:00.000Z",
     volumeCount: 2,
     coverUrl: null,
+    fullyTranslatedLang: null,
   },
 ];
 
@@ -215,6 +217,7 @@ describe("volume number on the project page", () => {
       name: "Wandering Witch",
       createdAt: "2026-10-02T00:00:00.000Z",
       books: [book("v1", "魔女の旅々 1", 1), book("v2", "魔女の旅々 2", 2)],
+      fullyTranslatedLang: null,
     };
     const setVolumeNumber = vi.fn(async (bookId: string, volumeNumber: number) => {
       const books = current.books
@@ -239,5 +242,31 @@ describe("volume number on the project page", () => {
         "Vol. 3",
       ]),
     );
+  });
+
+  it("cancelling the volume number edit keeps the number", async () => {
+    const project: ProjectDetail = {
+      id: "p1",
+      name: "Wandering Witch",
+      createdAt: "2026-10-02T00:00:00.000Z",
+      books: [book("v1", "魔女の旅々 1", 1)],
+      fullyTranslatedLang: null,
+    };
+    const setVolumeNumber = vi.fn();
+    renderAt("/projects/p1", { getProject: vi.fn(async () => project), setVolumeNumber });
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
+    );
+    await userEvent.type(
+      screen.getByRole("spinbutton", { name: "Volume number of 魔女の旅々 1" }),
+      "4",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(
+      screen.getByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
+    ).toBeInTheDocument();
+    expect(setVolumeNumber).not.toHaveBeenCalled();
   });
 });

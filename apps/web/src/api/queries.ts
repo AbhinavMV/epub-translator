@@ -6,7 +6,7 @@ import type {
   ProjectTerms,
   ProofreadDecisionBody,
   ResolveGlossaryConflict,
-  SuggestGlossaryBody,
+  SampleSize,
   TranslateBody,
 } from "@et/contracts";
 import {
@@ -14,6 +14,7 @@ import {
   keepPreviousData,
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -237,10 +238,29 @@ type JobAction =
   | { kind: "clear"; chapterId: string }
   | { kind: "cancel" };
 
-export function useSuggestGlossary(bookId: string) {
+export interface VolumePlan {
+  bookId: string;
+  requests: number;
+  chars: number;
+}
+
+export function useGlossaryPlans(
+  bookIds: readonly string[],
+  size: SampleSize,
+): VolumePlan[] | undefined {
   const api = useApi();
-  return useMutation({
-    mutationFn: (body: SuggestGlossaryBody) => api.suggestGlossary(bookId, body),
+  return useQueries({
+    queries: bookIds.map((bookId) => ({
+      queryKey: keys.glossaryPlan(bookId, size),
+      queryFn: async (): Promise<VolumePlan> => ({
+        bookId,
+        ...(await api.planGlossarySample(bookId, size)),
+      }),
+    })),
+    combine: (results) => {
+      const plans = results.map((r) => r.data);
+      return plans.every((p) => p !== undefined) ? plans : undefined;
+    },
   });
 }
 

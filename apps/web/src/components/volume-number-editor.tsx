@@ -1,5 +1,5 @@
 import type { BookSummary } from "@et/contracts";
-import { Pencil } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { useSetVolumeNumber } from "@/api/queries";
@@ -71,10 +71,19 @@ export function VolumeNumberEditor({ book }: { book: BookSummary }) {
         onKeyDown={(e) => {
           if (e.key === "Escape") setDraft(null);
         }}
-        className="h-8 w-20"
+        className="h-8 w-16"
       />
       <Button type="submit" size="sm" disabled={!valid || save.isPending}>
         Save
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Cancel"
+        onClick={() => setDraft(null)}
+      >
+        <X />
       </Button>
     </form>
   );

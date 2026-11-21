@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GlossaryEntrySchema, ProviderIdSchema } from "./api.ts";
+import { GlossaryEntrySchema, ProviderIdSchema, SampleSizeSchema } from "./api.ts";
 import { AppConfigSchema } from "./auth.ts";
 
 export const TargetLanguageSchema = z.object({
@@ -124,13 +124,19 @@ export const BatchStatusBodySchema = z
   .strict();
 export type BatchStatusBody = z.infer<typeof BatchStatusBodySchema>;
 
-export const GlossarySampleQuerySchema = z.object({ targetLang: z.string().default("en") });
+export const GlossarySampleQuerySchema = z.object({
+  targetLang: z.string().default("en"),
+  size: SampleSizeSchema.default("large"),
+  chunk: z.coerce.number().int().min(0).default(0),
+});
 
 export const GlossarySampleSchema = z.object({
   sample: z.string(),
+  chunks: z.number().int().positive(),
   sourceLang: z.string().nullable(),
   bookTitle: z.string(),
   existing: z.array(GlossaryEntrySchema),
+  customPrompt: z.string(),
   targetLang: z.string(),
 });
 export type GlossarySample = z.infer<typeof GlossarySampleSchema>;

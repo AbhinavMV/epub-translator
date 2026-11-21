@@ -3,6 +3,7 @@ import {
   BookSummarySchema,
   ChapterViewSchema,
   GlossaryEntrySchema,
+  GlossarySamplePlanSchema,
   JobSummarySchema,
   ProjectDetailSchema,
   ProjectSettingsSchema,
@@ -10,14 +11,16 @@ import {
   ProviderInfoSchema,
 } from "@et/contracts";
 import {
+  buildTermsPrompt,
   type ChapterRenderer,
   type EpubAssets,
   type EpubExporter,
   type EpubParser,
   InvalidEpubError,
   type ParsedBook,
+  type TermExtractionRequest,
 } from "@et/core";
-import { FakeProvider } from "@et/providers";
+import { FakeProvider, FakeTermExtractor } from "@et/providers";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createApp } from "../src/app.ts";
@@ -125,6 +128,10 @@ describe("books api", () => {
     });
     const list = z.array(BookSummarySchema).parse(await (await app.request("/api/books")).json());
     expect(list[0]?.translatedTitle).toBe("The Book");
+    const project = ProjectDetailSchema.parse(
+      await (await app.request(`/api/projects/${book.projectId}`)).json(),
+    );
+    expect(project.books[0]?.translatedTitle).toBe("The Book");
     const again = JobSummarySchema.parse(
       await (await app.request(`/api/books/${book.id}/workspace?targetLang=en`)).json(),
     );
@@ -212,8 +219,33 @@ describe("projects api", () => {
         createdAt: book.createdAt,
         volumeCount: 1,
         coverUrl: `/api/books/${book.id}/cover`,
+        fullyTranslatedLang: null,
       },
     ]);
+  });
+
+  it("reports a project fully translated once every segment is done or flagged", async () => {
+    const { app, services } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    const workspace = JobSummarySchema.parse(
+      await (await app.request(`/api/books/${book.id}/workspace?targetLang=fr`)).json(),
+    );
+    const fullyTranslated = async () => {
+      const [summary] = z
+        .array(ProjectSummarySchema)
+        .parse(await (await app.request("/api/projects")).json());
+      const detail = ProjectDetailSchema.parse(
+        await (await app.request(`/api/projects/${book.projectId}`)).json(),
+      );
+      return [summary?.fullyTranslatedLang, detail.fullyTranslatedLang];
+    };
+    await services.repos.translations.put(workspace.id, "a.xhtml#0", { text: "a", status: "done" });
+    expect(await fullyTranslated()).toEqual([null, null]);
+    await services.repos.translations.put(workspace.id, "a.xhtml#1", {
+      text: "b",
+      status: "flagged",
+    });
+    expect(await fullyTranslated()).toEqual(["fr", "fr"]);
   });
 
   it("project page lists books in volume order and shows volume 1's cover in the library", async () => {
@@ -283,17 +315,47 @@ describe("glossary suggestion api", () => {
       headers: { "content-type": "application/json" },
     });
 
+  class RecordingTermExtractor extends FakeTermExtractor {
+    prompts: string[] = [];
+    samples: string[] = [];
+    override extractTerms(req: TermExtractionRequest, signal: AbortSignal) {
+      this.prompts.push(buildTermsPrompt(req).system);
+      this.samples.push(req.sample);
+      return super.extractTerms(req, signal);
+    }
+  }
+
   async function setupLatin() {
+    const extractor = new RecordingTermExtractor();
     const services = createLocalServices({
       dataDir: ":memory:",
       env: {},
       epub: { parser: { parse: async () => latin }, assets, renderer, exporter },
       fakeProvider: new FakeProvider(),
+      fakeTermExtractor: extractor,
     });
     const app = createApp(services);
     const book = BookSummarySchema.parse(await (await upload(app)).json());
-    return { app, book };
+    return { app, book, extractor };
   }
+
+  it("builds the suggestion prompt with the project's custom prompt and glossary renderings", async () => {
+    const { app, book, extractor } = await setupLatin();
+    await app.request(`/api/projects/${book.projectId}/settings`, {
+      method: "PUT",
+      body: JSON.stringify({
+        customPrompt: "Keep honorifics.",
+        glossary: [{ source: "Alice", target: "Alicia" }],
+      }),
+      headers: { "content-type": "application/json" },
+    });
+
+    await post(app, book.id, { provider: "fake", model: "fake-echo" });
+
+    expect(extractor.prompts).toHaveLength(1);
+    expect(extractor.prompts[0]).toContain("Style instructions from the reader: Keep honorifics.");
+    expect(extractor.prompts[0]).toContain("- Alice → Alicia");
+  });
 
   it("returns unsaved suggestions that skip existing glossary sources, with usage headers", async () => {
     const { app, book } = await setupLatin();
@@ -317,6 +379,37 @@ describe("glossary suggestion api", () => {
       await (await app.request(`/api/projects/${book.projectId}/settings`)).json(),
     );
     expect(project.glossary).toHaveLength(1);
+  });
+
+  it("samples the requested size and chunk, and rejects a chunk past the end", async () => {
+    const { app, book, extractor } = await setupLatin();
+
+    const ok = await post(app, book.id, {
+      provider: "fake",
+      model: "fake-echo",
+      sampleSize: "volume",
+      chunk: 0,
+    });
+    expect(ok.status).toBe(200);
+    expect(extractor.samples).toEqual(["第一章\nAlice met Bob."]);
+
+    const past = await post(app, book.id, {
+      provider: "fake",
+      model: "fake-echo",
+      sampleSize: "volume",
+      chunk: 1,
+    });
+    expect(past.status).toBe(400);
+    expect(
+      (await post(app, book.id, { provider: "fake", model: "m", sampleSize: "x" })).status,
+    ).toBe(400);
+  });
+
+  it("plans one request per chunk of an entire volume", async () => {
+    const { app, book } = await setupLatin();
+    const res = await app.request(`/api/books/${book.id}/glossary/plan?size=volume`);
+    expect(GlossarySamplePlanSchema.parse(await res.json())).toEqual({ requests: 1, chars: 18 });
+    expect((await app.request(`/api/books/nope/glossary/plan`)).status).toBe(404);
   });
 
   it("returns 400 for a provider that is not configured", async () => {

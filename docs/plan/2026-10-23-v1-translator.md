@@ -399,9 +399,10 @@ Routes, all under `/api`:
 **Files:** `apps/web/*` (Vite React TS, Tailwind 4 via `@tailwindcss/vite`, shadcn/ui init with components `button card progress select badge popover toggle-group slider sonner tooltip`, `@fontsource-variable/literata` and `@fontsource-variable/inter`). The Vite dev server proxies `/api` → `127.0.0.1:8787`.
 
 Design tokens in `styles.css` (`:root` plus `[data-theme=dark|sepia]`):
-- a paper palette (light bg `#f7f3ec`, ink `#2b2620`, accent terracotta `#b4532a`);
-- dark bg `#16140f`, ink `#e9e2d4`;
-- sepia bg `#efe4cf`.
+- a neutral palette (light bg `#fcfcfd`, ink `#111318`, accent blue `#2f6fde`);
+- dark bg `#0a0b0d`, ink `#e8eaee`, accent `#6b9cf0`;
+- sepia bg `#efe4cf`, accent `#2457b8`;
+- a test (`apps/web/test/theme-contrast.test.ts`) checks WCAG AA contrast for the main pairs in each theme.
 
 Screens:
 - **Library `/`:** a drag-and-drop zone that accepts `.epub` only and shows an upload progress toast, and a grid of `BookCard`s (cover, title clamped to 2 lines with the full title in a tooltip, author, chapter count, latest job status badge).
@@ -435,7 +436,7 @@ Route `/books/$bookId/read/$chapterId?job=`:
   - **Side-by-side:** a CSS grid with one row per segment block (two columns ≥1024 px, stacked below that). Static blocks span both columns.
   - Flagged segments get a subtle left border with a tooltip "formatting couldn't be preserved".
   - The book's own CSS is not loaded, so the reader typography rules.
-  - The first paragraph of each chapter gets a terracotta drop-cap (`::first-letter`) in Translation mode.
+  - The first paragraph of each chapter gets a drop-cap in the accent colour (`::first-letter`) in Translation mode.
 - **Navigation:** Prev/Next chapter buttons at the end of each chapter, plus ←/→ keys when focus is not in an input. Scroll resets to the top on chapter change. The chapter title shows once, from the book's own heading block, not duplicated from the TOC.
 - **Sanitizing:** all HTML goes through `sanitize(html)`, which is DOMPurify with `USE_PROFILES:{html:true, svg:true}`, forbidding `style`, `script`, `iframe`, `object`, `form`, all `on*` attributes, and URLs not starting with `/api/`.
 
@@ -482,8 +483,8 @@ The user supplied a screenshot of Dusk Translate's editor and asked for that lay
 - Chapter status is `idle | queued | running | done | partial | failed`.
 - The job-level statuses `paused`/`cancelled` are dropped, and the job summary status is derived from its chapters.
 
-**New per-book settings** are stored in a `book_settings` table:
-- `customPrompt` (the "Edit prompt" dialog), appended to the system prompt under "Additional instructions from the reader:";
+**New per-book settings** are stored in a `book_settings` table (the glossary and custom prompt later moved to the project; see Amendment F):
+- `customPrompt` (the "Custom prompt" dialog), appended to the system prompt under "Additional instructions from the reader:";
 - `glossary: {source, target, note?}[]` (the "Glossary" dialog), rendered into the system prompt as a term list;
 - the last-used provider and model.
 
@@ -502,10 +503,10 @@ The user supplied a screenshot of Dusk Translate's editor and asked for that lay
   - an app mark and the book title (single line, ellipsis);
   - a provider/model select (unconfigured providers are disabled with the env hint, and keys stay server-side per the global constraints);
   - a target-language select;
-  - Glossary, Edit prompt and Reader-mode buttons, and a theme toggle (light/sepia/dark).
+  - Glossary, Custom prompt and Reader-mode buttons, and a theme toggle (light/sepia/dark).
 - **Left rail "Chapters":** a row per chapter with the index, title, char count, a status dot and a mini progress bar. The active row is inverted, as in Dusk.
 - **Toolbar:**
-  - **Translate chapter** (primary, terracotta), Translate all, ← Prev, Next →, Export TXT and **Export EPUB**;
+  - **Translate chapter** (primary, blue), Translate all, ← Prev, Next →, Export TXT and **Export EPUB**;
   - a progress line "`n / total` chapters translated";
   - a live status chip while a chapter is running ("Translating 12/48 segments…").
 - **Two panes, Source | Translation:**
@@ -566,7 +567,7 @@ The user asked for the deferred items now. Each runs as a parallel Sonnet track 
 | Track | Scope | Key interfaces |
 |---|---|---|
 | **Batch** | Economy mode via the vendor batch APIs (50% cost, up to 24 h) | `TranslateBody.mode: "live" \| "batch"` (default live). A separate port `BatchTranslationProvider { submit(requests): Promise<string>; fetch(batchId): Promise<BatchFetch> }` lives in its own provider files. `provider_batches` table; the runner polls and resumes on boot; the UI shows a mode toggle and a "submitted" chapter state. |
-| **Glossary** | "Suggest from book": extracts names and recurring terms with a cheap model | Port `TermExtractor { extractTerms(req): Promise<TermResult> }` in its own provider files. Use case `suggestGlossary`. `POST /api/books/:id/glossary/suggest {provider, model}` → `GlossaryEntry[]`. A Glossary dialog button merges the suggestions for review. |
+| **Glossary** | "Suggest from volume" (or "Suggest from all volumes"): extracts names and recurring terms with a cheap model | Port `TermExtractor { extractTerms(req): Promise<TermResult> }` in its own provider files. Use case `suggestGlossary`. `POST /api/books/:id/glossary/suggest {provider, model, sampleSize?, chunk?}` → `GlossaryEntry[]`, where `sampleSize` is `standard` (~12k chars), `large` (~40k, the default) or `volume` (the whole volume in ~40k-char chunks, one request per `chunk`). `GET /api/books/:id/glossary/plan?size=` → `{requests, chars}` in both modes. A Glossary dialog button merges the suggestions for review. Sampling all volumes needs no endpoint of its own: the web app plans each volume and runs its chunks in volume order. |
 | **Bilingual + RTL** | Export layout `translation \| bilingual` and correct RTL output | `GET /api/jobs/:id/export?layout=bilingual`. Bilingual inserts the translated block after the source, with target `lang`/`dir` and ids stripped. RTL targets get `dir="rtl"` on documents, in the editor panes and in the reader. |
 | **Paged reader** | Page-by-page reading mode in the web reader | CSS multi-column pagination; ←/→, tap zones and a page x/y indicator; scroll and paged modes. |
 
@@ -602,7 +603,22 @@ T1 and T2 run first. T3, T4 and T5 start once T1 is merged.
 
 **Ledger (T4, 2026-10-28): client-driven translation and the key vault**
 - `apps/web` may now import `@et/core` (I/O-free translation code) and `@et/providers/browser`; `docs/CODING-STANDARDS.md` is updated to match. The SDK code is loaded by a dynamic import only when `GET /api/config` reports hosted execution.
-- Work protocol: `POST /api/jobs/:id/chapters/:chapterId/lease` (body `{after?}`) returns a work unit or 204; `POST /api/jobs/:id/results`; `POST /api/jobs/:id/chapters/:chapterId/batch-plan`; `GET|POST /api/jobs/:id/batches`; `POST /api/jobs/:id/batches/:batchId/results`; `PATCH /api/jobs/:id/batches/:batchId`; `GET /api/books/:id/glossary/sample`; `GET /api/config`. Every body is a strict zod object, so a field named like a key is rejected.
+- Work protocol: `POST /api/jobs/:id/chapters/:chapterId/lease` (body `{after?}`) returns a work unit or 204; `POST /api/jobs/:id/results`; `POST /api/jobs/:id/chapters/:chapterId/batch-plan`; `GET|POST /api/jobs/:id/batches`; `POST /api/jobs/:id/batches/:batchId/results`; `PATCH /api/jobs/:id/batches/:batchId`; `GET /api/books/:id/glossary/sample?size=&chunk=` (reports `chunks`); `GET /api/config`. Every body is a strict zod object, so a field named like a key is rejected.
 - Core: `WorkLeaseRepository` and `WorkLeaseFactory` ports (`ports/work-lease.ts`), `MemoryWorkLeases`, `planWorkUnit`, `applyWorkResult`, `planBatchUnits`, `recordClientBatch`, `applyBatchResult`, `endClientBatch`. `JobRunner` and `BatchRunner` share `segmentRequest` and `recordResults` with them.
 - Vault: per-provider envelopes in IndexedDB scoped by user id, one passphrase and salt per vault, a fresh IV per encryption, AAD `<provider>|v1`, memory-only unlock, 30 minute idle lock, lock on `pagehide` and on a `et:sign-out` window event.
 
+## Amendment F (2026-11-21): projects own the glossary and custom prompt
+
+Decision: [ADR 0001](../adr/0001-glossary-belongs-to-project.md). Terms: [GLOSSARY.md](../../GLOSSARY.md). This amendment overrides Amendment A's per-book `customPrompt` and `glossary`, Amendment B's "cache-stable per book" and its "Additional instructions" line (the system prompt now carries the project's glossary, and a non-empty custom prompt replaces the default style guidance), and Amendment E's repository list.
+
+- Every book belongs to exactly one project and has a volume number. Book settings keep only the last-used provider and model (`PUT /api/books/:id/settings {provider, model}`). The project holds the glossary, the custom prompt and any glossary conflicts.
+- `Repositories` gains `projects` and `projectSettings`. Postgres migrations 0009 to 0012 add `projects`, `project_settings`, `projects.series_title` and make `books.project_id` NOT NULL; the SQLite schema upgrades itself.
+- Existing libraries are upgraded by two scripts in `apps/api`, each a dry run unless `--apply` is given: `backfill:projects` places books in projects, then `merge:project-settings` moves the glossary and custom prompt each book had before projects onto its project and records glossary conflicts. Both take `--sqlite <path>` or `--postgres [--owner <uuid>]` (reads `DATABASE_URL`). The Supabase order is in `docs/deploy-vercel-supabase.md`.
+
+**Endpoints:**
+- `GET /api/projects` lists projects with a volume count and cover; `GET /api/projects/:id` returns one with its book summaries.
+- `PATCH /api/projects/:id {name}` renames; `DELETE /api/projects/:id` deletes the project and all its books (204).
+- `GET /api/projects/:id/settings` returns `{customPrompt, glossary, glossaryConflicts}`; `PUT /api/projects/:id/settings {customPrompt, glossary}` saves the terms (at most 2,000 glossary entries and a 4,000-character custom prompt).
+- `POST /api/projects/:id/glossary-conflicts/resolve {source, target}` puts the picked rendering in force and drops the conflict.
+- `PATCH /api/books/:id/volume {volumeNumber}` sets a volume number; `PATCH /api/books/:id/project {projectId}` moves a book, which carries no terms with it.
+- Import is previewed, then committed with a placement: `{projectId, volumeNumber}` or `{projectName, volumeNumber}`, where a null `volumeNumber` means the next one. The preview returns `{kind: "duplicate", book}` or `{kind: "new", title, seriesTitle, volumeNumber, project}`, where `project` is the suggested one. Local mode uses `POST /api/books/preview` and `POST /api/books` (multipart `file`, plus an optional `placement` field holding that JSON); hosted mode uses `POST /api/books/import/preview {path}` and `POST /api/books/import {path, placement?}` after a signed upload. Each pair returns 404 in the other mode. Without a placement, import joins the suggested project or creates one named after the series title.

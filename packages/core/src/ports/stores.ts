@@ -18,6 +18,8 @@ export interface BookRepository {
   findBySha256(sha256: string): Promise<StoredBook | null>;
   getParsed(id: string): Promise<ParsedBook | null>;
   updateParsed(id: string, parsed: ParsedBook): Promise<void>;
+  /** Stored counts, so a summary need not load parsed books; unknown ids are absent. */
+  segmentCounts(ids: readonly string[]): Promise<Map<string, number>>;
   list(): Promise<StoredBook[]>;
   listByProject(projectId: string): Promise<StoredBook[]>;
   place(id: string, projectId: string, volumeNumber: number): Promise<void>;
@@ -63,6 +65,8 @@ export interface TranslationRepository {
   forJob(jobId: string): Promise<Map<string, SegmentTranslation>>;
   /** Status only (no text), for progress summaries that run often. */
   statusesForJob(jobId: string): Promise<Map<string, SegmentTranslation["status"]>>;
+  /** Segments stored as done or flagged, including any the book no longer has. */
+  translatedCount(jobId: string): Promise<number>;
   forSegments(
     jobId: string,
     segmentIds: readonly string[],

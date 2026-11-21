@@ -30,6 +30,8 @@ export * from "./usecases/delete-book.ts";
 export * from "./usecases/delete-project.ts";
 export * from "./usecases/export-epub.ts";
 export * from "./usecases/export-text.ts";
+export * from "./usecases/fully-translated.ts";
+export * from "./usecases/glossary-sample.ts";
 export * from "./usecases/import-book.ts";
 export * from "./usecases/invites/accept-invite.ts";
 export * from "./usecases/invites/create-invite.ts";

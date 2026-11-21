@@ -23,19 +23,25 @@ pnpm dev                                 # api on 127.0.0.1:8787, web on http://
 
 Keys stay in `apps/api/.env` on your machine. The browser only sees whether a provider is configured. Data (the SQLite database and uploaded books) lives in `apps/api/data/`.
 
-**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and then `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`, in that order. Each prints what it would do; add `--apply` to write. The SQLite schema upgrades itself when the API, or either script with `--apply`, opens the file. Run the backfill again after upgrading from an earlier projects build: it records each project's series title, which import uses to find a project whose books were all deleted. The second moves each book's glossary and prompt onto its project (translations use no glossary until it runs), keeping the higher volume's rendering when volumes disagree and recording the others as glossary conflicts.
+**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and then `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`, in that order (the path is relative to `apps/api`). Each prints what it would do; add `--apply` to write. The SQLite schema upgrades itself when the API, or either script with `--apply`, opens the file.
+
+- The backfill places every book in a project, grouping books by series title and reading each volume number from the title. Run it again after upgrading from an earlier projects build: it records each project's series title, which import uses to find a project whose books were all deleted.
+- The merge moves the glossary and custom prompt each book had before projects onto its project; translations use no glossary or custom prompt until it runs. Where volumes disagree on a term, the higher volume's rendering stays in force and the others are recorded as a glossary conflict. It writes nothing while a book has no project, skips a project whose glossary or custom prompt has already been saved, and leaves out a project whose merged glossary exceeds 2,000 entries.
 
 **Without a key:** set `ENABLE_FAKE_PROVIDER=1` in `apps/api/.env` to get "Offline test (no translation)", which echoes the source with a `[en]` prefix so you can try the whole flow for free.
 
 ## Using it
 
-1. **Library:** drop an `.epub` file. Each book is a volume of a project.
+1. **Library:** lists your projects. Drop an `.epub` file to import it as a volume of a project. **Add to a project** suggests the project with the same series title (the book's title without its volume marker), or **New project** named after the series; you can pick any project instead. **Volume number** is read from the title; left empty, the book becomes volume 1, or the next number after the project's highest volume. Volume numbers may be fractional (2.5). A project whose every volume is completely translated into one language (flagged passages count) shows a **Fully translated** badge on its card and in its page header, naming the language when it is not English.
 2. **Project:** the glossary and custom prompt belong to the project, so every volume uses the same terms.
-   - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
-   - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with.
+   - **Glossary → Suggest from volume** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Pick the sample size first: Standard (about 12,000 characters), Large (about 40,000, the default) or Entire volume, which sends one request per 40,000-character chunk; the request count and characters show before you start. The volume picker also offers **All volumes** (the button then reads **Suggest from all volumes**), which samples every volume in volume order at the chosen size and shows the volume count too (for example "5 volumes · 27 requests · ~1,100,000 chars"); progress reads "Suggesting… volume 2 of 5". Results from each chunk and volume are merged into one list, with the earliest rendering winning, and **Stop** (or a failed request) keeps what was gathered so far. Each request returns at most 60 suggestions, and the glossary still holds at most 2,000 entries; when adding suggestions would pass that, the ones that fit are added and a notice says how many were left out. Suggested renderings follow the custom prompt and match the renderings already in the glossary, so names, honorifics and forms of address stay consistent. Review the suggestions, then save. **Custom prompt** shows the fixed fidelity and format rules read-only, worded for any source and target language since every translation of the project shares them, and lets you replace the default style guidance with your own custom prompt.
+   - The glossary editor lists any glossary conflicts left by merging volumes' old glossaries, with each rendering and its volume. The one marked in force is used until you pick one.
+   - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with. Changing a glossary entry does not retranslate earlier volumes.
+   - The pencil and bin beside the name rename and delete the project. Once a volume has an English translation of its title, **Use translated title** opens the rename field filled with the lowest-numbered such volume's translated title, volume marker removed; nothing changes until you save.
+   - Change a volume's number, move a volume to another project (it carries no glossary entries with it), or delete a volume. Deleting the project deletes all its volumes and their translations.
 3. **Editor:**
    - **Choosing how to translate:**
-     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and prompt.
+     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and custom prompt.
    - **Translating:**
      - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail), so translated titles appear early. **Translate title & contents** does just that part.
      - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
@@ -62,7 +68,7 @@ The same app can run invite-only on Vercel Hobby with Supabase Free: private lib
 ## Architecture
 
 ```mermaid
-%%{init: {"themeVariables": {"edgeLabelBackground": "#f7f3ec"}}}%%
+%%{init: {"themeVariables": {"edgeLabelBackground": "#fcfcfd"}}}%%
 flowchart LR
   web["apps/web<br/>React SPA"]:::app
   api["apps/api<br/>Hono REST + SSE"]:::app
@@ -90,10 +96,10 @@ flowchart LR
   api --> pg
   pg --> core
 
-  linkStyle 0,3 color:#2b2620
-  classDef app fill:#b4532a,stroke:#7a3519,color:#ffffff
-  classDef pure fill:#2b2620,stroke:#16140f,color:#f7f3ec
-  classDef adapter fill:#efe4cf,stroke:#8a7a5c,color:#2b2620
+  linkStyle 0,3 color:#111318
+  classDef app fill:#2f6fde,stroke:#1f4fa8,color:#ffffff
+  classDef pure fill:#111318,stroke:#0a0b0d,color:#fcfcfd
+  classDef adapter fill:#eef0f3,stroke:#8a909b,color:#111318
 ```
 
 - **`core` is pure.** It holds the domain types, the ports (`EpubParser`, `ChapterRenderer`, `EpubExporter`, `TranslationProvider`, `Proofreader`, repositories) and the use cases (import, workspace, `JobRunner`, proofread, render, export). It has no I/O, and Biome enforces that.

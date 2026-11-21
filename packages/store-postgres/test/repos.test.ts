@@ -53,6 +53,20 @@ describe("PostgresBookRepository", () => {
     expect(await factory.forOwner(ALICE).books.getParsed("b1")).toEqual(next);
   });
 
+  it("counts each book's segments, for its owner only", async () => {
+    await insertBook(repos);
+    await insertBook(repos, { ...book, id: "b2", sha256: "def" });
+    await repos.books.updateParsed("b2", { ...parsed, segments: [] });
+    expect(await repos.books.segmentCounts(["b1", "b2", "missing"])).toEqual(
+      new Map([
+        ["b1", 1],
+        ["b2", 0],
+      ]),
+    );
+    expect(await factory.forOwner(BOB).books.segmentCounts(["b1"])).toEqual(new Map());
+    expect(await repos.books.segmentCounts([])).toEqual(new Map());
+  });
+
   it("lists newest first", async () => {
     const newer = { ...book, id: "b2", sha256: "def", createdAt: "2026-10-24T00:00:00.000Z" };
     await insertBook(repos);
@@ -188,6 +202,15 @@ describe("PostgresTranslationRepository", () => {
         ["s3", "failed"],
       ]),
     );
+  });
+
+  it("counts done and flagged segments of one job and owner", async () => {
+    await repos.translations.put("j1", "s1", { text: "a", status: "done" });
+    await repos.translations.put("j1", "s2", { text: "b", status: "flagged" });
+    await repos.translations.put("j1", "s3", { text: "", status: "failed" });
+    expect(await repos.translations.translatedCount("j1")).toBe(2);
+    expect(await repos.translations.translatedCount("other")).toBe(0);
+    expect(await factory.forOwner(BOB).translations.translatedCount("j1")).toBe(0);
   });
 
   it("keeps the reason a segment failed", async () => {

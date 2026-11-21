@@ -1,5 +1,5 @@
 import type { BookDetail, BookSummary, ChapterSummary, ProjectSummary } from "@et/contracts";
-import { type ParsedBook, type Project, type StoredBook, stripTokens } from "@et/core";
+import { type ParsedBook, type ProjectOverview, type StoredBook, stripTokens } from "@et/core";
 
 export function bookSummary(
   book: StoredBook,
@@ -25,12 +25,17 @@ function coverUrl(book: StoredBook): string | null {
   return book.coverHref ? `/api/books/${book.id}/cover` : null;
 }
 
-export function projectSummary(project: Project, books: StoredBook[]): ProjectSummary {
+export function projectSummary({
+  project,
+  books,
+  fullyTranslatedLang,
+}: ProjectOverview): ProjectSummary {
   const first = books[0];
   return {
     ...project,
     volumeCount: books.length,
     coverUrl: first ? coverUrl(first) : null,
+    fullyTranslatedLang,
   };
 }
 

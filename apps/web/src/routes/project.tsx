@@ -1,34 +1,48 @@
+import type { ProjectDetail } from "@et/contracts";
 import { Link, useParams } from "@tanstack/react-router";
-import { ChevronLeft, Pencil } from "lucide-react";
+import { ChevronLeft, Languages, Pencil } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { useDeleteBook, useProject, useRenameProject } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
 import { DeleteProjectButton } from "@/components/delete-project-dialog";
+import { FullyTranslatedBadge } from "@/components/fully-translated-badge";
 import { ProjectTermsSection } from "@/components/project/project-terms";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectVolume } from "@/components/volume-number-editor";
+import { translatedProjectName } from "@/lib/translated-project-name";
 
-function ProjectName({ projectId, name }: { projectId: string; name: string }) {
-  const rename = useRenameProject(projectId);
+function ProjectName({ project }: { project: ProjectDetail }) {
+  const rename = useRenameProject(project.id);
   const [draft, setDraft] = useState<string | null>(null);
 
   if (draft === null) {
+    const translatedName = translatedProjectName(project.books);
     return (
-      <div className="flex min-w-0 items-center gap-2">
-        <h1 className="truncate font-serif text-xl font-semibold">{name}</h1>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Rename project"
-          onClick={() => setDraft(name)}
-        >
-          <Pencil />
-        </Button>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+        <h1 className="min-w-0 font-serif text-xl font-semibold break-words">{project.name}</h1>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Rename project"
+            onClick={() => setDraft(project.name)}
+          >
+            <Pencil />
+          </Button>
+          <DeleteProjectButton project={project} />
+        </div>
+        {translatedName && translatedName !== project.name ? (
+          <Button variant="outline" size="sm" onClick={() => setDraft(translatedName)}>
+            <Languages />
+            Use translated title
+          </Button>
+        ) : null}
+        <FullyTranslatedBadge lang={project.fullyTranslatedLang} />
       </div>
     );
   }
@@ -44,7 +58,7 @@ function ProjectName({ projectId, name }: { projectId: string; name: string }) {
   };
 
   return (
-    <form onSubmit={onSubmit} className="flex min-w-0 flex-1 items-center gap-2">
+    <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
       <Input
         aria-label="Project name"
         value={draft}
@@ -54,7 +68,7 @@ function ProjectName({ projectId, name }: { projectId: string; name: string }) {
         onKeyDown={(e) => {
           if (e.key === "Escape") setDraft(null);
         }}
-        className="max-w-md"
+        className="min-w-0 flex-1 basis-full sm:max-w-md sm:basis-auto"
       />
       <Button type="submit" size="sm" disabled={!trimmed || rename.isPending}>
         Save
@@ -73,24 +87,19 @@ export function ProjectPage() {
 
   return (
     <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-center gap-3">
-        <AppMark />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <header className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <AppMark />
           <Link
             to="/"
-            className="flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="flex min-w-0 flex-1 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ChevronLeft className="size-3" /> Library
+            <ChevronLeft className="size-4" /> Library
           </Link>
-          {project.data ? (
-            <ProjectName projectId={projectId} name={project.data.name} />
-          ) : (
-            <Skeleton className="h-7 w-48" />
-          )}
+          <ThemeToggle />
+          <UserMenu />
         </div>
-        <DeleteProjectButton project={project.data} />
-        <ThemeToggle />
-        <UserMenu />
+        {project.data ? <ProjectName project={project.data} /> : <Skeleton className="h-8 w-48" />}
       </header>
 
       <ProjectTermsSection projectId={projectId} books={project.data?.books ?? []} />
@@ -125,7 +134,7 @@ export function ProjectPage() {
           </div>
         ) : (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            This project has no books.
+            This project has no volumes.
           </p>
         )}
       </section>

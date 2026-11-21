@@ -190,12 +190,17 @@ export class FakeWorkApi implements WorkApi {
     return this.progress();
   }
 
-  async glossarySample() {
+  sampleQueries: { bookId: string; size: string; chunk: number }[] = [];
+
+  async glossarySample(bookId: string, query: { size: string; chunk: number }) {
+    this.sampleQueries.push({ bookId, size: query.size, chunk: query.chunk });
     return {
-      sample: "sample text",
+      sample: `sample text ${query.chunk}`,
+      chunks: 3,
       sourceLang: "ja",
       bookTitle: "B",
-      existing: [],
+      existing: [{ source: "魔王", target: "Demon King" }],
+      customPrompt: "Keep honorifics.",
       targetLang: "en",
     };
   }

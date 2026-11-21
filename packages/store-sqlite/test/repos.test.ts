@@ -65,6 +65,21 @@ describe("SqliteBookRepository", () => {
     expect(await new SqliteBookRepository(db).getParsed("b1")).toEqual(next);
   });
 
+  it("counts each book's segments without reading its parsed structure", async () => {
+    const repo = new SqliteBookRepository(db);
+    await repo.insert(book, parsed);
+    await repo.insert({ ...book, id: "b2", sha256: "def" }, { ...parsed, segments: [] });
+    expect(await repo.segmentCounts(["b1", "b2", "missing"])).toEqual(
+      new Map([
+        ["b1", 1],
+        ["b2", 0],
+      ]),
+    );
+    await repo.updateParsed("b2", parsed);
+    expect(await new SqliteBookRepository(db).segmentCounts(["b2"])).toEqual(new Map([["b2", 1]]));
+    expect(await repo.segmentCounts([])).toEqual(new Map());
+  });
+
   it("delete cascades to jobs and translations", async () => {
     const books = new SqliteBookRepository(db);
     const jobs = new SqliteJobRepository(db);
@@ -170,6 +185,25 @@ describe("SqliteTranslationRepository", () => {
     expect(await repo.get("j1", "s1")).toEqual({ text: "b", status: "done" });
     await repo.deleteMany("j1", ["s1"]);
     expect([...(await repo.forJob("j1")).keys()]).toEqual(["s2"]);
+  });
+
+  it("counts done and flagged segments of one job", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    await new SqliteJobRepository(db).insert({
+      id: "j1",
+      bookId: "b1",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: book.createdAt,
+    });
+    const repo = new SqliteTranslationRepository(db);
+    await repo.put("j1", "s1", { text: "a", status: "done" });
+    await repo.put("j1", "s2", { text: "b", status: "flagged" });
+    await repo.put("j1", "s3", { text: "", status: "failed" });
+    expect(await repo.translatedCount("j1")).toBe(2);
+    expect(await repo.translatedCount("other")).toBe(0);
   });
 
   it("reads only the requested segments", async () => {

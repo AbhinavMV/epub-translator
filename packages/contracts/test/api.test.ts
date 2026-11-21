@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ChapterStatusSchema,
   ImportPlacementSchema,
+  ProjectDetailSchema,
+  ProjectSummarySchema,
   RenameProjectBodySchema,
   TranslateBodySchema,
 } from "../src/index.ts";
@@ -55,5 +57,22 @@ describe("ImportPlacementSchema", () => {
 describe("ChapterStatusSchema", () => {
   it("includes submitted", () => {
     expect(ChapterStatusSchema.options).toContain("submitted");
+  });
+});
+
+describe("project schemas", () => {
+  const project = { id: "p1", name: "本", createdAt: "2026-10-23T00:00:00.000Z" };
+
+  it("require fullyTranslatedLang, null when no language is complete", () => {
+    const summary = { ...project, volumeCount: 1, coverUrl: null };
+    expect(ProjectSummarySchema.safeParse(summary).success).toBe(false);
+    expect(ProjectSummarySchema.parse({ ...summary, fullyTranslatedLang: null })).toMatchObject({
+      fullyTranslatedLang: null,
+    });
+    const detail = { ...project, books: [] };
+    expect(ProjectDetailSchema.safeParse(detail).success).toBe(false);
+    expect(ProjectDetailSchema.parse({ ...detail, fullyTranslatedLang: "fr" })).toMatchObject({
+      fullyTranslatedLang: "fr",
+    });
   });
 });

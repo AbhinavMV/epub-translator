@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getTargetLanguage, TARGET_LANGUAGES, UnknownLanguageError } from "../src/index.ts";
+import {
+  compareTargetLanguages,
+  getTargetLanguage,
+  languageName,
+  TARGET_LANGUAGES,
+  UnknownLanguageError,
+} from "../src/index.ts";
 
 describe("getTargetLanguage", () => {
   it("returns English ltr horizontal", () => {
@@ -20,5 +26,28 @@ describe("getTargetLanguage", () => {
 
   it("throws UnknownLanguageError for unknown codes", () => {
     expect(() => getTargetLanguage("xx")).toThrow(UnknownLanguageError);
+  });
+});
+
+describe("compareTargetLanguages", () => {
+  it("puts English first, then the offered order, then unknown codes alphabetically", () => {
+    expect(["zz", "de", "xx", "en", "fr"].sort(compareTargetLanguages)).toEqual([
+      "en",
+      "fr",
+      "de",
+      "xx",
+      "zz",
+    ]);
+  });
+});
+
+describe("languageName", () => {
+  it("names target languages by their full code and source languages by their base", () => {
+    expect(languageName("pt-BR")).toBe("Brazilian Portuguese");
+    expect(languageName("zh-Hans")).toBe("Simplified Chinese");
+    expect(languageName("ja-JP")).toBe("Japanese");
+    expect(languageName("zh-TW")).toBe("Chinese");
+    expect(languageName("fr")).toBe("French");
+    expect(languageName(null)).toBe("the source language");
   });
 });

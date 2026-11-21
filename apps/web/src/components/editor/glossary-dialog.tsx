@@ -1,6 +1,7 @@
 import { type GlossaryEntry, MAX_GLOSSARY_ENTRIES } from "@et/contracts";
 import { BookA, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,6 +24,8 @@ interface Row {
 }
 
 const MAX_ENTRIES = MAX_GLOSSARY_ENTRIES;
+const LIMIT_LABEL = MAX_ENTRIES.toLocaleString("en-US");
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 let rowKey = 0;
 const toRows = (entries: GlossaryEntry[]): Row[] =>
   entries.map((e) => ({ key: rowKey++, source: e.source, target: e.target, note: e.note ?? "" }));
@@ -62,12 +65,18 @@ export function GlossaryDialog({
   const update = (key: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
-  const addSuggestions = (entries: GlossaryEntry[]) =>
-    setRows((rs) => {
-      const known = new Set(rs.map((r) => r.source.trim()));
-      const fresh = entries.filter((e) => !known.has(e.source.trim()));
-      return [...rs, ...toRows(fresh)].slice(0, MAX_ENTRIES);
-    });
+  const addSuggestions = (entries: GlossaryEntry[]) => {
+    const known = new Set(rows.map((r) => r.source.trim()));
+    const fresh = entries.filter((e) => !known.has(e.source.trim()));
+    const added = fresh.slice(0, Math.max(0, MAX_ENTRIES - rows.length));
+    setRows([...rows, ...toRows(added)]);
+    const leftOut = fresh.length - added.length;
+    if (leftOut > 0) {
+      toast.warning(
+        `Added ${plural(added.length, "suggestion", "suggestions")}. ${plural(leftOut, "was", "were")} left out: a glossary holds at most ${LIMIT_LABEL} entries.`,
+      );
+    }
+  };
 
   const submit = async () => {
     const next = rows
@@ -95,20 +104,20 @@ export function GlossaryDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" disabled={!glossary}>
           <BookA />
-          <span className="hidden sm:inline">Glossary</span>
+          Glossary
           {count > 0 && (
-            <span className="rounded-sm bg-primary/15 px-1 font-mono text-[10px] text-primary">
+            <span className="rounded-sm bg-primary/15 px-1 font-mono text-[10px] text-foreground">
               {count}
             </span>
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Glossary</DialogTitle>
           <DialogDescription>
-            Terms every book in this project must translate the same way. Applied only when the
-            source term appears.
+            Glossary entries every volume in this project must render the same way. An entry applies
+            only where its source term appears.
           </DialogDescription>
         </DialogHeader>
         {suggestions(addSuggestions)}
@@ -120,7 +129,7 @@ export function GlossaryDialog({
               aria-pressed={!showConflicts}
               onClick={() => setConflictsOnly(false)}
             >
-              All terms
+              All entries
             </Button>
             <Button
               variant={showConflicts ? "secondary" : "outline"}
@@ -135,8 +144,8 @@ export function GlossaryDialog({
         {showConflicts && conflicts ? (
           <ScrollArea className="max-h-[50vh] pr-3">
             <p className="pb-3 text-sm text-muted-foreground">
-              Merged volumes rendered these terms differently. Translation uses the rendering in
-              force until you pick one.
+              Merged volumes gave these entries different renderings. Translation uses the rendering
+              in force until you pick one.
             </p>
             <GlossaryConflictList
               conflicts={conflicts.conflicts}
@@ -146,27 +155,32 @@ export function GlossaryDialog({
           </ScrollArea>
         ) : (
           <ScrollArea className="max-h-[50vh] pr-3">
-            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase sm:grid-cols-[1fr_1fr_1fr_auto]">
               <span>Source</span>
-              <span>Target</span>
-              <span>Note</span>
+              <span>Rendering</span>
+              <span className="hidden sm:block">Note</span>
               <span className="w-8" />
             </div>
             <div className="flex flex-col gap-2">
               {rows.map((r) => (
-                <div key={r.key} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                <div
+                  key={r.key}
+                  className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b pb-2 last:border-b-0 sm:grid-cols-[1fr_1fr_1fr_auto] sm:border-b-0 sm:pb-0"
+                >
                   <Input
                     aria-label="Source term"
                     value={r.source}
                     onChange={(e) => update(r.key, { source: e.target.value })}
                   />
                   <Input
-                    aria-label="Target term"
+                    aria-label="Rendering"
                     value={r.target}
                     onChange={(e) => update(r.key, { target: e.target.value })}
                   />
                   <Input
                     aria-label="Note"
+                    placeholder="Note"
+                    className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto sm:placeholder:text-transparent"
                     value={r.note}
                     onChange={(e) => update(r.key, { note: e.target.value })}
                   />
@@ -174,6 +188,7 @@ export function GlossaryDialog({
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Remove entry"
+                    className="col-start-3 row-start-1 sm:col-start-auto sm:row-start-auto"
                     onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
                   >
                     <Trash2 />
@@ -182,7 +197,7 @@ export function GlossaryDialog({
               ))}
               {rows.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  No terms yet. Add character names and recurring terms.
+                  No glossary entries yet. Add character names and other recurring source terms.
                 </p>
               )}
             </div>
@@ -191,13 +206,13 @@ export function GlossaryDialog({
         <Button
           variant="outline"
           size="sm"
-          className="self-start"
+          className="justify-self-start"
           disabled={showConflicts || rows.length >= MAX_ENTRIES}
           onClick={() =>
             setRows((rs) => [...rs, { key: rowKey++, source: "", target: "", note: "" }])
           }
         >
-          <Plus /> Add term
+          <Plus /> Add entry
         </Button>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>

@@ -1,5 +1,6 @@
 import type { BookSummary, GlossaryEntry } from "@et/contracts";
 import { TARGET_LANGUAGES } from "@et/contracts";
+import { compareVolumes } from "@et/core";
 import { useState } from "react";
 import { useProviders } from "@/api/queries";
 import { GlossarySuggestions } from "@/components/editor/glossary-suggestions";
@@ -12,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const ALL_VOLUMES = "__all-volumes__";
 
 const volumeLabel = (book: BookSummary) =>
   book.volumeNumber === null || book.volumeNumber === undefined
@@ -29,47 +32,55 @@ export function ProjectGlossarySuggestions({
   const [bookId, setBookId] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState("en");
   const [chosen, setChosen] = useState<Selection | null>(null);
+  const [running, setRunning] = useState(false);
   const selection = chosen ?? resolveSelection(undefined, providers.data);
-  const sampled = books.find((b) => b.id === bookId) ?? books.at(-1);
+  const volumes = [...books].sort(compareVolumes);
+  const latest = books.at(-1);
+  const sampled = bookId === ALL_VOLUMES ? null : (books.find((b) => b.id === bookId) ?? latest);
 
-  if (!sampled) return null;
+  if (!latest) return null;
+
+  const controls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
+        <SelectTrigger size="sm" className="w-[8rem]" aria-label="Volume to sample">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {books.map((b) => (
+            <SelectItem key={b.id} value={b.id}>
+              {volumeLabel(b)}
+            </SelectItem>
+          ))}
+          {books.length > 1 && <SelectItem value={ALL_VOLUMES}>All volumes</SelectItem>}
+        </SelectContent>
+      </Select>
+      <Select value={targetLang} onValueChange={setTargetLang}>
+        <SelectTrigger size="sm" className="w-[6.5rem]" aria-label="Suggest renderings in">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {TARGET_LANGUAGES.map((l) => (
+            <SelectItem key={l.code} value={l.code}>
+              {l.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={sampled.id} onValueChange={setBookId}>
-          <SelectTrigger size="sm" className="w-[9rem]" aria-label="Volume to sample">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {books.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {volumeLabel(b)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={targetLang} onValueChange={setTargetLang}>
-          <SelectTrigger size="sm" className="w-[7.5rem]" aria-label="Suggest renderings in">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TARGET_LANGUAGES.map((l) => (
-              <SelectItem key={l.code} value={l.code}>
-                {l.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
-      </div>
-      <GlossarySuggestions
-        bookId={sampled.id}
-        targetLang={targetLang}
-        providers={providers.data}
-        selection={selection}
-        onAdd={onAdd}
-      />
-    </div>
+    <GlossarySuggestions
+      key={sampled?.id ?? ALL_VOLUMES}
+      bookIds={sampled ? [sampled.id] : volumes.map((b) => b.id)}
+      targetLang={targetLang}
+      providers={providers.data}
+      selection={selection}
+      onAdd={onAdd}
+      onRunningChange={setRunning}
+      controls={controls}
+    />
   );
 }

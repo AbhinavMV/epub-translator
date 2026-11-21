@@ -1,3 +1,4 @@
+import { DEFAULT_STYLE_GUIDANCE, fixedPromptRules, storedCustomPrompt } from "@et/core";
 import { MessageSquareText } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -32,27 +33,36 @@ export function PromptDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setDraft(value ?? "");
+        if (next) setDraft(value || DEFAULT_STYLE_GUIDANCE);
         setOpen(next);
       }}
     >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
           <MessageSquareText />
-          <span className="hidden sm:inline">Edit prompt</span>
+          Custom prompt
           {value ? <span className="size-1.5 rounded-full bg-primary" /> : null}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Edit prompt</DialogTitle>
+          <DialogTitle>Custom prompt</DialogTitle>
           <DialogDescription>
-            Extra instructions appended to the translation prompt for every book in this project,
-            such as tone, honorifics or how to render names.
+            The custom prompt takes the place of the default style guidance for every volume in this
+            project, such as tone, honorifics or how to render names. The fidelity and format rules
+            always apply.
           </DialogDescription>
         </DialogHeader>
+        <section
+          aria-label="Fixed rules"
+          className="max-h-48 overflow-y-auto rounded-md border bg-muted/50 p-3"
+        >
+          <pre className="font-mono text-xs whitespace-pre-wrap text-muted-foreground">
+            {fixedPromptRules("source-language", "the target language")}
+          </pre>
+        </section>
         <Textarea
-          rows={9}
+          rows={6}
           maxLength={MAX}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -69,11 +79,11 @@ export function PromptDialog({
           <Button
             disabled={saving}
             onClick={async () => {
-              await onSave(draft.trim());
+              await onSave(storedCustomPrompt(draft));
               setOpen(false);
             }}
           >
-            Save prompt
+            Save custom prompt
           </Button>
         </DialogFooter>
       </DialogContent>

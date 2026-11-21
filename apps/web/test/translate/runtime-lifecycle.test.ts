@@ -3,10 +3,12 @@ import type {
   ProofreadRequest,
   SegmentBatchRequest,
   SegmentBatchResult,
+  TermExtractionRequest,
   TranslationProvider,
 } from "@et/core";
 import type { BrowserProvider, createBrowserProvider } from "@et/providers/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { runSuggestions } from "@/api/suggestion-run";
 import { MemoryEnvelopeStore } from "@/keys/memory-store";
 import { Vault } from "@/keys/vault";
 import { ClientRuntime } from "@/translate/runtime";
@@ -64,6 +66,8 @@ class EditingProofreader implements Proofreader {
 }
 
 const proofreader = new EditingProofreader();
+const termRequests: TermExtractionRequest[] = [];
+const termSignals: AbortSignal[] = [];
 
 function bundleOf(provider: TranslationProvider): BrowserProvider {
   return {
@@ -71,7 +75,11 @@ function bundleOf(provider: TranslationProvider): BrowserProvider {
     provider,
     batch: {} as BrowserProvider["batch"],
     terms: {
-      extractTerms: async () => ({ kind: "ok", terms: [], usage }),
+      extractTerms: async (req: TermExtractionRequest, signal: AbortSignal) => {
+        termRequests.push(req);
+        termSignals.push(signal);
+        return { kind: "ok", terms: [], usage };
+      },
     } as unknown as BrowserProvider["terms"],
   };
 }
@@ -197,6 +205,66 @@ describe("provider bundle cache", () => {
     await runtime.suggestGlossary("b1", { provider: "anthropic", model: "model-a" });
     const named = created.filter((c) => c.model === "model-a");
     expect(named.map((c) => c.key)).toEqual([KEY, `${KEY}-rotated`]);
+  });
+});
+
+describe("glossary suggestions in the browser", () => {
+  it("fetch the chosen chunk of the chosen sample size and send it to the extractor", async () => {
+    termRequests.length = 0;
+    await runtime.suggestGlossary("b1", {
+      provider: "anthropic",
+      model: "m",
+      sampleSize: "volume",
+      chunk: 2,
+    });
+    expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "volume", chunk: 2 });
+    expect(termRequests[0]?.sample).toBe("sample text 2");
+  });
+
+  it("sample every volume's chunks in the order of an all-volumes run", async () => {
+    const steps = [
+      { bookId: "b1", chunk: 0 },
+      { bookId: "b1", chunk: 1 },
+      { bookId: "b2", chunk: 0 },
+    ];
+    const before = api.sampleQueries.length;
+    const result = await runSuggestions(
+      steps,
+      (step, signal) =>
+        runtime.suggestGlossary(
+          step.bookId,
+          { provider: "anthropic", model: "m", sampleSize: "volume", chunk: step.chunk },
+          signal,
+        ),
+      { signal: new AbortController().signal },
+    );
+    expect(result.outcome).toBe("done");
+    expect(api.sampleQueries.slice(before)).toEqual([
+      { bookId: "b1", size: "volume", chunk: 0 },
+      { bookId: "b1", size: "volume", chunk: 1 },
+      { bookId: "b2", size: "volume", chunk: 0 },
+    ]);
+  });
+
+  it("pass the run's abort signal to the extractor", async () => {
+    const ctrl = new AbortController();
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" }, ctrl.signal);
+    expect(termSignals.at(-1)).toBe(ctrl.signal);
+  });
+
+  it("default to one large sample", async () => {
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });
+    expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "large", chunk: 0 });
+  });
+
+  it("send the project's custom prompt and glossary to the extractor", async () => {
+    termRequests.length = 0;
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });
+    expect(termRequests).toHaveLength(1);
+    expect(termRequests[0]).toMatchObject({
+      instructions: "Keep honorifics.",
+      existing: [{ source: "魔王", target: "Demon King" }],
+    });
   });
 });
 

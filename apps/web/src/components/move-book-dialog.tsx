@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { NativeSelect } from "@/components/ui/native-select";
 
 export function MoveBookButton({ book }: { book: BookSummary }) {
   const [open, setOpen] = useState(false);
@@ -77,12 +78,7 @@ function MoveBookForm({
         <label htmlFor={id} className="text-sm font-medium">
           Project
         </label>
-        <select
-          id={id}
-          className="h-9 rounded-md border bg-background px-2 text-sm"
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-        >
+        <NativeSelect id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
           <option value="" disabled>
             {options.length > 0 || projects.isPending ? "Choose a project" : "No other projects"}
           </option>
@@ -91,7 +87,7 @@ function MoveBookForm({
               {p.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onClose}>

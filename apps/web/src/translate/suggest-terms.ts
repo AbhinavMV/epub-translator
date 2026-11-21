@@ -1,5 +1,5 @@
 import { getTargetLanguage, type SuggestGlossaryBody } from "@et/contracts";
-import { FatalProviderError, finalizeTerms } from "@et/core";
+import { DEFAULT_SAMPLE_SIZE, FatalProviderError, finalizeTerms } from "@et/core";
 import type { BrowserProvider } from "@et/providers/browser";
 import type { GlossarySuggestion } from "@/api/client";
 import type { KeyedProvider } from "@/keys/envelope";
@@ -12,7 +12,11 @@ export async function suggestTermsInBrowser(
   signal: AbortSignal = new AbortController().signal,
 ): Promise<GlossarySuggestion> {
   const targetLang = body.targetLang ?? "en";
-  const sample = await deps.api.glossarySample(bookId, targetLang);
+  const sample = await deps.api.glossarySample(bookId, {
+    targetLang,
+    size: body.sampleSize ?? DEFAULT_SAMPLE_SIZE,
+    chunk: body.chunk ?? 0,
+  });
   const result = await deps.bundleFor(body.provider as KeyedProvider).terms.extractTerms(
     {
       model: body.model,
@@ -21,6 +25,7 @@ export async function suggestTermsInBrowser(
       bookTitle: sample.bookTitle,
       sample: sample.sample,
       existing: sample.existing,
+      instructions: sample.customPrompt,
     },
     signal,
   );

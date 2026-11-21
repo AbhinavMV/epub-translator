@@ -5,7 +5,7 @@ export interface Project {
 }
 
 export interface VolumeOrdered {
-  volumeNumber: number | null;
+  volumeNumber?: number | null;
   createdAt: string;
 }
 

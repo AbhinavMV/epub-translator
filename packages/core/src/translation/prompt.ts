@@ -1,10 +1,8 @@
 import { languageName } from "@et/contracts";
 import type { SegmentBatchRequest } from "../ports/translation-provider.ts";
 
-function systemPrompt(req: SegmentBatchRequest): string {
-  const source = languageName(req.sourceLang);
-  const target = req.target.name;
-  const lines = [
+export function fixedPromptRules(source: string, target: string): string {
+  return [
     `Translate the identified ${source} target passages into ${target}.`,
     "",
     "FIDELITY RULES (apply regardless of style):",
@@ -24,10 +22,20 @@ function systemPrompt(req: SegmentBatchRequest): string {
     '- "context" entries are earlier passages for continuity only; never translate or return them.',
     "",
     "STYLE GUIDANCE (never overrides fidelity):",
-    `Use natural, readable ${target} while preserving the source meaning.`,
-  ];
-  const instructions = req.instructions?.trim();
-  if (instructions) lines.push(`Additional instructions from the reader: ${instructions}`);
+  ].join("\n");
+}
+
+export const DEFAULT_STYLE_GUIDANCE =
+  "Use natural, readable prose in the target language while preserving the source meaning.";
+
+export function storedCustomPrompt(text: string): string {
+  const trimmed = text.trim();
+  return trimmed === DEFAULT_STYLE_GUIDANCE ? "" : trimmed;
+}
+
+function systemPrompt(req: SegmentBatchRequest): string {
+  const style = req.instructions?.trim() || DEFAULT_STYLE_GUIDANCE;
+  const lines = [fixedPromptRules(languageName(req.sourceLang), req.target.name), style];
   if (req.glossary && req.glossary.length > 0) {
     lines.push("", "GLOSSARY:");
     for (const g of req.glossary) {
