@@ -39,7 +39,7 @@ export function ChapterRail({
             aria-current={active ? "true" : undefined}
             onClick={() => onSelect(chapter.id)}
             className={cn(
-              "group relative flex w-full flex-col gap-1 rounded-md px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+              "group relative flex w-full flex-col gap-1 rounded-md px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
               active
                 ? "bg-rail-active text-rail-active-foreground"
                 : "hover:bg-accent text-foreground",
