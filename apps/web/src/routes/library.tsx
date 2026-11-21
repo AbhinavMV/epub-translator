@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { useApi } from "@/api/api-context";
-import { useProjects, useUploadBook } from "@/api/queries";
+import type { PendingImport } from "@/api/client";
+import { usePrepareImport, useProjects } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
+import { ImportDialog } from "@/components/import-dialog";
 import { ProjectCard } from "@/components/project-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,13 +14,22 @@ import { UploadDropzone } from "@/components/upload-dropzone";
 export function LibraryPage() {
   const api = useApi();
   const projects = useProjects();
-  const upload = useUploadBook();
+  const prepare = usePrepareImport();
+  const [pending, setPending] = useState<(PendingImport & { preview: { kind: "new" } }) | null>(
+    null,
+  );
 
   const onUpload = (file: File) => {
-    toast.promise(upload.mutateAsync(file), {
-      loading: `Importing ${file.name}…`,
-      success: (book) => `Imported “${book.title}”`,
-      error: () => `Could not import ${file.name}`,
+    prepare.mutate(file, {
+      onSuccess: (prepared) => {
+        const { preview } = prepared;
+        if (preview.kind === "duplicate") {
+          toast.info(`“${preview.book.title}” is already in your library`);
+        } else {
+          setPending({ ...prepared, preview });
+        }
+      },
+      onError: () => toast.error(`Could not read ${file.name}`),
     });
   };
 
@@ -37,10 +49,12 @@ export function LibraryPage() {
 
       <UploadDropzone
         onUpload={onUpload}
-        busy={upload.isPending}
+        busy={prepare.isPending}
         maxBytes={api.upload.maxBytes}
         hosted={api.upload.mode === "signed"}
       />
+
+      <ImportDialog pending={pending} onClose={() => setPending(null)} />
 
       <section aria-labelledby="library-heading" className="flex flex-col gap-4">
         <h2

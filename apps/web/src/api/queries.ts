@@ -1,6 +1,7 @@
 import type {
   BookSettings,
   ChapterView,
+  ImportPlacement,
   JobSummary,
   ProofreadDecisionBody,
   SuggestGlossaryBody,
@@ -15,6 +16,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useApi } from "./api-context";
+import type { PendingImport } from "./client";
 import { keys } from "./keys";
 
 export function useProjects() {
@@ -122,12 +124,30 @@ export function useChapter(
   };
 }
 
-export function useUploadBook() {
+export function usePrepareImport() {
+  const api = useApi();
+  return useMutation({ mutationFn: (file: File) => api.prepareImport(file) });
+}
+
+export function useCommitImport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pending, placement }: { pending: PendingImport; placement: ImportPlacement }) =>
+      pending.commit(placement),
+    onSuccess: () => invalidateLibrary(queryClient),
+  });
+}
+
+export function useSetVolumeNumber(bookId: string) {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => api.uploadBook(file),
-    onSuccess: () => invalidateLibrary(queryClient),
+    mutationFn: (volumeNumber: number) => api.setVolumeNumber(bookId, volumeNumber),
+    onSuccess: () =>
+      Promise.all([
+        invalidateLibrary(queryClient),
+        queryClient.invalidateQueries({ queryKey: keys.book(bookId) }),
+      ]),
   });
 }
 
