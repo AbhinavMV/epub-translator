@@ -74,8 +74,14 @@ async function setup() {
   const first = await upload(1);
   const second = await upload(2);
   const projectId = first.projectId ?? "";
-  await services.repos.books.place(second.id, projectId, 2);
-  await services.repos.projects.delete(second.projectId ?? "");
+  if (second.projectId !== projectId) {
+    await services.repos.books.place(second.id, projectId, 2);
+    await services.repos.projects.delete(second.projectId ?? "");
+  }
+  expect((await services.repos.books.listByProject(projectId)).map((b) => b.id)).toEqual([
+    first.id,
+    second.id,
+  ]);
 
   const putTerms = (body: unknown) =>
     app.request(`/api/projects/${projectId}/settings`, send("PUT", body));
