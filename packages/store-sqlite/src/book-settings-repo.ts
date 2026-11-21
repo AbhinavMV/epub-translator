@@ -25,11 +25,12 @@ export class SqliteBookSettingsRepository implements BookSettingsRepository {
   }
 
   async put(bookId: string, settings: BookSettings): Promise<void> {
+    const existing = this.row(bookId) as object | undefined;
     this.db
       .prepare(
-        "INSERT INTO book_settings (book_id, json) VALUES (?, ?) ON CONFLICT(book_id) DO UPDATE SET json = json_patch(book_settings.json, excluded.json)",
+        "INSERT INTO book_settings (book_id, json) VALUES (?, ?) ON CONFLICT(book_id) DO UPDATE SET json = excluded.json",
       )
-      .run(bookId, JSON.stringify(BookSettingsSchema.parse(settings)));
+      .run(bookId, JSON.stringify({ ...existing, ...BookSettingsSchema.parse(settings) }));
   }
 
   async getLegacyTerms(bookId: string): Promise<LegacyBookTerms | null> {

@@ -93,6 +93,8 @@ describe("SqliteBookSettingsRepository", () => {
     const s = { provider: "anthropic" as const, model: "claude-sonnet-5-5" };
     await repo.put("b1", s);
     expect(await repo.get("b1")).toEqual(s);
+    await repo.put("b1", { provider: null, model: null });
+    expect(await repo.get("b1")).toEqual({ provider: null, model: null });
   });
 
   it("keeps a book's pre-project terms when its model changes", async () => {
