@@ -33,6 +33,7 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
 2. **Project:** the glossary and custom prompt belong to the project, so every volume uses the same terms.
    - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
    - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with.
+   - The pencil beside the name renames the project. Once a volume has an English translation of its title, **Use translated title** opens the rename field filled with the lowest-numbered such volume's translated title, volume marker removed; nothing changes until you save.
 3. **Editor:**
    - **Choosing how to translate:**
      - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and prompt.
