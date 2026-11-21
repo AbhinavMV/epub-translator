@@ -19,7 +19,7 @@ function unplaced(id: string, title: string, createdAt = `2026-10-0${id.length}T
 
 async function library(...books: StoredBook[]) {
   const deps = { books: new MemoryBooks(), projects: new MemoryProjects(), ids: counterIds("p") };
-  for (const book of books) await deps.books.insert(book, sampleParsed);
+  for (const book of books) deps.books.seedUnplaced(book, sampleParsed);
   return deps;
 }
 
@@ -116,7 +116,7 @@ describe("backfillProjects", () => {
     const deps = await library(unplaced("a1", "魔女の旅々 1"), unplaced("a2", "魔女の旅々 2"));
     await deps.projects.create({ id: "existing", name: "Renamed", createdAt: "2026-10-01" });
     await deps.books.place("a1", "existing", 1);
-    await deps.books.insert(unplaced("b", "本好きの下剋上 第3巻"), sampleParsed);
+    deps.books.seedUnplaced(unplaced("b", "本好きの下剋上 第3巻"), sampleParsed);
     await backfillProjects(deps, { apply: true });
     expect(await deps.projects.seriesTitle("existing")).toBe("魔女の旅々");
     expect((await deps.projects.findBySeriesTitle("本好きの下剋上"))?.name).toBe("本好きの下剋上");

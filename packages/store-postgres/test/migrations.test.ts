@@ -20,6 +20,7 @@ describe("migrations", () => {
       "0009_projects.sql",
       "0010_project_settings.sql",
       "0011_project_series_title.sql",
+      "0012_books_project_required.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
@@ -90,7 +91,10 @@ describe("0009_projects", () => {
       "insert into books (owner_id, id, sha256, title, created_at, parsed_json) values ($1, 'b1', 's', '本 2', now(), '{}')",
       [ALICE],
     );
-    await applyMigrations(sql, all);
+    await applyMigrations(
+      sql,
+      all.filter((m) => m.name < "0012"),
+    );
     const m = all.find((x) => x.name === "0009_projects.sql");
     await db.exec(m?.sql ?? "");
     const rows = await sql.query<{ title: string; project_id: null; volume_number: null }>(
@@ -133,6 +137,35 @@ describe("0011_project_series_title", () => {
   it("ships apply-0011.sql identical to the migration", () => {
     const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0011.sql"), "utf8");
     const m = readFileSync(join(MIGRATIONS_DIR, "0011_project_series_title.sql"), "utf8");
+    expect(apply).toBe(m);
+  });
+});
+
+describe("0012_books_project_required", () => {
+  it("refuses while a book has no project and applies once every book is placed", async () => {
+    const { db, sql } = await createTestDatabase({ before: "0012" });
+    const insert = (id: string, projectId: string | null) =>
+      db.query(
+        "insert into books (owner_id, id, sha256, title, created_at, parsed_json, project_id) values ($1, $2, $2, '本', now(), '{}', $3)",
+        [ALICE, id, projectId],
+      );
+    await db.query(
+      "insert into projects (owner_id, id, name, created_at) values ($1, 'p1', '本', now())",
+      [ALICE],
+    );
+    await insert("b1", null);
+    const m = loadMigrations().filter((x) => x.name.startsWith("0012"));
+    await expect(applyMigrations(sql, m)).rejects.toThrow();
+
+    await db.query("update books set project_id = 'p1'");
+    expect(await applyMigrations(sql, m)).toEqual(["0012_books_project_required.sql"]);
+    await expect(insert("b2", null)).rejects.toThrow(/null/);
+    await db.close();
+  });
+
+  it("ships apply-0012.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0012.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0012_books_project_required.sql"), "utf8");
     expect(apply).toBe(m);
   });
 });

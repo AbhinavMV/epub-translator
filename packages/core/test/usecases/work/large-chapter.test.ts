@@ -48,8 +48,8 @@ beforeEach(async () => {
       sha256: "x",
       coverHref: null,
       createdAt: "t",
-      projectId: null,
-      volumeNumber: null,
+      projectId: "p1",
+      volumeNumber: 1,
     } as never,
     book,
   );

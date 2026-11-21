@@ -1,7 +1,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql, withOwner } from "../src/index.ts";
-import { batch, book, job, parsed, project } from "./fixtures.ts";
+import { batch, book, insertBook, job, parsed, project } from "./fixtures.ts";
 import { ALICE, BOB, createTestDatabase, resetData } from "./harness.ts";
 
 let db: PGlite;
@@ -93,7 +93,7 @@ describe("row level security", () => {
 
   it("cannot move a row to another owner", async () => {
     const alice = new PostgresStoreFactory(sql).forOwner(ALICE);
-    await alice.books.insert({ ...book, id: "a1", sha256: "a" }, parsed);
+    await insertBook(alice, { ...book, id: "a1", sha256: "a" });
     await expect(
       withOwner(sql, ALICE, (tx) =>
         tx.query("update books set owner_id = $1 where id = 'a1'", [BOB]),

@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ParsedBook, StoredBook } from "@et/core";
+import { type ParsedBook, type StoredBook, UnplacedBookError } from "@et/core";
 import BetterSqlite3 from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -113,12 +113,25 @@ describe("books by project", () => {
     const projects = new SqliteProjectRepository(db);
     const books = new SqliteBookRepository(db);
     await projects.create({ id: "p1", name: "A", createdAt: "2026-10-01T00:00:00.000Z" });
-    await books.insert(storedBook({ id: "b1" }), parsed);
+    db.prepare(
+      "INSERT INTO books (id, sha256, title, source_lang, created_at, parsed_json) VALUES ('b1', 'b1', '本', 'ja', ?, ?)",
+    ).run("2026-10-23T00:00:00.000Z", JSON.stringify(parsed));
     expect(await books.get("b1")).toMatchObject({ projectId: null, volumeNumber: null });
     await books.place("b1", "p1", 3);
     expect(await books.listByProject("p1")).toEqual([
       storedBook({ id: "b1", projectId: "p1", volumeNumber: 3 }),
     ]);
+  });
+
+  it("refuses a book without a project, though the column stays nullable", async () => {
+    const books = new SqliteBookRepository(db);
+    await expect(books.insert(storedBook({ id: "b1" }), parsed)).rejects.toBeInstanceOf(
+      UnplacedBookError,
+    );
+    await expect(books.insertIfAbsent(storedBook({ id: "b1" }), parsed)).rejects.toBeInstanceOf(
+      UnplacedBookError,
+    );
+    expect(await books.list()).toEqual([]);
   });
 
   it("refuses a book in a project that does not exist", async () => {

@@ -1,4 +1,4 @@
-import type { BookRepository, ParsedBook, StoredBook } from "@et/core";
+import { assertPlaced, type BookRepository, type ParsedBook, type StoredBook } from "@et/core";
 import { iso, json } from "./convert.ts";
 import type { ParsedBookCache } from "./parsed-cache.ts";
 import type { Sql } from "./sql.ts";
@@ -41,6 +41,7 @@ export class PostgresBookRepository implements BookRepository {
   ) {}
 
   async insert(book: StoredBook, parsed: ParsedBook): Promise<void> {
+    assertPlaced(book);
     await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query(
         `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)
@@ -63,6 +64,7 @@ export class PostgresBookRepository implements BookRepository {
   }
 
   async insertIfAbsent(book: StoredBook, parsed: ParsedBook): Promise<StoredBook> {
+    assertPlaced(book);
     return withOwner(this.sql, this.ownerId, async (tx) => {
       await tx.query(
         `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)

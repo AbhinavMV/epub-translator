@@ -30,12 +30,16 @@ import type {
   StoreFactory,
   TranslationRepository,
 } from "../../src/index.ts";
-import { compareVolumes } from "../../src/index.ts";
+import { assertPlaced, compareVolumes } from "../../src/index.ts";
 
 export class MemoryBooks implements BookRepository {
   readonly rows = new Map<string, { book: StoredBook; parsed: ParsedBook }>();
   async insert(book: StoredBook, parsed: ParsedBook) {
+    assertPlaced(book);
     this.rows.set(book.id, { book, parsed });
+  }
+  seedUnplaced(book: StoredBook, parsed: ParsedBook) {
+    this.rows.set(book.id, { book: { ...book, projectId: null, volumeNumber: null }, parsed });
   }
   async insertIfAbsent(book: StoredBook, parsed: ParsedBook) {
     const existing = await this.findBySha256(book.sha256);

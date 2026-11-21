@@ -1,4 +1,4 @@
-import type { BookRepository, ParsedBook, StoredBook } from "@et/core";
+import { assertPlaced, type BookRepository, type ParsedBook, type StoredBook } from "@et/core";
 import type { Database } from "./db.ts";
 
 interface BookRow {
@@ -36,6 +36,7 @@ export class SqliteBookRepository implements BookRepository {
   constructor(private readonly db: Database) {}
 
   async insert(book: StoredBook, parsed: ParsedBook): Promise<void> {
+    assertPlaced(book);
     this.db
       .prepare(`INSERT INTO books (${COLUMNS}, parsed_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(
@@ -53,6 +54,7 @@ export class SqliteBookRepository implements BookRepository {
   }
 
   async insertIfAbsent(book: StoredBook, parsed: ParsedBook): Promise<StoredBook> {
+    assertPlaced(book);
     const existing = await this.findBySha256(book.sha256);
     if (existing) return existing;
     await this.insert(book, parsed);

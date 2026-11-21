@@ -6,6 +6,7 @@ import {
   SqliteBookRepository,
   SqliteBookSettingsRepository,
   SqliteJobRepository,
+  SqliteProjectRepository,
   SqliteProofreadRepository,
   SqliteTranslationRepository,
 } from "../src/index.ts";
@@ -18,8 +19,8 @@ const book: StoredBook = {
   sourceLang: "ja",
   coverHref: "image/cover.jpg",
   createdAt: "2026-10-23T00:00:00.000Z",
-  projectId: null,
-  volumeNumber: null,
+  projectId: "p1",
+  volumeNumber: 1,
 };
 const parsed: ParsedBook = {
   title: "本",
@@ -33,6 +34,7 @@ const parsed: ParsedBook = {
 let db: Database;
 beforeEach(async () => {
   db = openDatabase(":memory:");
+  await new SqliteProjectRepository(db).create({ id: "p1", name: "本", createdAt: book.createdAt });
 });
 
 describe("SqliteBookRepository", () => {

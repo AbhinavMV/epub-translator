@@ -36,8 +36,8 @@ async function seed(factory: MemoryStoreFactory, ownerId: string, bookId: string
       sourceLang: "ja",
       coverHref: null,
       createdAt: "",
-      projectId: null,
-      volumeNumber: null,
+      projectId: "p1",
+      volumeNumber: 1,
     },
     sampleParsed,
   );

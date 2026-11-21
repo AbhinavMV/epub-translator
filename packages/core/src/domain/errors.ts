@@ -97,3 +97,10 @@ export class FatalProviderError extends Error {
     this.name = "FatalProviderError";
   }
 }
+
+export class UnplacedBookError extends Error {
+  constructor(bookId: string) {
+    super(`Book ${bookId} must belong to a project`);
+    this.name = "UnplacedBookError";
+  }
+}

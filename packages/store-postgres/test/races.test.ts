@@ -2,7 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { getOrCreateWorkspace, importBook } from "@et/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql } from "../src/index.ts";
-import { book, parsed } from "./fixtures.ts";
+import { insertBook, parsed } from "./fixtures.ts";
 import { ALICE, createTestDatabase, resetData } from "./harness.ts";
 
 let db: PGlite;
@@ -31,7 +31,7 @@ const clock = { now: () => new Date("2026-10-28T00:00:00.000Z") };
 describe("concurrent find-then-insert", () => {
   it("getOrCreateWorkspace returns one job for parallel callers", async () => {
     const repos = new PostgresStoreFactory(sql).forOwner(ALICE);
-    await repos.books.insert(book, parsed);
+    await insertBook(repos);
     const ids = counter();
     const jobs = await settled(
       Array.from({ length: 6 }, () => getOrCreateWorkspace({ ...repos, ids, clock }, "b1", "en")),

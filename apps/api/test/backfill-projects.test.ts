@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LOCAL_OWNER_ID } from "@et/contracts";
-import type { ParsedBook, StoredBook } from "@et/core";
-import { PostgresStoreFactory } from "@et/store-postgres";
+import type { ParsedBook } from "@et/core";
+import { applyMigrations, loadMigrations, PostgresStoreFactory } from "@et/store-postgres";
 import { ALICE, BOB, createTestDatabase } from "@et/store-postgres/testing";
 import { openDatabase, SqliteStoreFactory } from "@et/store-sqlite";
 import { afterEach, describe, expect, it } from "vitest";
@@ -18,17 +18,8 @@ const parsed: ParsedBook = {
   segments: [],
 };
 
-const unplaced = (id: string, title: string): StoredBook => ({
-  id,
-  sha256: id,
-  title,
-  author: null,
-  sourceLang: "ja",
-  coverHref: null,
-  createdAt: "2026-10-01T00:00:00.000Z",
-  projectId: null,
-  volumeNumber: null,
-});
+const LEGACY_BOOK =
+  "insert into books (owner_id, id, sha256, title, source_lang, created_at, parsed_json) values ($4, $1, $1, $2, 'ja', '2026-10-01T00:00:00.000Z', $3)";
 
 let counter = 0;
 const ids = { next: () => `p${++counter}` };
@@ -41,9 +32,11 @@ describe("project backfill on SQLite", () => {
     dir = mkdtempSync(join(tmpdir(), "et-backfill-"));
     const path = join(dir, "translator.db");
     const db = openDatabase(path);
-    const repos = new SqliteStoreFactory(db).forOwner(LOCAL_OWNER_ID);
-    await repos.books.insert(unplaced("a1", "魔女の旅々 1"), parsed);
-    await repos.books.insert(unplaced("a2", "魔女の旅々 2"), parsed);
+    const insert = db.prepare(
+      "insert into books (id, sha256, title, source_lang, created_at, parsed_json) values (?, ?, ?, 'ja', '2026-10-01T00:00:00.000Z', ?)",
+    );
+    insert.run("a1", "a1", "魔女の旅々 1", JSON.stringify(parsed));
+    insert.run("a2", "a2", "魔女の旅々 2", JSON.stringify(parsed));
     db.close();
     return path;
   }
@@ -94,10 +87,12 @@ describe("project backfill on SQLite", () => {
 
 describe("project backfill on Postgres", () => {
   it("plans and applies per owner through the store ports", async () => {
-    const { db, sql } = await createTestDatabase();
+    const { db, sql } = await createTestDatabase({ before: "0012" });
     const factory = new PostgresStoreFactory(sql);
-    await factory.forOwner(ALICE).books.insert(unplaced("a1", "Index Vol. 1"), parsed);
-    await factory.forOwner(BOB).books.insert(unplaced("b1", "Index Vol. 3"), parsed);
+    await sql.query(LEGACY_BOOK, ["a1", "Index Vol. 1", JSON.stringify(parsed), ALICE]);
+    await sql.query(LEGACY_BOOK, ["b1", "Index Vol. 3", JSON.stringify(parsed), BOB]);
+    const required = loadMigrations().filter((m) => m.name.startsWith("0012"));
+    await expect(applyMigrations(sql, required)).rejects.toThrow();
 
     const dry: string[] = [];
     await runProjectBackfill(await postgresBackfill(sql), {
@@ -123,6 +118,8 @@ describe("project backfill on Postgres", () => {
       log: (l) => again.push(l),
     });
     expect(again.filter((l) => l.startsWith("Every book"))).toHaveLength(2);
+    expect(await factory.forOwner(BOB).projects.findBySeriesTitle("Index")).toEqual(bobProject);
+    expect(await applyMigrations(sql, required)).toEqual(["0012_books_project_required.sql"]);
     await db.close();
   });
 });

@@ -218,7 +218,9 @@ describe("host policy", () => {
 
 async function seedBook(services: ReturnType<typeof multiOwnerServices>, ownerId: string) {
   const sha256 = `sha-${ownerId}`;
-  await services.factory.forOwner(ownerId).books.insert(
+  const repos = services.factory.forOwner(ownerId);
+  await repos.projects.create({ id: "project-1", name: "本", createdAt: "2026-10-28T00:00:00Z" });
+  await repos.books.insert(
     {
       id: "book-1",
       sha256,
@@ -227,8 +229,8 @@ async function seedBook(services: ReturnType<typeof multiOwnerServices>, ownerId
       sourceLang: "ja",
       coverHref: "cover.png",
       createdAt: "2026-10-28T00:00:00Z",
-      projectId: null,
-      volumeNumber: null,
+      projectId: "project-1",
+      volumeNumber: 1,
     },
     {
       title: "本",

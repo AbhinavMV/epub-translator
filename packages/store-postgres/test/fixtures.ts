@@ -1,4 +1,4 @@
-import type { Job, ParsedBook, Project, ProviderBatch, StoredBook } from "@et/core";
+import type { Job, ParsedBook, Project, ProviderBatch, Repositories, StoredBook } from "@et/core";
 
 export const project: Project = {
   id: "p1",
@@ -14,9 +14,19 @@ export const book: StoredBook = {
   sourceLang: "ja",
   coverHref: "image/cover.jpg",
   createdAt: "2026-10-23T00:00:00.000Z",
-  projectId: null,
-  volumeNumber: null,
+  projectId: "p1",
+  volumeNumber: 1,
 };
+
+export async function insertBook(
+  repos: Pick<Repositories, "books" | "projects">,
+  stored: StoredBook = book,
+): Promise<void> {
+  const projectId = stored.projectId ?? project.id;
+  if (!(await repos.projects.get(projectId)))
+    await repos.projects.create({ ...project, id: projectId });
+  await repos.books.insert(stored, parsed);
+}
 
 export const parsed: ParsedBook = {
   title: "本",

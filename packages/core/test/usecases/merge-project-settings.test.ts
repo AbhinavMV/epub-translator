@@ -32,7 +32,7 @@ async function library({ loose = false } = {}) {
   await deps.projects.create({ id: "p", name: "魔女の旅々", createdAt: "2026-10-01T00:00:00Z" });
   await deps.books.insert(book("v1", "p", 1), sampleParsed);
   await deps.books.insert(book("v2", "p", 2), sampleParsed);
-  if (loose) await deps.books.insert(book("loose", null, null), sampleParsed);
+  if (loose) deps.books.seedUnplaced(book("loose", null, null), sampleParsed);
   deps.settings.legacy.set("v1", {
     customPrompt: "Keep honorifics.",
     glossary: [{ source: "灰の魔女", target: "Witch of Ashes" }],

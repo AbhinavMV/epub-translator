@@ -2,7 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPostgresSql, PostgresStoreFactory, type Sql } from "../src/index.ts";
-import { book, job, parsed } from "./fixtures.ts";
+import { book, insertBook, job, parsed } from "./fixtures.ts";
 import { ALICE, BOB, createTestDatabase } from "./harness.ts";
 
 const PORT = 54329;
@@ -25,7 +25,7 @@ afterAll(async () => {
 describe("postgres.js adapter", () => {
   it("round-trips repositories over the wire protocol with prepare disabled", async () => {
     const alice = new PostgresStoreFactory(sql).forOwner(ALICE);
-    await alice.books.insert(book, parsed);
+    await insertBook(alice);
     await alice.jobs.insert(job);
     await alice.jobs.addUsage("j1", { inputTokens: 4, outputTokens: 2 });
     await alice.translations.put("j1", "s1", { text: "a", status: "done", note: "n" });

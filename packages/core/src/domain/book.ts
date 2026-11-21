@@ -1,4 +1,5 @@
 import { CONTENTS_CHAPTER_ID } from "@et/contracts";
+import { UnplacedBookError } from "./errors.ts";
 
 export { CONTENTS_CHAPTER_ID };
 export const TITLE_SEGMENT_ID = "opf#title";
@@ -14,8 +15,13 @@ export interface StoredBook {
   sourceLang: string | null;
   coverHref: string | null;
   createdAt: string;
+  /** Null only on rows from before projects, until backfill:projects places them. */
   projectId: string | null;
   volumeNumber: number | null;
+}
+
+export function assertPlaced(book: StoredBook): void {
+  if (!book.projectId) throw new UnplacedBookError(book.id);
 }
 
 export interface ParsedSegment {

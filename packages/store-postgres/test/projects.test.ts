@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import type { StoredBook } from "@et/core";
+import { type StoredBook, UnplacedBookError } from "@et/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql } from "../src/index.ts";
 import { book, parsed } from "./fixtures.ts";
@@ -97,15 +97,25 @@ describe("books by project", () => {
     expect(await books.get("v2.5")).toMatchObject({ projectId: "p1", volumeNumber: 2.5 });
   });
 
-  it("places an unplaced book in a project", async () => {
+  it("places a book in another project", async () => {
     const { projects, books } = repos();
-    await projects.create({ id: "p1", name: "A", createdAt: "2026-10-01T00:00:00.000Z" });
-    await books.insert(storedBook({ id: "b1" }), parsed);
-    expect(await books.get("b1")).toMatchObject({ projectId: null, volumeNumber: null });
+    await projects.create({ id: "p0", name: "A", createdAt: "2026-10-01T00:00:00.000Z" });
+    await projects.create({ id: "p1", name: "B", createdAt: "2026-10-01T00:00:00.000Z" });
+    await books.insert(storedBook({ id: "b1", projectId: "p0", volumeNumber: 1 }), parsed);
     await books.place("b1", "p1", 3);
+    expect(await books.listByProject("p0")).toEqual([]);
     expect(await books.listByProject("p1")).toEqual([
       storedBook({ id: "b1", projectId: "p1", volumeNumber: 3 }),
     ]);
+  });
+
+  it("refuses a book without a project", async () => {
+    await expect(
+      repos().books.insert(storedBook({ id: "b1", projectId: null }), parsed),
+    ).rejects.toBeInstanceOf(UnplacedBookError);
+    await expect(
+      repos().books.insertIfAbsent(storedBook({ id: "b1", projectId: null }), parsed),
+    ).rejects.toBeInstanceOf(UnplacedBookError);
   });
 
   it("refuses a book in a project that does not exist", async () => {

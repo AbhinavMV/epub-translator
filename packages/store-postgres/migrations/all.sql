@@ -368,3 +368,8 @@ create policy project_settings_owner on public.project_settings
 alter table public.projects add column if not exists series_title text;
 
 create index if not exists projects_series_title on public.projects (owner_id, series_title);
+
+-- 0012_books_project_required.sql
+-- Run only after backfill:projects --apply has placed every book in a project (and
+-- merge:project-settings --apply has moved the glossaries); it fails while any book has none.
+alter table public.books alter column project_id set not null;
