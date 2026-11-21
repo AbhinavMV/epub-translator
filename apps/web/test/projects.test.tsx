@@ -59,6 +59,7 @@ const summaries: ProjectSummary[] = [
     createdAt: "2026-10-02T00:00:00.000Z",
     volumeCount: 3,
     coverUrl: "/api/books/v1/cover",
+    fullyTranslatedLang: null,
   },
   {
     id: "p2",
@@ -66,6 +67,7 @@ const summaries: ProjectSummary[] = [
     createdAt: "2026-10-01T00:00:00.000Z",
     volumeCount: 0,
     coverUrl: null,
+    fullyTranslatedLang: null,
   },
 ];
 
@@ -92,6 +94,7 @@ const detail: ProjectDetail = {
     book("v2", "魔女の旅々 2", 2),
     book("v25", "魔女の旅々 2.5", 2.5),
   ],
+  fullyTranslatedLang: null,
 };
 
 describe("Library", () => {

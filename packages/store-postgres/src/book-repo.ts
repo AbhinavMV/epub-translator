@@ -44,8 +44,8 @@ export class PostgresBookRepository implements BookRepository {
     assertPlaced(book);
     await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query(
-        `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10, $11::text::jsonb)`,
+        `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json, segment_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10, $11::text::jsonb, $12)`,
         [
           this.ownerId,
           book.id,
@@ -58,6 +58,7 @@ export class PostgresBookRepository implements BookRepository {
           book.projectId,
           book.volumeNumber,
           JSON.stringify(parsed),
+          parsed.segments.length,
         ],
       ),
     );
@@ -67,8 +68,8 @@ export class PostgresBookRepository implements BookRepository {
     assertPlaced(book);
     return withOwner(this.sql, this.ownerId, async (tx) => {
       await tx.query(
-        `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10, $11::text::jsonb)
+        `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json, segment_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10, $11::text::jsonb, $12)
          ON CONFLICT (owner_id, sha256) DO NOTHING`,
         [
           this.ownerId,
@@ -82,6 +83,7 @@ export class PostgresBookRepository implements BookRepository {
           book.projectId,
           book.volumeNumber,
           JSON.stringify(parsed),
+          parsed.segments.length,
         ],
       );
       const rows = await tx.query<BookRow>(
@@ -129,13 +131,24 @@ export class PostgresBookRepository implements BookRepository {
 
   async updateParsed(id: string, parsed: ParsedBook): Promise<void> {
     await withOwner(this.sql, this.ownerId, (tx) =>
-      tx.query("UPDATE books SET parsed_json = $3::text::jsonb WHERE owner_id = $1 AND id = $2", [
-        this.ownerId,
-        id,
-        JSON.stringify(parsed),
-      ]),
+      tx.query(
+        "UPDATE books SET parsed_json = $3::text::jsonb, segment_count = $4 WHERE owner_id = $1 AND id = $2",
+        [this.ownerId, id, JSON.stringify(parsed), parsed.segments.length],
+      ),
     );
     this.cache.set(this.ownerId, id, parsed);
+  }
+
+  async segmentCounts(ids: readonly string[]): Promise<Map<string, number>> {
+    if (ids.length === 0) return new Map();
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<{ id: string; segment_count: number }>(
+        `SELECT id, segment_count FROM books
+         WHERE owner_id = $1 AND id = ANY(ARRAY(SELECT jsonb_array_elements_text($2::text::jsonb)))`,
+        [this.ownerId, JSON.stringify(ids)],
+      ),
+    );
+    return new Map(rows.map((r) => [r.id, r.segment_count]));
   }
 
   async list(): Promise<StoredBook[]> {

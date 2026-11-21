@@ -65,6 +65,21 @@ describe("SqliteBookRepository", () => {
     expect(await new SqliteBookRepository(db).getParsed("b1")).toEqual(next);
   });
 
+  it("counts each book's segments without reading its parsed structure", async () => {
+    const repo = new SqliteBookRepository(db);
+    await repo.insert(book, parsed);
+    await repo.insert({ ...book, id: "b2", sha256: "def" }, { ...parsed, segments: [] });
+    expect(await repo.segmentCounts(["b1", "b2", "missing"])).toEqual(
+      new Map([
+        ["b1", 1],
+        ["b2", 0],
+      ]),
+    );
+    await repo.updateParsed("b2", parsed);
+    expect(await new SqliteBookRepository(db).segmentCounts(["b2"])).toEqual(new Map([["b2", 1]]));
+    expect(await repo.segmentCounts([])).toEqual(new Map());
+  });
+
   it("delete cascades to jobs and translations", async () => {
     const books = new SqliteBookRepository(db);
     const jobs = new SqliteJobRepository(db);

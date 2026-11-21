@@ -1,8 +1,8 @@
-import type { GlossaryEntry, ProviderInfo, SampleSize } from "@et/contracts";
+import type { GlossaryEntry, GlossarySamplePlan, ProviderInfo, SampleSize } from "@et/contracts";
 import { Loader2, Sparkles, Square } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useGlossaryPlans } from "@/api/queries";
-import { chunkSteps } from "@/api/suggestion-run";
+import { chunkSteps, totalPlan } from "@/api/suggestion-run";
 import { useSuggestionRun } from "@/api/use-suggestion-run";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,7 @@ const SAMPLE_SIZES: { value: SampleSize; label: string }[] = [
 const requestsLabel = (requests: number, chars: number) =>
   `${number.format(requests)} ${requests === 1 ? "request" : "requests"} · ~${number.format(chars)} chars`;
 
-const planLabel = (volumes: number, requests: number, chars: number) =>
+const planLabel = (volumes: number, { requests, chars }: GlossarySamplePlan) =>
   volumes > 1
     ? `${volumes} volumes · ${requestsLabel(requests, chars)}`
     : requestsLabel(requests, chars);
@@ -171,11 +171,7 @@ export function GlossarySuggestions({
         </ToggleGroup>
         {plans && (
           <span className="text-xs text-muted-foreground">
-            {planLabel(
-              plans.length,
-              plans.reduce((n, p) => n + p.requests, 0),
-              plans.reduce((n, p) => n + p.chars, 0),
-            )}
+            {planLabel(plans.length, totalPlan(plans))}
           </span>
         )}
       </div>

@@ -21,6 +21,7 @@ describe("migrations", () => {
       "0010_project_settings.sql",
       "0011_project_series_title.sql",
       "0012_books_project_required.sql",
+      "0013_book_segment_count.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
@@ -166,6 +167,40 @@ describe("0012_books_project_required", () => {
   it("ships apply-0012.sql identical to the migration", () => {
     const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0012.sql"), "utf8");
     const m = readFileSync(join(MIGRATIONS_DIR, "0012_books_project_required.sql"), "utf8");
+    expect(apply).toBe(m);
+  });
+});
+
+describe("0013_book_segment_count", () => {
+  it("counts the segments of books stored before segments were counted and re-runs by hand", async () => {
+    const { db, sql } = await createTestDatabase({ before: "0013" });
+    await db.query(
+      "insert into projects (owner_id, id, name, created_at) values ($1, 'p1', '本', now())",
+      [ALICE],
+    );
+    const insert = (id: string, parsed: string) =>
+      db.query(
+        "insert into books (owner_id, id, sha256, title, created_at, parsed_json, project_id) values ($1, $2, $2, '本', now(), $3::text::jsonb, 'p1')",
+        [ALICE, id, parsed],
+      );
+    await insert("b1", JSON.stringify({ segments: [{ id: "a" }, { id: "b" }] }));
+    await insert("b2", "{}");
+    const m = loadMigrations().filter((x) => x.name.startsWith("0013"));
+    await applyMigrations(sql, m);
+    await db.exec(m[0]?.sql ?? "");
+    const rows = await sql.query<{ id: string; segment_count: number }>(
+      "select id, segment_count from books order by id",
+    );
+    expect(rows).toEqual([
+      { id: "b1", segment_count: 2 },
+      { id: "b2", segment_count: 0 },
+    ]);
+    await db.close();
+  });
+
+  it("ships apply-0013.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0013.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0013_book_segment_count.sql"), "utf8");
     expect(apply).toBe(m);
   });
 });

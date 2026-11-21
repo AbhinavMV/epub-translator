@@ -3,6 +3,7 @@ import { NotFoundError } from "../domain/errors.ts";
 import { compareVolumes, type Project, unnumberedVolumeNumber } from "../domain/project.ts";
 import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
+import { type FullyTranslatedDeps, fullyTranslatedLanguage } from "./fully-translated.ts";
 
 export interface ProjectWithBooks {
   project: Project;
@@ -34,6 +35,28 @@ export async function requireProject(
   const project = await deps.projects.get(projectId);
   if (!project) throw new NotFoundError("Project", projectId);
   return { project, books: await deps.books.listByProject(projectId) };
+}
+
+export interface ProjectOverview extends ProjectWithBooks {
+  /** The target language every volume is completely translated into, if any. */
+  fullyTranslatedLang: string | null;
+}
+
+type OverviewDeps = ProjectDeps & FullyTranslatedDeps;
+
+async function overview(deps: OverviewDeps, entry: ProjectWithBooks): Promise<ProjectOverview> {
+  return { ...entry, fullyTranslatedLang: await fullyTranslatedLanguage(deps, entry.books) };
+}
+
+export async function listProjectOverviews(deps: OverviewDeps): Promise<ProjectOverview[]> {
+  return Promise.all((await listProjects(deps)).map((entry) => overview(deps, entry)));
+}
+
+export async function projectOverview(
+  deps: OverviewDeps,
+  projectId: string,
+): Promise<ProjectOverview> {
+  return overview(deps, await requireProject(deps, projectId));
 }
 
 export async function setVolumeNumber(

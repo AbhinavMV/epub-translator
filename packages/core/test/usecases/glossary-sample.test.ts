@@ -47,6 +47,34 @@ describe("sample sizes", () => {
     expect(texts[0]?.sample).toContain("第一章");
   });
 
+  it("keeps each entire-volume chunk's boundaries", () => {
+    const chunk = (i: number) => sampleChunk(longBook, "volume", i).sample;
+    expect([0, 1, 2].map((i) => chunk(i).length)).toEqual([39_887, 39_879, 19_939]);
+    expect(chunk(0).startsWith(`第一章\n第二章\n${paragraph(0)}\n`)).toBe(true);
+    expect(chunk(0).endsWith(paragraph(39))).toBe(true);
+    expect(chunk(1).startsWith(paragraph(40))).toBe(true);
+    expect(chunk(1).endsWith(paragraph(79))).toBe(true);
+    expect(chunk(2).startsWith(paragraph(80))).toBe(true);
+    expect(chunk(2).endsWith(paragraph(99))).toBe(true);
+  });
+
+  it("splits a volume once, however many of its chunks are requested", () => {
+    let reads = 0;
+    const watched: ParsedBook = {
+      ...longBook,
+      get segments() {
+        reads++;
+        return longBook.segments;
+      },
+    };
+    sampleChunk(watched, "volume", 0);
+    const afterFirst = reads;
+    sampleChunk(watched, "volume", 1);
+    sampleChunk(watched, "volume", 2);
+    samplePlan(watched, "volume");
+    expect(reads).toBe(afterFirst);
+  });
+
   it("hard-splits a paragraph longer than a chunk", () => {
     const huge: ParsedBook = {
       ...sampleParsed,

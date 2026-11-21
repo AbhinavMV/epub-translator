@@ -1,5 +1,6 @@
 import type { BookSummary, GlossaryEntry } from "@et/contracts";
 import { TARGET_LANGUAGES } from "@et/contracts";
+import { compareVolumes } from "@et/core";
 import { useState } from "react";
 import { useProviders } from "@/api/queries";
 import { GlossarySuggestions } from "@/components/editor/glossary-suggestions";
@@ -14,9 +15,6 @@ import {
 } from "@/components/ui/select";
 
 const ALL_VOLUMES = "__all-volumes__";
-
-const volumeOrder = (book: BookSummary) => book.volumeNumber ?? Number.MAX_VALUE;
-const byVolume = (a: BookSummary, b: BookSummary) => volumeOrder(a) - volumeOrder(b);
 
 const volumeLabel = (book: BookSummary) =>
   book.volumeNumber === null || book.volumeNumber === undefined
@@ -36,7 +34,7 @@ export function ProjectGlossarySuggestions({
   const [chosen, setChosen] = useState<Selection | null>(null);
   const [running, setRunning] = useState(false);
   const selection = chosen ?? resolveSelection(undefined, providers.data);
-  const volumes = [...books].sort(byVolume);
+  const volumes = [...books].sort(compareVolumes);
   const latest = books.at(-1);
   const sampled = bookId === ALL_VOLUMES ? null : (books.find((b) => b.id === bookId) ?? latest);
 

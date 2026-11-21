@@ -1,8 +1,7 @@
 import { languageName } from "@et/contracts";
 import type { SegmentBatchRequest } from "../ports/translation-provider.ts";
 
-export function fixedPromptRules(sourceLang: string | null, target: string): string {
-  const source = languageName(sourceLang);
+export function fixedPromptRules(source: string, target: string): string {
   return [
     `Translate the identified ${source} target passages into ${target}.`,
     "",
@@ -36,7 +35,7 @@ export function storedCustomPrompt(text: string): string {
 
 function systemPrompt(req: SegmentBatchRequest): string {
   const style = req.instructions?.trim() || DEFAULT_STYLE_GUIDANCE;
-  const lines = [fixedPromptRules(req.sourceLang, req.target.name), style];
+  const lines = [fixedPromptRules(languageName(req.sourceLang), req.target.name), style];
   if (req.glossary && req.glossary.length > 0) {
     lines.push("", "GLOSSARY:");
     for (const g of req.glossary) {

@@ -1,6 +1,7 @@
 import { type GlossaryEntry, MAX_GLOSSARY_ENTRIES } from "@et/contracts";
 import { BookA, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,6 +24,8 @@ interface Row {
 }
 
 const MAX_ENTRIES = MAX_GLOSSARY_ENTRIES;
+const LIMIT_LABEL = MAX_ENTRIES.toLocaleString("en-US");
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 let rowKey = 0;
 const toRows = (entries: GlossaryEntry[]): Row[] =>
   entries.map((e) => ({ key: rowKey++, source: e.source, target: e.target, note: e.note ?? "" }));
@@ -62,12 +65,18 @@ export function GlossaryDialog({
   const update = (key: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
-  const addSuggestions = (entries: GlossaryEntry[]) =>
-    setRows((rs) => {
-      const known = new Set(rs.map((r) => r.source.trim()));
-      const fresh = entries.filter((e) => !known.has(e.source.trim()));
-      return [...rs, ...toRows(fresh)].slice(0, MAX_ENTRIES);
-    });
+  const addSuggestions = (entries: GlossaryEntry[]) => {
+    const known = new Set(rows.map((r) => r.source.trim()));
+    const fresh = entries.filter((e) => !known.has(e.source.trim()));
+    const added = fresh.slice(0, Math.max(0, MAX_ENTRIES - rows.length));
+    setRows([...rows, ...toRows(added)]);
+    const leftOut = fresh.length - added.length;
+    if (leftOut > 0) {
+      toast.warning(
+        `Added ${plural(added.length, "suggestion", "suggestions")}. ${plural(leftOut, "was", "were")} left out: a glossary holds at most ${LIMIT_LABEL} entries.`,
+      );
+    }
+  };
 
   const submit = async () => {
     const next = rows

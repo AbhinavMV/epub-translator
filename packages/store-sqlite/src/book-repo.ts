@@ -38,7 +38,9 @@ export class SqliteBookRepository implements BookRepository {
   async insert(book: StoredBook, parsed: ParsedBook): Promise<void> {
     assertPlaced(book);
     this.db
-      .prepare(`INSERT INTO books (${COLUMNS}, parsed_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .prepare(
+        `INSERT INTO books (${COLUMNS}, parsed_json, segment_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
       .run(
         book.id,
         book.sha256,
@@ -50,6 +52,7 @@ export class SqliteBookRepository implements BookRepository {
         book.projectId,
         book.volumeNumber,
         JSON.stringify(parsed),
+        parsed.segments.length,
       );
   }
 
@@ -89,9 +92,17 @@ export class SqliteBookRepository implements BookRepository {
 
   async updateParsed(id: string, parsed: ParsedBook): Promise<void> {
     this.db
-      .prepare("UPDATE books SET parsed_json = ? WHERE id = ?")
-      .run(JSON.stringify(parsed), id);
+      .prepare("UPDATE books SET parsed_json = ?, segment_count = ? WHERE id = ?")
+      .run(JSON.stringify(parsed), parsed.segments.length, id);
     this.parsedCache.set(id, parsed);
+  }
+
+  async segmentCounts(ids: readonly string[]): Promise<Map<string, number>> {
+    if (ids.length === 0) return new Map();
+    const rows = this.db
+      .prepare("SELECT id, segment_count FROM books WHERE id IN (SELECT value FROM json_each(?))")
+      .all(JSON.stringify(ids)) as { id: string; segment_count: number }[];
+    return new Map(rows.map((r) => [r.id, r.segment_count]));
   }
 
   async list(): Promise<StoredBook[]> {

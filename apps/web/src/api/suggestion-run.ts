@@ -1,4 +1,4 @@
-import type { GlossaryEntry, Usage } from "@et/contracts";
+import type { GlossaryEntry, GlossarySamplePlan, Usage } from "@et/contracts";
 import { mergeSuggestions } from "@/lib/merge-suggestions";
 import type { GlossarySuggestion } from "./client";
 
@@ -23,6 +23,16 @@ export interface SuggestionRunResult {
 }
 
 export type FetchChunk = (step: SuggestionStep, signal: AbortSignal) => Promise<GlossarySuggestion>;
+
+export function totalPlan(plans: readonly GlossarySamplePlan[]): GlossarySamplePlan {
+  return plans.reduce(
+    (sum, p) => ({ requests: sum.requests + p.requests, chars: sum.chars + p.chars }),
+    {
+      requests: 0,
+      chars: 0,
+    },
+  );
+}
 
 export function chunkSteps(bookId: string, requests: number): SuggestionStep[] {
   return Array.from({ length: requests }, (_, chunk) => ({ bookId, chunk }));

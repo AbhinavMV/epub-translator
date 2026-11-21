@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GlossarySuggestion } from "@/api/client";
-import { runSuggestions, type SuggestionStep } from "@/api/suggestion-run";
+import { runSuggestions, type SuggestionStep, totalPlan } from "@/api/suggestion-run";
 
 const steps: SuggestionStep[] = [
   { bookId: "b1", chunk: 0 },
@@ -77,5 +77,17 @@ describe("runSuggestions", () => {
     expect(out.outcome).toBe("error");
     expect(out.error).toBe("rate limited");
     expect(out.terms).toHaveLength(1);
+  });
+});
+
+describe("totalPlan", () => {
+  it("adds up every volume's requests and characters", () => {
+    expect(
+      totalPlan([
+        { requests: 3, chars: 90_000 },
+        { requests: 1, chars: 12_000 },
+      ]),
+    ).toEqual({ requests: 4, chars: 102_000 });
+    expect(totalPlan([])).toEqual({ requests: 0, chars: 0 });
   });
 });

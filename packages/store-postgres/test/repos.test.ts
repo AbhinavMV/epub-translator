@@ -53,6 +53,20 @@ describe("PostgresBookRepository", () => {
     expect(await factory.forOwner(ALICE).books.getParsed("b1")).toEqual(next);
   });
 
+  it("counts each book's segments, for its owner only", async () => {
+    await insertBook(repos);
+    await insertBook(repos, { ...book, id: "b2", sha256: "def" });
+    await repos.books.updateParsed("b2", { ...parsed, segments: [] });
+    expect(await repos.books.segmentCounts(["b1", "b2", "missing"])).toEqual(
+      new Map([
+        ["b1", 1],
+        ["b2", 0],
+      ]),
+    );
+    expect(await factory.forOwner(BOB).books.segmentCounts(["b1"])).toEqual(new Map());
+    expect(await repos.books.segmentCounts([])).toEqual(new Map());
+  });
+
   it("lists newest first", async () => {
     const newer = { ...book, id: "b2", sha256: "def", createdAt: "2026-10-24T00:00:00.000Z" };
     await insertBook(repos);
