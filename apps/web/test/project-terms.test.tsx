@@ -156,6 +156,37 @@ describe("project glossary and prompt", () => {
     });
   });
 
+  it("shows the fixed rules read-only above the project's custom prompt", async () => {
+    renderAt("/projects/p1", projectApi());
+    await userEvent.click(await screen.findByRole("button", { name: /edit prompt/i }));
+    const dialog = screen.getByRole("dialog");
+    const rules = within(dialog).getByRole("region", { name: /fixed rules/i });
+    expect(rules).toHaveTextContent(/FIDELITY RULES/);
+    expect(rules).toHaveTextContent(/FORMAT RULES/);
+    expect(rules).toHaveTextContent(
+      /Translate the identified Japanese target passages into English/,
+    );
+    expect(within(rules).queryByRole("textbox")).toBeNull();
+    expect(within(dialog).getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
+      "Keep honorifics.",
+    );
+  });
+
+  it("pre-fills the default style guidance and stores nothing when it is saved unchanged", async () => {
+    const getProjectSettings = vi.fn(async () => ({ ...stored, customPrompt: "" }));
+    const api = { ...projectApi(), getProjectSettings };
+    renderAt("/projects/p1", api);
+    await userEvent.click(await screen.findByRole("button", { name: /edit prompt/i }));
+    expect(screen.getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
+      "Use natural, readable English while preserving the source meaning.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save prompt" }));
+    expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
+      customPrompt: "",
+      glossary: stored.glossary,
+    });
+  });
+
   it("suggests terms from the latest volume and adds accepted ones to the project", async () => {
     const suggestGlossary = vi.fn(async () => ({
       terms: [{ source: "サヤ", target: "Saya" }],

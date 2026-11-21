@@ -1,3 +1,4 @@
+import { defaultStyleGuidance, fixedPromptRules, storedCustomPrompt } from "@et/core";
 import { MessageSquareText } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,15 @@ const MAX = 4000;
 
 export function PromptDialog({
   value,
+  sourceLang,
+  targetName,
   disabled,
   saving,
   onSave,
 }: {
   value: string | undefined;
+  sourceLang: string | null;
+  targetName: string;
   disabled: boolean;
   saving: boolean;
   onSave: (prompt: string) => Promise<unknown>;
@@ -32,7 +37,7 @@ export function PromptDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setDraft(value ?? "");
+        if (next) setDraft(value || defaultStyleGuidance(targetName));
         setOpen(next);
       }}
     >
@@ -47,12 +52,21 @@ export function PromptDialog({
         <DialogHeader>
           <DialogTitle>Edit prompt</DialogTitle>
           <DialogDescription>
-            Extra instructions appended to the translation prompt for every book in this project,
-            such as tone, honorifics or how to render names.
+            The custom prompt takes the place of the default style guidance for every volume in this
+            project, such as tone, honorifics or how to render names. The fidelity and format rules
+            always apply.
           </DialogDescription>
         </DialogHeader>
+        <section
+          aria-label="Fixed rules"
+          className="max-h-48 overflow-y-auto rounded-md border bg-muted/50 p-3"
+        >
+          <pre className="font-mono text-xs whitespace-pre-wrap text-muted-foreground">
+            {fixedPromptRules(sourceLang, targetName)}
+          </pre>
+        </section>
         <Textarea
-          rows={9}
+          rows={6}
           maxLength={MAX}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -69,7 +83,7 @@ export function PromptDialog({
           <Button
             disabled={saving}
             onClick={async () => {
-              await onSave(draft.trim());
+              await onSave(storedCustomPrompt(draft, targetName));
               setOpen(false);
             }}
           >
