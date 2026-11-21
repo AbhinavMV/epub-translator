@@ -8,6 +8,7 @@ import type {
 } from "@et/core";
 import type { BrowserProvider, createBrowserProvider } from "@et/providers/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { runSuggestions } from "@/api/suggestion-run";
 import { MemoryEnvelopeStore } from "@/keys/memory-store";
 import { Vault } from "@/keys/vault";
 import { ClientRuntime } from "@/translate/runtime";
@@ -218,6 +219,31 @@ describe("glossary suggestions in the browser", () => {
     });
     expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "volume", chunk: 2 });
     expect(termRequests[0]?.sample).toBe("sample text 2");
+  });
+
+  it("sample every volume's chunks in the order of an all-volumes run", async () => {
+    const steps = [
+      { bookId: "b1", chunk: 0 },
+      { bookId: "b1", chunk: 1 },
+      { bookId: "b2", chunk: 0 },
+    ];
+    const before = api.sampleQueries.length;
+    const result = await runSuggestions(
+      steps,
+      (step, signal) =>
+        runtime.suggestGlossary(
+          step.bookId,
+          { provider: "anthropic", model: "m", sampleSize: "volume", chunk: step.chunk },
+          signal,
+        ),
+      { signal: new AbortController().signal },
+    );
+    expect(result.outcome).toBe("done");
+    expect(api.sampleQueries.slice(before)).toEqual([
+      { bookId: "b1", size: "volume", chunk: 0 },
+      { bookId: "b1", size: "volume", chunk: 1 },
+      { bookId: "b2", size: "volume", chunk: 0 },
+    ]);
   });
 
   it("pass the run's abort signal to the extractor", async () => {

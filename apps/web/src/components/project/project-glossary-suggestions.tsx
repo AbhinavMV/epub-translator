@@ -13,6 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const ALL_VOLUMES = "__all-volumes__";
+
+const volumeOrder = (book: BookSummary) => book.volumeNumber ?? Number.MAX_VALUE;
+const byVolume = (a: BookSummary, b: BookSummary) => volumeOrder(a) - volumeOrder(b);
+
 const volumeLabel = (book: BookSummary) =>
   book.volumeNumber === null || book.volumeNumber === undefined
     ? book.title
@@ -31,14 +36,16 @@ export function ProjectGlossarySuggestions({
   const [chosen, setChosen] = useState<Selection | null>(null);
   const [running, setRunning] = useState(false);
   const selection = chosen ?? resolveSelection(undefined, providers.data);
-  const sampled = books.find((b) => b.id === bookId) ?? books.at(-1);
+  const volumes = [...books].sort(byVolume);
+  const latest = books.at(-1);
+  const sampled = bookId === ALL_VOLUMES ? null : (books.find((b) => b.id === bookId) ?? latest);
 
-  if (!sampled) return null;
+  if (!latest) return null;
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={sampled.id} onValueChange={setBookId} disabled={running}>
+        <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
           <SelectTrigger size="sm" className="w-[9rem]" aria-label="Volume to sample">
             <SelectValue />
           </SelectTrigger>
@@ -48,6 +55,7 @@ export function ProjectGlossarySuggestions({
                 {volumeLabel(b)}
               </SelectItem>
             ))}
+            {books.length > 1 && <SelectItem value={ALL_VOLUMES}>All volumes</SelectItem>}
           </SelectContent>
         </Select>
         <Select value={targetLang} onValueChange={setTargetLang}>
@@ -65,8 +73,8 @@ export function ProjectGlossarySuggestions({
         <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
       </div>
       <GlossarySuggestions
-        key={sampled.id}
-        bookId={sampled.id}
+        key={sampled?.id ?? ALL_VOLUMES}
+        bookIds={sampled ? [sampled.id] : volumes.map((b) => b.id)}
         targetLang={targetLang}
         providers={providers.data}
         selection={selection}
