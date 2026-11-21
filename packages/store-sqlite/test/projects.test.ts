@@ -9,7 +9,6 @@ import {
   migrate,
   openDatabase,
   openDatabaseSnapshot,
-  SCHEMA_VERSION,
   SqliteBookRepository,
   SqliteJobRepository,
   SqliteProjectRepository,
@@ -151,7 +150,7 @@ describe("projects migration", () => {
 
   it("counts the segments of books stored before segments were counted", async () => {
     const old = new BetterSqlite3(":memory:");
-    migrate(old, SCHEMA_VERSION - 1);
+    migrate(old, 7);
     old
       .prepare(
         "INSERT INTO books (id, sha256, title, created_at, parsed_json) VALUES ('b1', 's', '本 2', '2026-10-01T00:00:00.000Z', ?)",
