@@ -131,6 +131,7 @@ export const GlossarySampleSchema = z.object({
   sourceLang: z.string().nullable(),
   bookTitle: z.string(),
   existing: z.array(GlossaryEntrySchema),
+  customPrompt: z.string(),
   targetLang: z.string(),
 });
 export type GlossarySample = z.infer<typeof GlossarySampleSchema>;
