@@ -158,6 +158,7 @@ describe("projects migration", () => {
     dir = mkdtempSync(join(tmpdir(), "et-projects-"));
     const path = join(dir, "translator.db");
     const old = new BetterSqlite3(path);
+    old.pragma("journal_mode = WAL");
     migrate(old, 4);
     old
       .prepare(
