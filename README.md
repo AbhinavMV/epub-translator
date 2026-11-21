@@ -29,7 +29,7 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
 
 ## Using it
 
-1. **Library:** drop an `.epub` file. Each book is a volume of a project.
+1. **Library:** drop an `.epub` file. Each book is a volume of a project. A project whose every volume is completely translated into one language (flagged passages count) shows a **Translated** badge on its card and in its page header, naming the language when it is not English.
 2. **Project:** the glossary and custom prompt belong to the project, so every volume uses the same terms.
    - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
    - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with.
