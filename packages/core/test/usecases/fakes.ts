@@ -1,7 +1,10 @@
 import {
   type BookSettings,
   type ChapterProofread,
+  type LegacyBookTerms,
   LOCAL_OWNER_ID,
+  type ProjectSettings,
+  type ProjectTerms,
   type Usage,
 } from "@et/contracts";
 import type {
@@ -69,6 +72,7 @@ export class MemoryBooks implements BookRepository {
 
 export class MemoryProjects implements ProjectRepository {
   readonly rows = new Map<string, Project>();
+  readonly settings = new Map<string, ProjectSettings>();
   async create(project: Project) {
     this.rows.set(project.id, { ...project });
   }
@@ -87,16 +91,42 @@ export class MemoryProjects implements ProjectRepository {
   }
   async delete(id: string) {
     this.rows.delete(id);
+    this.settings.delete(id);
   }
+  async getSettings(id: string) {
+    const row = this.settings.get(id);
+    return row ? structuredClone(row) : null;
+  }
+  async putSettings(id: string, settings: ProjectSettings) {
+    this.settings.set(id, structuredClone(settings));
+  }
+}
+
+export async function seedProjectTerms(
+  deps: { books: BookRepository; projects: ProjectRepository },
+  bookId: string,
+  terms: ProjectTerms,
+  projectId = "p1",
+) {
+  if (!(await deps.projects.get(projectId))) {
+    await deps.projects.create({ id: projectId, name: projectId, createdAt: "t" });
+  }
+  await deps.books.place(bookId, projectId, 1);
+  await deps.projects.putSettings(projectId, { ...terms, glossaryConflicts: [] });
 }
 
 export class MemorySettings implements BookSettingsRepository {
   readonly rows = new Map<string, BookSettings>();
+  readonly legacy = new Map<string, LegacyBookTerms>();
   async get(bookId: string): Promise<BookSettings> {
-    return this.rows.get(bookId) ?? { customPrompt: "", glossary: [], provider: null, model: null };
+    const row = this.rows.get(bookId);
+    return row ? { provider: row.provider, model: row.model } : { provider: null, model: null };
   }
   async put(bookId: string, s: BookSettings) {
     this.rows.set(bookId, s);
+  }
+  async getLegacyTerms(bookId: string) {
+    return this.legacy.get(bookId) ?? null;
   }
 }
 

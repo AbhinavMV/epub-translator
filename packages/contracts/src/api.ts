@@ -110,12 +110,45 @@ export const GlossaryEntrySchema = z.object({
 export type GlossaryEntry = z.infer<typeof GlossaryEntrySchema>;
 
 export const BookSettingsSchema = z.object({
-  customPrompt: z.string().max(4000),
-  glossary: z.array(GlossaryEntrySchema).max(2000),
   provider: ProviderIdSchema.nullable(),
   model: z.string().nullable(),
 });
 export type BookSettings = z.infer<typeof BookSettingsSchema>;
+
+export const LegacyBookTermsSchema = z.object({
+  customPrompt: z.string().default(""),
+  glossary: z.array(GlossaryEntrySchema).default([]),
+});
+export type LegacyBookTerms = z.infer<typeof LegacyBookTermsSchema>;
+
+export const MAX_GLOSSARY_ENTRIES = 5000;
+export const MAX_CUSTOM_PROMPT = 4000;
+
+export const ProjectTermsSchema = z.object({
+  customPrompt: z.string().max(MAX_CUSTOM_PROMPT),
+  glossary: z.array(GlossaryEntrySchema).max(MAX_GLOSSARY_ENTRIES),
+});
+export type ProjectTerms = z.infer<typeof ProjectTermsSchema>;
+
+export const GlossaryRenderingSchema = z.object({
+  target: z.string().min(1),
+  note: z.string().optional(),
+  bookId: z.string(),
+  volumeNumber: z.number().nullable(),
+});
+export type GlossaryRendering = z.infer<typeof GlossaryRenderingSchema>;
+
+export const GlossaryConflictSchema = z.object({
+  source: z.string().min(1),
+  inForce: GlossaryRenderingSchema,
+  alternatives: z.array(GlossaryRenderingSchema).min(1),
+});
+export type GlossaryConflict = z.infer<typeof GlossaryConflictSchema>;
+
+export const ProjectSettingsSchema = ProjectTermsSchema.extend({
+  glossaryConflicts: z.array(GlossaryConflictSchema),
+});
+export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
 
 export const BookDetailSchema = BookSummarySchema.extend({
   chapters: z.array(ChapterSummarySchema),

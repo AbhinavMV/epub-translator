@@ -1,4 +1,10 @@
-import type { BookSettings, ChapterProofread, Usage } from "@et/contracts";
+import type {
+  BookSettings,
+  ChapterProofread,
+  LegacyBookTerms,
+  ProjectSettings,
+  Usage,
+} from "@et/contracts";
 import type { ParsedBook, StoredBook } from "../domain/book.ts";
 import type { Job } from "../domain/job.ts";
 import type { Project } from "../domain/project.ts";
@@ -24,11 +30,16 @@ export interface ProjectRepository {
   list(): Promise<Project[]>;
   rename(id: string, name: string): Promise<void>;
   delete(id: string): Promise<void>;
+  getSettings(id: string): Promise<ProjectSettings | null>;
+  putSettings(id: string, settings: ProjectSettings): Promise<void>;
 }
 
 export interface BookSettingsRepository {
   get(bookId: string): Promise<BookSettings>;
+  /** Keeps any other keys already stored for the book, such as its pre-project terms. */
   put(bookId: string, settings: BookSettings): Promise<void>;
+  /** The glossary and custom prompt a book carried before they moved to its project. */
+  getLegacyTerms(bookId: string): Promise<LegacyBookTerms | null>;
 }
 
 export interface JobRepository {

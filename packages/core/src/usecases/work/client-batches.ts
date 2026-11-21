@@ -7,6 +7,7 @@ import type { Repositories } from "../../ports/stores.ts";
 import type { Clock, IdGenerator } from "../../ports/system.ts";
 import { batchSegments } from "../../translation/batcher.ts";
 import { chapterWork } from "../chapter-work.ts";
+import { projectTermsFor } from "../project-terms.ts";
 import { chapterProgressOf } from "./apply-work-result.ts";
 import { loadChapterJob, type WorkLimits, type WorkUnit } from "./plan-work-unit.ts";
 import { recordResults } from "./record-results.ts";
@@ -40,7 +41,7 @@ export async function planBatchUnits(
   } & WorkLimits,
 ): Promise<BatchPlanPage> {
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
-  const settings = await repos.settings.get(job.bookId);
+  const terms = await projectTermsFor(repos, job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
   const { pending, context } = chapterWork(
     segments,
@@ -49,7 +50,7 @@ export async function planBatchUnits(
       segments.map((s) => s.id),
     ),
   );
-  const requestContext = { job, parsed, settings, contextSize: input.contextSize };
+  const requestContext = { job, parsed, terms, contextSize: input.contextSize };
   const {
     model: _model,
     segments: _segments,
