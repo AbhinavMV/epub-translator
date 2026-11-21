@@ -42,6 +42,7 @@ export const BatchPlanSchema = z.object({
   shared: z.object(sharedFields),
   units: z.array(BatchUnitSchema),
   nextOffset: z.number().int().min(0).nullable(),
+  termsVersion: z.string(),
 });
 export type BatchPlan = z.infer<typeof BatchPlanSchema>;
 

@@ -11,19 +11,29 @@ export interface BatchDeps {
   bundleFor(provider: KeyedProvider, model: string): BrowserProvider | null;
 }
 
+const PLAN_ATTEMPTS = 3;
+
 async function fetchPlan(
   api: WorkApi,
   jobId: string,
   chapterId: string,
 ): Promise<Pick<BatchPlan, "shared" | "units">> {
-  const first = await api.batchPlan(jobId, chapterId, 0);
-  const units = [...first.units];
-  for (let next = first.nextOffset; next !== null; ) {
-    const page = await api.batchPlan(jobId, chapterId, next);
-    units.push(...page.units);
-    next = page.nextOffset;
+  for (let attempt = 0; attempt < PLAN_ATTEMPTS; attempt++) {
+    const first = await api.batchPlan(jobId, chapterId, 0);
+    const units = [...first.units];
+    let consistent = true;
+    for (let next = first.nextOffset; next !== null; ) {
+      const page = await api.batchPlan(jobId, chapterId, next);
+      if (page.termsVersion !== first.termsVersion) {
+        consistent = false;
+        break;
+      }
+      units.push(...page.units);
+      next = page.nextOffset;
+    }
+    if (consistent) return { shared: first.shared, units };
   }
-  return { shared: first.shared, units };
+  throw new Error("The project glossary kept changing while planning the batch; try again");
 }
 
 async function postInChunks(

@@ -57,6 +57,7 @@ function setup() {
       { customId: "1", segments: [{ id: "s2", text: "c" }] },
     ],
     nextOffset: null,
+    termsVersion: "v1",
   };
   const batch = new FakeBatch();
   const deps = {
@@ -91,6 +92,26 @@ describe("batch flow", () => {
     expect(batch.submitted[0]?.map((r) => r.customId)).toEqual(["0", "1"]);
     expect(batch.submitted[0]?.map((r) => r.request.instructions)).toEqual(["terse", "terse"]);
     expect(api.batches[0]?.segmentIds).toEqual([["s0", "s1"], ["s2"]]);
+  });
+
+  it("replans from the first page when the project terms change mid-plan", async () => {
+    const { api, batch, deps } = setup();
+    api.planPageSize = 1;
+    api.termsVersions = ["v1", "v2"];
+    await submitChapterBatch(deps, "j1", "ch", { provider: "anthropic", model: "m" });
+    expect(api.planOffsets).toEqual([0, 1, 0, 1]);
+    expect(batch.submitted).toHaveLength(1);
+    expect(batch.submitted[0]?.map((r) => r.customId)).toEqual(["0", "1"]);
+  });
+
+  it("gives up when the project terms keep changing", async () => {
+    const { api, batch, deps } = setup();
+    api.planPageSize = 1;
+    api.termsVersions = ["a", "b", "c", "d", "e", "f"];
+    await expect(
+      submitChapterBatch(deps, "j1", "ch", { provider: "anthropic", model: "m" }),
+    ).rejects.toThrow(/glossary/i);
+    expect(batch.submitted).toEqual([]);
   });
 
   it("does nothing when there is nothing left to plan", async () => {

@@ -121,6 +121,13 @@ describe("planBatchUnits pages", () => {
     expect(customIds).toEqual(Array.from({ length: customIds.length }, (_, i) => String(i)));
   });
 
+  it("stamps every page with the terms it was planned from, so an edit between pages shows", async () => {
+    const first = await plan(0, 6);
+    expect((await plan(first.nextOffset ?? 0, 6)).termsVersion).toBe(first.termsVersion);
+    await seedProjectTerms(repos, "b1", { customPrompt: "be terse", glossary: [] });
+    expect((await plan(first.nextOffset ?? 0, 6)).termsVersion).not.toBe(first.termsVersion);
+  });
+
   it("returns an empty final page while a batch is in flight", async () => {
     await open();
     expect(await plan(0, 1_000_000)).toMatchObject({ units: [], nextOffset: null });

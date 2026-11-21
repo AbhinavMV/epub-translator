@@ -6,6 +6,7 @@ import type { JobEventSink } from "../../ports/events.ts";
 import type { Repositories } from "../../ports/stores.ts";
 import type { Clock, IdGenerator } from "../../ports/system.ts";
 import { batchSegments } from "../../translation/batcher.ts";
+import { termsVersion } from "../../translation/terms-version.ts";
 import { chapterWork } from "../chapter-work.ts";
 import { projectTermsFor } from "../project-terms.ts";
 import { chapterProgressOf } from "./apply-work-result.ts";
@@ -27,6 +28,7 @@ export interface BatchPlanPage {
   shared: BatchSharedRequest;
   units: BatchUnit[];
   nextOffset: number | null;
+  termsVersion: string;
 }
 
 export const BATCH_PLAN_PAGE_CHARS = 800_000;
@@ -42,6 +44,7 @@ export async function planBatchUnits(
 ): Promise<BatchPlanPage> {
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
   const terms = await projectTermsFor(repos, job.bookId);
+  const version = termsVersion(terms);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
   const { pending, context } = chapterWork(
     segments,
@@ -58,7 +61,7 @@ export async function planBatchUnits(
     ...shared
   } = segmentRequest(requestContext, "", [], context);
   if (await repos.batches.openForChapter(job.id, input.chapterId)) {
-    return { shared, units: [], nextOffset: null };
+    return { shared, units: [], nextOffset: null, termsVersion: version };
   }
 
   const splits = batchSegments(pending, input.maxChars, input.maxCount);
@@ -75,7 +78,12 @@ export async function planBatchUnits(
     units.push({ customId: String(next), segments, ...(glossary ? { glossary } : {}) });
     used += size;
   }
-  return { shared, units, nextOffset: next < splits.length ? next : null };
+  return {
+    shared,
+    units,
+    nextOffset: next < splits.length ? next : null,
+    termsVersion: version,
+  };
 }
 
 export interface RecordBatchInput {
