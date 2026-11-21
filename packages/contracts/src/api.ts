@@ -111,7 +111,7 @@ export type GlossaryEntry = z.infer<typeof GlossaryEntrySchema>;
 
 export const BookSettingsSchema = z.object({
   customPrompt: z.string().max(4000),
-  glossary: z.array(GlossaryEntrySchema).max(500),
+  glossary: z.array(GlossaryEntrySchema).max(2000),
   provider: ProviderIdSchema.nullable(),
   model: z.string().nullable(),
 });

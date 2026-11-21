@@ -210,7 +210,10 @@ describe("JobRunner", () => {
   it("passes custom prompt, glossary and book metadata to the provider", async () => {
     await settings.put("b1", {
       customPrompt: "Use British spelling",
-      glossary: [{ source: "シャル", target: "Charlotte" }],
+      glossary: [
+        { source: "三", target: "Three" },
+        { source: "シャル", target: "Charlotte" },
+      ],
       provider: null,
       model: null,
     });
@@ -222,7 +225,7 @@ describe("JobRunner", () => {
       bookTitle: "本",
       target: { code: "en" },
       instructions: "Use British spelling",
-      glossary: [{ source: "シャル", target: "Charlotte" }],
+      glossary: [{ source: "三", target: "Three" }],
     });
   });
 
