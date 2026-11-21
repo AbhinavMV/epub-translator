@@ -73,6 +73,7 @@ export class MemoryBooks implements BookRepository {
 
 export class MemoryProjects implements ProjectRepository {
   readonly rows = new Map<string, Project>();
+  readonly series = new Map<string, string>();
   readonly settings = new Map<string, ProjectSettings>();
   async create(project: Project) {
     this.rows.set(project.id, { ...project });
@@ -92,7 +93,17 @@ export class MemoryProjects implements ProjectRepository {
   }
   async delete(id: string) {
     this.rows.delete(id);
+    this.series.delete(id);
     this.settings.delete(id);
+  }
+  async seriesTitle(id: string) {
+    return this.series.get(id) ?? null;
+  }
+  async adoptSeriesTitle(id: string, seriesTitle: string) {
+    if (this.rows.has(id) && !this.series.has(id)) this.series.set(id, seriesTitle);
+  }
+  async findBySeriesTitle(seriesTitle: string) {
+    return (await this.list()).find((p) => this.series.get(p.id) === seriesTitle) ?? null;
   }
 }
 

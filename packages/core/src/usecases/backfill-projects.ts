@@ -22,12 +22,20 @@ export interface BackfillProject {
   books: BackfillPlacement[];
 }
 
+export interface BackfillSeriesTitle {
+  projectId: string;
+  name: string;
+  seriesTitle: string;
+}
+
 export interface BackfillPlan {
   projects: BackfillProject[];
+  seriesTitles: BackfillSeriesTitle[];
 }
 
 interface PlannedProject extends BackfillProject {
   createdAt: string;
+  series: string;
 }
 
 function seriesOf(book: StoredBook) {
@@ -35,8 +43,25 @@ function seriesOf(book: StoredBook) {
   return { series: seriesTitle || book.title.trim(), volumeNumber: volumeNumber ?? 1 };
 }
 
-async function plan(deps: BackfillDeps): Promise<PlannedProject[]> {
-  const books = await deps.books.list();
+async function missingSeriesTitles(
+  deps: BackfillDeps,
+  books: readonly StoredBook[],
+): Promise<BackfillSeriesTitle[]> {
+  const firstVolume = new Map<string, StoredBook>();
+  for (const book of [...books].sort(compareVolumes)) {
+    if (book.projectId && !firstVolume.has(book.projectId)) firstVolume.set(book.projectId, book);
+  }
+  const missing: BackfillSeriesTitle[] = [];
+  for (const [projectId, book] of firstVolume) {
+    if (await deps.projects.seriesTitle(projectId)) continue;
+    const project = await deps.projects.get(projectId);
+    if (project)
+      missing.push({ projectId, name: project.name, seriesTitle: seriesOf(book).series });
+  }
+  return missing;
+}
+
+async function plan(deps: BackfillDeps, books: readonly StoredBook[]): Promise<PlannedProject[]> {
   const existing = new Map<string, string>();
   for (const book of [...books].sort(compareVolumes)) {
     const { series } = seriesOf(book);
@@ -57,6 +82,7 @@ async function plan(deps: BackfillDeps): Promise<PlannedProject[]> {
     planned.push({
       projectId,
       name: project?.name ?? series,
+      series,
       createdAt: members.map((b) => b.createdAt).sort()[0] ?? "",
       books: members
         .map((book) => ({
@@ -78,8 +104,13 @@ export async function backfillProjects(
   deps: BackfillDeps,
   options: { apply: boolean },
 ): Promise<BackfillPlan> {
-  const planned = await plan(deps);
+  const books = await deps.books.list();
+  const planned = await plan(deps, books);
+  const seriesTitles = await missingSeriesTitles(deps, books);
   if (options.apply) {
+    for (const fill of seriesTitles) {
+      await deps.projects.adoptSeriesTitle(fill.projectId, fill.seriesTitle);
+    }
     for (const project of planned) {
       let projectId = project.projectId;
       if (!projectId) {
@@ -90,16 +121,25 @@ export async function backfillProjects(
           createdAt: project.createdAt,
         });
       }
+      await deps.projects.adoptSeriesTitle(projectId, project.series);
       for (const placement of project.books) {
         await deps.books.place(placement.bookId, projectId, placement.volumeNumber);
       }
     }
   }
-  return { projects: planned.map(({ createdAt: _, ...project }) => project) };
+  return {
+    projects: planned.map(({ createdAt: _, series: __, ...project }) => project),
+    seriesTitles,
+  };
 }
 
 export function describeBackfillPlan(plan: BackfillPlan): string[] {
   const lines: string[] = [];
+  for (const fill of plan.seriesTitles) {
+    lines.push(
+      `Project "${fill.name}" (${fill.projectId}) takes series title "${fill.seriesTitle}".`,
+    );
+  }
   for (const project of plan.projects) {
     lines.push(
       project.projectId

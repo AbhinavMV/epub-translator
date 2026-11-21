@@ -43,4 +43,26 @@ export class SqliteProjectRepository implements ProjectRepository {
   async delete(id: string): Promise<void> {
     this.db.prepare("DELETE FROM projects WHERE id = ?").run(id);
   }
+
+  async seriesTitle(id: string): Promise<string | null> {
+    const row = this.db.prepare("SELECT series_title FROM projects WHERE id = ?").get(id) as
+      | { series_title: string | null }
+      | undefined;
+    return row?.series_title ?? null;
+  }
+
+  async adoptSeriesTitle(id: string, seriesTitle: string): Promise<void> {
+    this.db
+      .prepare("UPDATE projects SET series_title = ? WHERE id = ? AND series_title IS NULL")
+      .run(seriesTitle, id);
+  }
+
+  async findBySeriesTitle(seriesTitle: string): Promise<Project | null> {
+    const row = this.db
+      .prepare(
+        "SELECT id, name, created_at FROM projects WHERE series_title = ? ORDER BY created_at DESC, id LIMIT 1",
+      )
+      .get(seriesTitle) as ProjectRow | undefined;
+    return row ? toProject(row) : null;
+  }
 }

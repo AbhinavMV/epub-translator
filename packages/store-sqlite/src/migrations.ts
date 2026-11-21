@@ -76,6 +76,10 @@ const MIGRATIONS: readonly string[] = [
     json TEXT NOT NULL
   );
   `,
+  `
+  ALTER TABLE projects ADD COLUMN series_title TEXT;
+  CREATE INDEX projects_series_title ON projects (series_title);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -52,7 +52,7 @@ describe("previewImport", () => {
     expect(preview).toMatchObject({ kind: "new", seriesTitle: "Spice and Wolf", project: null });
   });
 
-  it("suggests an empty project named after the series title", async () => {
+  it("suggests an emptied project by the series it was made from", async () => {
     const deps = library();
     const first = await importBook(titled(deps, "魔女の旅々 1"), new Uint8Array([1]));
     await deps.books.delete(first.id);

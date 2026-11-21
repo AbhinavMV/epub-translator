@@ -45,6 +45,23 @@ beforeEach(() => {
 });
 
 describe("SqliteProjectRepository", () => {
+  it("keeps the first series title it adopts and finds the project by it", async () => {
+    const projects = new SqliteProjectRepository(db);
+    await projects.create({ id: "p1", name: "魔女の旅々", createdAt: "2026-10-01T00:00:00.000Z" });
+    expect(await projects.seriesTitle("p1")).toBeNull();
+    expect(await projects.findBySeriesTitle("魔女の旅々")).toBeNull();
+    await projects.adoptSeriesTitle("p1", "魔女の旅々");
+    await projects.adoptSeriesTitle("p1", "Spice and Wolf");
+    await projects.rename("p1", "Wandering Witch");
+    expect(await projects.seriesTitle("p1")).toBe("魔女の旅々");
+    expect(await projects.findBySeriesTitle("魔女の旅々")).toEqual({
+      id: "p1",
+      name: "Wandering Witch",
+      createdAt: "2026-10-01T00:00:00.000Z",
+    });
+    expect(await projects.findBySeriesTitle("Spice and Wolf")).toBeNull();
+  });
+
   it("creates, renames and lists projects newest first", async () => {
     const projects = new SqliteProjectRepository(db);
     await projects.create({ id: "p1", name: "A", createdAt: "2026-10-01T00:00:00.000Z" });

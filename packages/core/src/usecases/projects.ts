@@ -58,10 +58,11 @@ export async function moveBook(
   if (!project) throw new NotFoundError("Project", projectId);
   if (book.projectId === projectId) return book;
   const existing = await deps.books.listByProject(projectId);
+  const parsed = parseVolumeTitle(book.title);
   const volumeNumber =
-    parseVolumeTitle(book.title).volumeNumber ??
-    unnumberedVolumeNumber(existing.map((b) => b.volumeNumber));
+    parsed.volumeNumber ?? unnumberedVolumeNumber(existing.map((b) => b.volumeNumber));
   await deps.books.place(bookId, projectId, volumeNumber);
+  if (parsed.seriesTitle) await deps.projects.adoptSeriesTitle(projectId, parsed.seriesTitle);
   return { ...book, projectId, volumeNumber };
 }
 

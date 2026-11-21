@@ -44,12 +44,7 @@ async function suggestProject(
       return deps.projects.get(book.projectId);
     }
   }
-  for (const project of await deps.projects.list()) {
-    if (project.name === seriesTitle && (await deps.books.listByProject(project.id)).length === 0) {
-      return project;
-    }
-  }
-  return null;
+  return deps.projects.findBySeriesTitle(seriesTitle);
 }
 
 export async function previewImport(
@@ -134,6 +129,11 @@ export async function importBook(
   await deps.blobs.put(bookBlobKey(sha256), bytes);
   if (created) await deps.projects.create(project);
   const stored = await deps.books.insertIfAbsent(book, parsed);
-  if (stored.id !== book.id && created) await deps.projects.delete(project.id);
+  if (stored.id !== book.id) {
+    if (created) await deps.projects.delete(project.id);
+    return stored;
+  }
+  const { seriesTitle } = parseVolumeTitle(parsed.title);
+  if (seriesTitle) await deps.projects.adoptSeriesTitle(project.id, seriesTitle);
   return stored;
 }

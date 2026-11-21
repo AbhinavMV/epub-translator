@@ -65,4 +65,33 @@ export class PostgresProjectRepository implements ProjectRepository {
       tx.query("DELETE FROM projects WHERE owner_id = $1 AND id = $2", [this.ownerId, id]),
     );
   }
+
+  async seriesTitle(id: string): Promise<string | null> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<{ series_title: string | null }>(
+        "SELECT series_title FROM projects WHERE owner_id = $1 AND id = $2",
+        [this.ownerId, id],
+      ),
+    );
+    return rows[0]?.series_title ?? null;
+  }
+
+  async adoptSeriesTitle(id: string, seriesTitle: string): Promise<void> {
+    await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query(
+        "UPDATE projects SET series_title = $3 WHERE owner_id = $1 AND id = $2 AND series_title IS NULL",
+        [this.ownerId, id, seriesTitle],
+      ),
+    );
+  }
+
+  async findBySeriesTitle(seriesTitle: string): Promise<Project | null> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<ProjectRow>(
+        "SELECT id, name, created_at FROM projects WHERE owner_id = $1 AND series_title = $2 ORDER BY created_at DESC, id LIMIT 1",
+        [this.ownerId, seriesTitle],
+      ),
+    );
+    return rows[0] ? toProject(rows[0]) : null;
+  }
 }

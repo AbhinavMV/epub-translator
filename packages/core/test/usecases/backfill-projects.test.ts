@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backfillProjects, type StoredBook } from "../../src/index.ts";
+import { backfillProjects, describeBackfillPlan, type StoredBook } from "../../src/index.ts";
 import { counterIds, MemoryBooks, MemoryProjects, sampleParsed } from "./fakes.ts";
 
 function unplaced(id: string, title: string, createdAt = `2026-10-0${id.length}T00:00:00.000Z`) {
@@ -110,6 +110,35 @@ describe("backfillProjects", () => {
         ["a2", 2],
       ],
     });
+  });
+
+  it("records the series title on the projects it creates and fills", async () => {
+    const deps = await library(unplaced("a1", "魔女の旅々 1"), unplaced("a2", "魔女の旅々 2"));
+    await deps.projects.create({ id: "existing", name: "Renamed", createdAt: "2026-10-01" });
+    await deps.books.place("a1", "existing", 1);
+    await deps.books.insert(unplaced("b", "本好きの下剋上 第3巻"), sampleParsed);
+    await backfillProjects(deps, { apply: true });
+    expect(await deps.projects.seriesTitle("existing")).toBe("魔女の旅々");
+    expect((await deps.projects.findBySeriesTitle("本好きの下剋上"))?.name).toBe("本好きの下剋上");
+  });
+
+  it("fills the series title of a project placed before series titles were kept", async () => {
+    const deps = await library(unplaced("a1", "魔女の旅々 1"));
+    await deps.projects.create({ id: "old", name: "Wandering Witch", createdAt: "2026-10-01" });
+    await deps.books.place("a1", "old", 1);
+
+    const dry = await backfillProjects(deps, { apply: false });
+    expect(dry.seriesTitles).toEqual([
+      { projectId: "old", name: "Wandering Witch", seriesTitle: "魔女の旅々" },
+    ]);
+    expect(describeBackfillPlan(dry)).toContain(
+      'Project "Wandering Witch" (old) takes series title "魔女の旅々".',
+    );
+    expect(await deps.projects.seriesTitle("old")).toBeNull();
+
+    await backfillProjects(deps, { apply: true });
+    expect(await deps.projects.seriesTitle("old")).toBe("魔女の旅々");
+    expect((await backfillProjects(deps, { apply: true })).seriesTitles).toEqual([]);
   });
 
   it("falls back to the book title when the title is only a volume marker", async () => {

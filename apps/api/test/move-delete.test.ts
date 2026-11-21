@@ -1,5 +1,6 @@
 import {
   BookSummarySchema,
+  type ImportPlacement,
   ImportPreviewSchema,
   JobSummarySchema,
   ProjectDetailSchema,
@@ -44,13 +45,14 @@ function setup() {
   });
   const app = createApp(services);
 
-  const form = (title: string) => {
+  const form = (title: string, placement?: ImportPlacement) => {
     const body = new FormData();
     body.append("file", new File([`${MAGIC}${title}`], "book.epub"));
+    if (placement) body.append("placement", JSON.stringify(placement));
     return body;
   };
-  const imported = async (title: string) => {
-    const res = await app.request("/api/books", { method: "POST", body: form(title) });
+  const imported = async (title: string, placement?: ImportPlacement) => {
+    const res = await app.request("/api/books", { method: "POST", body: form(title, placement) });
     expect(res.status).toBe(201);
     return BookSummarySchema.parse(await res.json());
   };
@@ -211,5 +213,39 @@ describe("delete a project's last book", () => {
     expect(preview).toMatchObject({ kind: "new", project: { id: one.projectId } });
     const next = await imported("魔女の旅々 2");
     expect(next).toMatchObject({ projectId: one.projectId, volumeNumber: 2 });
+  });
+
+  it("still suggests the emptied project after it is renamed", async () => {
+    const { app, form, imported, send } = setup();
+    const one = await imported("魔女の旅々 1");
+    expect(
+      (await send("PATCH", `/api/projects/${one.projectId}`, { name: "Wandering Witch" })).status,
+    ).toBe(200);
+    expect((await send("DELETE", `/api/books/${one.id}`)).status).toBe(204);
+
+    const preview = ImportPreviewSchema.parse(
+      await (
+        await app.request("/api/books/preview", { method: "POST", body: form("魔女の旅々 2") })
+      ).json(),
+    );
+    expect(preview).toMatchObject({
+      kind: "new",
+      project: { id: one.projectId, name: "Wandering Witch" },
+    });
+    const next = await imported("魔女の旅々 2");
+    expect(next).toMatchObject({ projectId: one.projectId, volumeNumber: 2 });
+  });
+
+  it("suggests a project created under another name by the series it was made from", async () => {
+    const { app, form, imported, send } = setup();
+    const one = await imported("魔女の旅々 1", { projectName: "Elaina", volumeNumber: null });
+    expect((await send("DELETE", `/api/books/${one.id}`)).status).toBe(204);
+
+    const preview = ImportPreviewSchema.parse(
+      await (
+        await app.request("/api/books/preview", { method: "POST", body: form("魔女の旅々 2") })
+      ).json(),
+    );
+    expect(preview).toMatchObject({ kind: "new", project: { id: one.projectId, name: "Elaina" } });
   });
 });

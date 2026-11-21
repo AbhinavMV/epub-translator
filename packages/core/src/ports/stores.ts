@@ -30,6 +30,10 @@ export interface ProjectRepository {
   list(): Promise<Project[]>;
   rename(id: string, name: string): Promise<void>;
   delete(id: string): Promise<void>;
+  seriesTitle(id: string): Promise<string | null>;
+  /** Records the series only on a project that has none yet; renames never touch it. */
+  adoptSeriesTitle(id: string, seriesTitle: string): Promise<void>;
+  findBySeriesTitle(seriesTitle: string): Promise<Project | null>;
 }
 
 export interface ProjectSettingsRepository {
