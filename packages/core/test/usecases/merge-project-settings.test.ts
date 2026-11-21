@@ -78,6 +78,18 @@ describe("mergeProjectSettings", () => {
     expect(describeMergePlan(plan).join("\n")).toContain("run backfill:projects first");
   });
 
+  it("does not write a merged glossary over 2,000 entries", async () => {
+    const deps = await library();
+    deps.settings.legacy.set("v1", {
+      customPrompt: "",
+      glossary: Array.from({ length: 2001 }, (_, i) => ({ source: `語${i}`, target: `t${i}` })),
+    });
+    const plan = await mergeProjectSettings(deps, { apply: true });
+    expect(plan.projects[0]?.status).toBe("too-large");
+    expect(await deps.projects.getSettings("p")).toBeNull();
+    expect(describeMergePlan(plan)[0]).toContain("2002 entries exceed the 2000-entry limit");
+  });
+
   it("a re-run skips projects that already have settings, keeping later edits", async () => {
     const deps = await library();
     await mergeProjectSettings(deps, { apply: true });

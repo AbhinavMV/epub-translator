@@ -169,12 +169,12 @@ describe("project settings api", () => {
     expect((await putTerms({ customPrompt: 1 })).status).toBe(400);
   });
 
-  it("accepts 5,000 glossary entries and rejects more", async () => {
+  it("accepts 2,000 glossary entries and rejects more", async () => {
     const { putTerms } = await setup();
     const entries = (n: number) =>
       Array.from({ length: n }, (_, i) => ({ source: `語${i}`, target: `term ${i}` }));
-    expect((await putTerms({ customPrompt: "", glossary: entries(5000) })).status).toBe(200);
-    expect((await putTerms({ customPrompt: "", glossary: entries(5001) })).status).toBe(400);
+    expect((await putTerms({ customPrompt: "", glossary: entries(2000) })).status).toBe(200);
+    expect((await putTerms({ customPrompt: "", glossary: entries(2001) })).status).toBe(400);
   });
 
   it("keeps glossary conflicts when the glossary is edited", async () => {

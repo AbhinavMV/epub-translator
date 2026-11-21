@@ -150,7 +150,7 @@ export const LegacyBookTermsSchema = z.object({
 });
 export type LegacyBookTerms = z.infer<typeof LegacyBookTermsSchema>;
 
-export const MAX_GLOSSARY_ENTRIES = 5000;
+export const MAX_GLOSSARY_ENTRIES = 2000;
 export const MAX_CUSTOM_PROMPT = 4000;
 
 export const ProjectTermsSchema = z.object({
