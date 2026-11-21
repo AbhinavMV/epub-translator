@@ -18,7 +18,8 @@ import type {
   SampleSize,
   SegmentStatus,
 } from "@et/contracts";
-import { parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
+import { compareTargetLanguages } from "@et/contracts";
+import { compareVolumes, parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
 import type { Api, EventSourceLike } from "./client";
 
 const MOCK_SAMPLE_PLANS: Record<SampleSize, GlossarySamplePlan> = {
@@ -406,18 +407,19 @@ export function createMockApi(): Api {
         translatedTitle: jobs.get(`job-${b.summary.id}-en`)?.titles.book ?? null,
       }))
       .filter((b) => b.projectId === projectId)
-      .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
+      .sort(compareVolumes);
 
   const fullyTranslatedLang = (projectId: string) => {
     const volumes = booksOf(projectId);
+    const translated = (job: JobSummary) => job.progress.reduce((n, p) => n + p.done, 0);
     const complete = (lang: string) =>
       volumes.every((b) =>
         [...jobs.values()].some(
-          (j) => j.bookId === b.id && j.targetLang === lang && j.status === "done",
+          (j) => j.bookId === b.id && j.targetLang === lang && translated(j) >= b.segmentCount,
         ),
       );
     const langs = [...new Set([...jobs.values()].map((j) => j.targetLang))].sort(
-      (a, b) => Number(b === "en") - Number(a === "en"),
+      compareTargetLanguages,
     );
     return volumes.length > 0 ? (langs.find(complete) ?? null) : null;
   };

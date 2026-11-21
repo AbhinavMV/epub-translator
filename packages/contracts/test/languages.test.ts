@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   compareTargetLanguages,
   getTargetLanguage,
+  languageName,
   TARGET_LANGUAGES,
   UnknownLanguageError,
 } from "../src/index.ts";
@@ -37,5 +38,16 @@ describe("compareTargetLanguages", () => {
       "xx",
       "zz",
     ]);
+  });
+});
+
+describe("languageName", () => {
+  it("names target languages by their full code and source languages by their base", () => {
+    expect(languageName("pt-BR")).toBe("Brazilian Portuguese");
+    expect(languageName("zh-Hans")).toBe("Simplified Chinese");
+    expect(languageName("ja-JP")).toBe("Japanese");
+    expect(languageName("zh-TW")).toBe("Chinese");
+    expect(languageName("fr")).toBe("French");
+    expect(languageName(null)).toBe("the source language");
   });
 });

@@ -59,6 +59,8 @@ const SOURCE_LANGUAGE_NAMES: Record<string, string> = {
 
 export function languageName(code: string | null): string {
   if (!code) return "the source language";
+  const target = TARGET_LANGUAGES.find((l) => l.code === code);
+  if (target) return target.name;
   const base = code.toLowerCase().split("-")[0] ?? code;
   return SOURCE_LANGUAGE_NAMES[base] ?? TARGET_LANGUAGES.find((l) => l.code === base)?.name ?? code;
 }
