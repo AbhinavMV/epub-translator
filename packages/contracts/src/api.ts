@@ -74,8 +74,33 @@ export const BookSummarySchema = z.object({
   chapterCount: z.number(),
   segmentCount: z.number(),
   createdAt: z.string(),
+  projectId: z.string().nullable().optional(),
+  volumeNumber: z.number().nullable().optional(),
 });
 export type BookSummary = z.infer<typeof BookSummarySchema>;
+
+export const ProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.string(),
+});
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const ProjectSummarySchema = ProjectSchema.extend({
+  volumeCount: z.number(),
+  coverUrl: z.string().nullable(),
+});
+export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
+
+export const ProjectDetailSchema = ProjectSchema.extend({
+  books: z.array(BookSummarySchema),
+});
+export type ProjectDetail = z.infer<typeof ProjectDetailSchema>;
+
+export const RenameProjectBodySchema = z.object({
+  name: z.string().trim().min(1).max(200),
+});
+export type RenameProjectBody = z.infer<typeof RenameProjectBodySchema>;
 
 export const GlossaryEntrySchema = z.object({
   source: z.string().min(1),

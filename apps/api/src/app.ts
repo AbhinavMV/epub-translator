@@ -9,6 +9,7 @@ import { configRoutes, LOCAL_PUBLIC_CONFIG, publicConfig } from "./http/config.t
 import { handleError } from "./http/errors.ts";
 import { invitesRoutes } from "./http/invites.ts";
 import { jobsRoutes } from "./http/jobs.ts";
+import { projectsRoutes } from "./http/projects.ts";
 import { proofreadRoutes } from "./http/proofread.ts";
 import { providersRoutes } from "./http/providers.ts";
 import { type AppEnv, requestContext } from "./http/request-context.ts";
@@ -76,6 +77,7 @@ export function createApp(services: Services, options: AppOptions = {}) {
   }
   return app
     .route("/api/uploads", uploadsRoutes(services))
+    .route("/api/projects", projectsRoutes())
     .route("/api/books", booksRoutes(services))
     .route("/api/books", glossarySampleRoutes())
     .route("/api/jobs", jobsRoutes(services, { events: options.events ?? true }))

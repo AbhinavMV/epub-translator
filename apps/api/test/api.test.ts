@@ -4,6 +4,8 @@ import {
   ChapterViewSchema,
   GlossaryEntrySchema,
   JobSummarySchema,
+  ProjectDetailSchema,
+  ProjectSummarySchema,
   ProviderInfoSchema,
 } from "@et/contracts";
 import {
@@ -196,6 +198,80 @@ describe("books api", () => {
     const book = BookSummarySchema.parse(await (await upload(app)).json());
     expect((await app.request(`/api/books/${book.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await app.request(`/api/books/${book.id}`)).status).toBe(404);
+  });
+});
+
+describe("projects api", () => {
+  it("an upload appears in the library as a one-volume project", async () => {
+    const { app } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    expect(book.volumeNumber).toBe(1);
+    const list = z
+      .array(ProjectSummarySchema)
+      .parse(await (await app.request("/api/projects")).json());
+    expect(list).toEqual([
+      {
+        id: book.projectId,
+        name: "本",
+        createdAt: book.createdAt,
+        volumeCount: 1,
+        coverUrl: `/api/books/${book.id}/cover`,
+      },
+    ]);
+  });
+
+  it("project page lists books in volume order and shows volume 1's cover in the library", async () => {
+    const { app, services } = setup();
+    const first = BookSummarySchema.parse(await (await upload(app)).json());
+    const second = BookSummarySchema.parse(
+      await (await upload(app, new Uint8Array([...EPUB_MAGIC, 2]))).json(),
+    );
+    const projectId = first.projectId ?? "";
+    await services.repos.books.place(first.id, projectId, 2);
+    await services.repos.books.place(second.id, projectId, 1);
+    await services.repos.projects.delete(second.projectId ?? "");
+
+    const detail = ProjectDetailSchema.parse(
+      await (await app.request(`/api/projects/${projectId}`)).json(),
+    );
+    expect(detail.books.map((b) => [b.id, b.volumeNumber])).toEqual([
+      [second.id, 1],
+      [first.id, 2],
+    ]);
+    const [summary] = z
+      .array(ProjectSummarySchema)
+      .parse(await (await app.request("/api/projects")).json());
+    expect(summary).toMatchObject({ volumeCount: 2, coverUrl: `/api/books/${second.id}/cover` });
+  });
+
+  it("renames a project and rejects blank names", async () => {
+    const { app } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    const rename = (name: unknown) =>
+      app.request(`/api/projects/${book.projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+        headers: { "content-type": "application/json" },
+      });
+    const res = await rename("  Spice and Wolf ");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: book.projectId, name: "Spice and Wolf" });
+    expect((await rename("   ")).status).toBe(400);
+    const detail = ProjectDetailSchema.parse(
+      await (await app.request(`/api/projects/${book.projectId}`)).json(),
+    );
+    expect(detail.name).toBe("Spice and Wolf");
+  });
+
+  it("404s an unknown project", async () => {
+    const { app } = setup();
+    expect((await app.request("/api/projects/nope")).status).toBe(404);
+    const res = await app.request("/api/projects/nope", {
+      method: "PATCH",
+      body: JSON.stringify({ name: "x" }),
+      headers: { "content-type": "application/json" },
+    });
+    expect(res.status).toBe(404);
   });
 });
 

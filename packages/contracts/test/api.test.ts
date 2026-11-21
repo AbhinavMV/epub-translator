@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ChapterStatusSchema, TranslateBodySchema } from "../src/index.ts";
+import { ChapterStatusSchema, RenameProjectBodySchema, TranslateBodySchema } from "../src/index.ts";
 
 describe("TranslateBodySchema", () => {
   it("defaults mode to live", () => {
@@ -16,6 +16,14 @@ describe("TranslateBodySchema", () => {
     expect(TranslateBodySchema.safeParse({ provider: "fake", model: "m", mode: "x" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("RenameProjectBodySchema", () => {
+  it("trims the name and rejects blank or overlong names", () => {
+    expect(RenameProjectBodySchema.parse({ name: "  Index " }).name).toBe("Index");
+    expect(RenameProjectBodySchema.safeParse({ name: "  " }).success).toBe(false);
+    expect(RenameProjectBodySchema.safeParse({ name: "x".repeat(201) }).success).toBe(false);
   });
 });
 

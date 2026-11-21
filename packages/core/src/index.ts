@@ -37,6 +37,7 @@ export * from "./usecases/invites/users.ts";
 export * from "./usecases/job-progress.ts";
 export * from "./usecases/job-runner.ts";
 export * from "./usecases/load-book.ts";
+export * from "./usecases/projects.ts";
 export * from "./usecases/proofread/decide.ts";
 export * from "./usecases/proofread/input.ts";
 export * from "./usecases/proofread/record.ts";
