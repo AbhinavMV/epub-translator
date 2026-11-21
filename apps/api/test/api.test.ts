@@ -227,9 +227,9 @@ describe("projects api", () => {
       await (await upload(app, new Uint8Array([...EPUB_MAGIC, 2]))).json(),
     );
     const projectId = first.projectId ?? "";
+    expect(second.projectId).toBe(projectId);
     await services.repos.books.place(first.id, projectId, 2);
     await services.repos.books.place(second.id, projectId, 1);
-    await services.repos.projects.delete(second.projectId ?? "");
 
     const detail = ProjectDetailSchema.parse(
       await (await app.request(`/api/projects/${projectId}`)).json(),

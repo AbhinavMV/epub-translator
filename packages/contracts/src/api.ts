@@ -102,6 +102,32 @@ export const RenameProjectBodySchema = z.object({
 });
 export type RenameProjectBody = z.infer<typeof RenameProjectBodySchema>;
 
+export const VolumeNumberSchema = z.number().min(0).max(9999);
+
+export const ImportPlacementSchema = z.union([
+  z.strictObject({ projectId: z.string().min(1), volumeNumber: VolumeNumberSchema.nullable() }),
+  z.strictObject({
+    projectName: z.string().trim().min(1).max(200),
+    volumeNumber: VolumeNumberSchema.nullable(),
+  }),
+]);
+export type ImportPlacement = z.infer<typeof ImportPlacementSchema>;
+
+export const ImportPreviewSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("duplicate"), book: BookSummarySchema }),
+  z.object({
+    kind: z.literal("new"),
+    title: z.string(),
+    seriesTitle: z.string(),
+    volumeNumber: z.number().nullable(),
+    project: ProjectSchema.nullable(),
+  }),
+]);
+export type ImportPreview = z.infer<typeof ImportPreviewSchema>;
+
+export const SetVolumeNumberBodySchema = z.object({ volumeNumber: VolumeNumberSchema });
+export type SetVolumeNumberBody = z.infer<typeof SetVolumeNumberBodySchema>;
+
 export const GlossaryEntrySchema = z.object({
   source: z.string().min(1),
   target: z.string().min(1),
