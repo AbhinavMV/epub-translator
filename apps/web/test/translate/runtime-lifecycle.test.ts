@@ -206,6 +206,23 @@ describe("provider bundle cache", () => {
 });
 
 describe("glossary suggestions in the browser", () => {
+  it("fetch the chosen chunk of the chosen sample size and send it to the extractor", async () => {
+    termRequests.length = 0;
+    await runtime.suggestGlossary("b1", {
+      provider: "anthropic",
+      model: "m",
+      sampleSize: "volume",
+      chunk: 2,
+    });
+    expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "volume", chunk: 2 });
+    expect(termRequests[0]?.sample).toBe("sample text 2");
+  });
+
+  it("default to one large sample", async () => {
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });
+    expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "large", chunk: 0 });
+  });
+
   it("send the project's custom prompt and glossary to the extractor", async () => {
     termRequests.length = 0;
     await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });

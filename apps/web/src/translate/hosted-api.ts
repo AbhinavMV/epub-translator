@@ -95,7 +95,7 @@ export function createHostedApi(base: Api, runtime: ClientRuntime, vault: Vault)
       await runtime.cancel(jobId);
       return settled(jobId);
     },
-    suggestGlossary: (bookId, body) => runtime.suggestGlossary(bookId, body),
+    suggestGlossary: (bookId, body, signal) => runtime.suggestGlossary(bookId, body, signal),
     proofreadChapter: (jobId, chapterId, body, signal) =>
       runtime.proofreadChapter(jobId, chapterId, body, signal),
     openJobEvents: silentEvents,

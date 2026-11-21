@@ -195,10 +195,12 @@ describe("project glossary and prompt", () => {
     const api = { ...projectApi(), suggestGlossary };
     renderAt("/projects/p1", api);
     await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
+    await screen.findByText(/1 request/);
     await userEvent.click(await screen.findByRole("button", { name: /suggest from book/i }));
     expect(suggestGlossary).toHaveBeenCalledWith(
       "v2",
-      expect.objectContaining({ targetLang: "en" }),
+      expect.objectContaining({ targetLang: "en", sampleSize: "large", chunk: 0 }),
+      expect.any(AbortSignal),
     );
     await userEvent.click(await screen.findByRole("button", { name: /add selected/i }));
     await userEvent.click(screen.getByRole("button", { name: "Save glossary" }));

@@ -6,7 +6,7 @@ import type {
   ProjectTerms,
   ProofreadDecisionBody,
   ResolveGlossaryConflict,
-  SuggestGlossaryBody,
+  SampleSize,
   TranslateBody,
 } from "@et/contracts";
 import {
@@ -237,10 +237,11 @@ type JobAction =
   | { kind: "clear"; chapterId: string }
   | { kind: "cancel" };
 
-export function useSuggestGlossary(bookId: string) {
+export function useGlossaryPlan(bookId: string, size: SampleSize) {
   const api = useApi();
-  return useMutation({
-    mutationFn: (body: SuggestGlossaryBody) => api.suggestGlossary(bookId, body),
+  return useQuery({
+    queryKey: keys.glossaryPlan(bookId, size),
+    queryFn: () => api.planGlossarySample(bookId, size),
   });
 }
 

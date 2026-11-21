@@ -64,6 +64,7 @@ export function ProjectGlossarySuggestions({
         <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
       </div>
       <GlossarySuggestions
+        key={sampled.id}
         bookId={sampled.id}
         targetLang={targetLang}
         providers={providers.data}
