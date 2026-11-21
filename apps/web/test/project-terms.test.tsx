@@ -82,6 +82,7 @@ const detail: ProjectDetail = {
   name: "魔女の旅々",
   createdAt: "2026-10-02T00:00:00.000Z",
   books: [book("v1", 1), book("v2", 2)],
+  fullyTranslatedLang: null,
 };
 
 const providers: ProviderInfo[] = [

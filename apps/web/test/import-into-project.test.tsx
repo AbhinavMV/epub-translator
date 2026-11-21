@@ -65,6 +65,7 @@ const projects: ProjectSummary[] = [
     createdAt: "2026-10-02T00:00:00.000Z",
     volumeCount: 1,
     coverUrl: null,
+    fullyTranslatedLang: null,
   },
   {
     id: "p2",
@@ -72,6 +73,7 @@ const projects: ProjectSummary[] = [
     createdAt: "2026-10-01T00:00:00.000Z",
     volumeCount: 2,
     coverUrl: null,
+    fullyTranslatedLang: null,
   },
 ];
 
@@ -215,6 +217,7 @@ describe("volume number on the project page", () => {
       name: "Wandering Witch",
       createdAt: "2026-10-02T00:00:00.000Z",
       books: [book("v1", "魔女の旅々 1", 1), book("v2", "魔女の旅々 2", 2)],
+      fullyTranslatedLang: null,
     };
     const setVolumeNumber = vi.fn(async (bookId: string, volumeNumber: number) => {
       const books = current.books
@@ -247,6 +250,7 @@ describe("volume number on the project page", () => {
       name: "Wandering Witch",
       createdAt: "2026-10-02T00:00:00.000Z",
       books: [book("v1", "魔女の旅々 1", 1)],
+      fullyTranslatedLang: null,
     };
     const setVolumeNumber = vi.fn();
     renderAt("/projects/p1", { getProject: vi.fn(async () => project), setVolumeNumber });
