@@ -126,4 +126,6 @@ pnpm typecheck
 pnpm lint        # biome (pnpm format to fix)
 ```
 
+`pnpm install` points git at `.githooks/`, whose pre-commit hook runs `biome check` on the staged files and stops a commit that fails lint or formatting.
+
 To run a live provider smoke test, set `LIVE=1` plus the provider's key and run `pnpm --filter @et/providers test`. It spends a few hundred tokens.
