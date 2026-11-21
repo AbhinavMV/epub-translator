@@ -80,6 +80,10 @@ export async function mergeProjectSettings(
   deps: MergeDeps,
   options: { apply: boolean },
 ): Promise<MergePlan> {
+  const unplaced = (await deps.books.list())
+    .filter((b) => !b.projectId)
+    .map((b) => ({ bookId: b.id, title: b.title }));
+  const write = options.apply && unplaced.length === 0;
   const projects: MergeProject[] = [];
   for (const project of [...(await deps.projects.list())].reverse()) {
     const base = { projectId: project.id, name: project.name };
@@ -98,12 +102,9 @@ export async function mergeProjectSettings(
     }
     const settings = planProjectSettings(volumes);
     const status = settings.glossary.length > MAX_GLOSSARY_ENTRIES ? "too-large" : "merge";
-    if (options.apply && status === "merge") await deps.projects.putSettings(project.id, settings);
+    if (write && status === "merge") await deps.projects.putSettings(project.id, settings);
     projects.push({ ...base, status, settings });
   }
-  const unplaced = (await deps.books.list())
-    .filter((b) => !b.projectId)
-    .map((b) => ({ bookId: b.id, title: b.title }));
   return { projects, unplaced };
 }
 
@@ -138,7 +139,7 @@ export function describeMergePlan(plan: MergePlan): string[] {
   }
   if (plan.unplaced.length > 0) {
     lines.push(
-      `${plan.unplaced.length} book(s) have no project yet; run backfill:projects first, then re-run this:`,
+      `Nothing is merged for this owner while ${plan.unplaced.length} book(s) have no project; run backfill:projects first, then re-run this:`,
     );
     for (const book of plan.unplaced) lines.push(`  ${book.title}  [${book.bookId}]`);
   }

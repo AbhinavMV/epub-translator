@@ -38,7 +38,6 @@ export interface BookSettingsRepository {
   get(bookId: string): Promise<BookSettings>;
   /** Keeps any other keys already stored for the book, such as its pre-project terms. */
   put(bookId: string, settings: BookSettings): Promise<void>;
-  /** The glossary and custom prompt a book carried before they moved to its project. */
   getLegacyTerms(bookId: string): Promise<LegacyBookTerms | null>;
 }
 

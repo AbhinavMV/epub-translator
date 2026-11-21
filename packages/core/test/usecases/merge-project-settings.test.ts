@@ -16,7 +16,7 @@ function book(id: string, projectId: string | null, volumeNumber: number | null)
   };
 }
 
-async function library() {
+async function library({ loose = false } = {}) {
   const deps = {
     books: new MemoryBooks(),
     projects: new MemoryProjects(),
@@ -25,7 +25,7 @@ async function library() {
   await deps.projects.create({ id: "p", name: "魔女の旅々", createdAt: "2026-10-01T00:00:00Z" });
   await deps.books.insert(book("v1", "p", 1), sampleParsed);
   await deps.books.insert(book("v2", "p", 2), sampleParsed);
-  await deps.books.insert(book("loose", null, null), sampleParsed);
+  if (loose) await deps.books.insert(book("loose", null, null), sampleParsed);
   deps.settings.legacy.set("v1", {
     customPrompt: "Keep honorifics.",
     glossary: [{ source: "灰の魔女", target: "Witch of Ashes" }],
@@ -51,7 +51,7 @@ const merged = {
 
 describe("mergeProjectSettings", () => {
   it("dry run lists the merged glossary and conflicts without writing", async () => {
-    const deps = await library();
+    const deps = await library({ loose: true });
     const plan = await mergeProjectSettings(deps, { apply: false });
     expect(plan).toEqual({
       projects: [{ projectId: "p", name: "魔女の旅々", status: "merge", settings: merged }],
@@ -69,6 +69,13 @@ describe("mergeProjectSettings", () => {
       customPrompt: "Keep honorifics.",
       glossary: [{ source: "灰の魔女", target: "Witch of Ashes" }],
     });
+  });
+
+  it("apply writes nothing while some books have no project yet", async () => {
+    const deps = await library({ loose: true });
+    const plan = await mergeProjectSettings(deps, { apply: true });
+    expect(await deps.projects.getSettings("p")).toBeNull();
+    expect(describeMergePlan(plan).join("\n")).toContain("run backfill:projects first");
   });
 
   it("a re-run skips projects that already have settings, keeping later edits", async () => {
