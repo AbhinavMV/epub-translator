@@ -225,7 +225,7 @@ export function EditorToolbar({
         {(busy || busyCount > 0) && (
           <span
             role="status"
-            className="inline-flex items-center gap-2 rounded-full bg-primary/10 py-1 pr-1 pl-2.5 text-xs font-medium text-primary"
+            className="inline-flex items-center gap-2 rounded-full bg-primary/10 py-1 pr-1 pl-2.5 text-xs font-medium text-foreground"
           >
             <Loader2 className="size-3 animate-spin" />
             {busy && chapterProgress?.status === "running"

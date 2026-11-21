@@ -399,9 +399,10 @@ Routes, all under `/api`:
 **Files:** `apps/web/*` (Vite React TS, Tailwind 4 via `@tailwindcss/vite`, shadcn/ui init with components `button card progress select badge popover toggle-group slider sonner tooltip`, `@fontsource-variable/literata` and `@fontsource-variable/inter`). The Vite dev server proxies `/api` → `127.0.0.1:8787`.
 
 Design tokens in `styles.css` (`:root` plus `[data-theme=dark|sepia]`):
-- a paper palette (light bg `#f7f3ec`, ink `#2b2620`, accent terracotta `#b4532a`);
-- dark bg `#16140f`, ink `#e9e2d4`;
-- sepia bg `#efe4cf`.
+- a neutral palette (light bg `#fcfcfd`, ink `#111318`, accent blue `#2f6fde`);
+- dark bg `#0a0b0d`, ink `#e8eaee`, accent `#6b9cf0`;
+- sepia bg `#efe4cf`, accent `#2457b8`;
+- a test (`apps/web/test/theme-contrast.test.ts`) checks WCAG AA contrast for the main pairs in each theme.
 
 Screens:
 - **Library `/`:** a drag-and-drop zone that accepts `.epub` only and shows an upload progress toast, and a grid of `BookCard`s (cover, title clamped to 2 lines with the full title in a tooltip, author, chapter count, latest job status badge).
@@ -435,7 +436,7 @@ Route `/books/$bookId/read/$chapterId?job=`:
   - **Side-by-side:** a CSS grid with one row per segment block (two columns ≥1024 px, stacked below that). Static blocks span both columns.
   - Flagged segments get a subtle left border with a tooltip "formatting couldn't be preserved".
   - The book's own CSS is not loaded, so the reader typography rules.
-  - The first paragraph of each chapter gets a terracotta drop-cap (`::first-letter`) in Translation mode.
+  - The first paragraph of each chapter gets a drop-cap in the accent colour (`::first-letter`) in Translation mode.
 - **Navigation:** Prev/Next chapter buttons at the end of each chapter, plus ←/→ keys when focus is not in an input. Scroll resets to the top on chapter change. The chapter title shows once, from the book's own heading block, not duplicated from the TOC.
 - **Sanitizing:** all HTML goes through `sanitize(html)`, which is DOMPurify with `USE_PROFILES:{html:true, svg:true}`, forbidding `style`, `script`, `iframe`, `object`, `form`, all `on*` attributes, and URLs not starting with `/api/`.
 
@@ -505,7 +506,7 @@ The user supplied a screenshot of Dusk Translate's editor and asked for that lay
   - Glossary, Edit prompt and Reader-mode buttons, and a theme toggle (light/sepia/dark).
 - **Left rail "Chapters":** a row per chapter with the index, title, char count, a status dot and a mini progress bar. The active row is inverted, as in Dusk.
 - **Toolbar:**
-  - **Translate chapter** (primary, terracotta), Translate all, ← Prev, Next →, Export TXT and **Export EPUB**;
+  - **Translate chapter** (primary, blue), Translate all, ← Prev, Next →, Export TXT and **Export EPUB**;
   - a progress line "`n / total` chapters translated";
   - a live status chip while a chapter is running ("Translating 12/48 segments…").
 - **Two panes, Source | Translation:**

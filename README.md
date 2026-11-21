@@ -63,7 +63,7 @@ The same app can run invite-only on Vercel Hobby with Supabase Free: private lib
 ## Architecture
 
 ```mermaid
-%%{init: {"themeVariables": {"edgeLabelBackground": "#f7f3ec"}}}%%
+%%{init: {"themeVariables": {"edgeLabelBackground": "#fcfcfd"}}}%%
 flowchart LR
   web["apps/web<br/>React SPA"]:::app
   api["apps/api<br/>Hono REST + SSE"]:::app
@@ -91,10 +91,10 @@ flowchart LR
   api --> pg
   pg --> core
 
-  linkStyle 0,3 color:#2b2620
-  classDef app fill:#b4532a,stroke:#7a3519,color:#ffffff
-  classDef pure fill:#2b2620,stroke:#16140f,color:#f7f3ec
-  classDef adapter fill:#efe4cf,stroke:#8a7a5c,color:#2b2620
+  linkStyle 0,3 color:#111318
+  classDef app fill:#2f6fde,stroke:#1f4fa8,color:#ffffff
+  classDef pure fill:#111318,stroke:#0a0b0d,color:#fcfcfd
+  classDef adapter fill:#eef0f3,stroke:#8a909b,color:#111318
 ```
 
 - **`core` is pure.** It holds the domain types, the ports (`EpubParser`, `ChapterRenderer`, `EpubExporter`, `TranslationProvider`, `Proofreader`, repositories) and the use cases (import, workspace, `JobRunner`, proofread, render, export). It has no I/O, and Biome enforces that.

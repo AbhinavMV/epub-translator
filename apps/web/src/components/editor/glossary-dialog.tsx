@@ -97,7 +97,7 @@ export function GlossaryDialog({
           <BookA />
           <span className="hidden sm:inline">Glossary</span>
           {count > 0 && (
-            <span className="rounded-sm bg-primary/15 px-1 font-mono text-[10px] text-primary">
+            <span className="rounded-sm bg-primary/15 px-1 font-mono text-[10px] text-foreground">
               {count}
             </span>
           )}
