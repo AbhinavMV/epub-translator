@@ -1,7 +1,7 @@
 import { type GlossaryEntry, getTargetLanguage, type Usage } from "@et/contracts";
 import type { ParsedBook } from "../domain/book.ts";
 import { FatalProviderError } from "../domain/errors.ts";
-import type { BookRepository, JobRepository, ProjectRepository } from "../ports/stores.ts";
+import type { BookRepository, JobRepository, ProjectSettingsRepository } from "../ports/stores.ts";
 import type { TermExtractor } from "../ports/term-extractor.ts";
 import { stripTokens } from "../translation/placeholders.ts";
 import { requireBook } from "./load-book.ts";
@@ -12,7 +12,7 @@ export const MAX_SUGGESTED_TERMS = 60;
 
 export interface SuggestGlossaryDeps {
   books: BookRepository;
-  projects: ProjectRepository;
+  projectSettings: ProjectSettingsRepository;
   jobs: JobRepository;
   extractor: TermExtractor;
 }

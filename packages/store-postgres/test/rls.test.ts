@@ -20,7 +20,7 @@ beforeEach(async () => {
   await bob.translations.put("j1", "s1", { text: "secret", status: "done" });
   await bob.batches.insert(batch());
   await bob.settings.put("b1", { provider: null, model: null });
-  await bob.projects.putSettings(project.id, {
+  await bob.projectSettings.put(project.id, {
     customPrompt: "p",
     glossary: [],
     glossaryConflicts: [],

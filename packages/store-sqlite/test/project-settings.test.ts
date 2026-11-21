@@ -1,6 +1,11 @@
 import type { ProjectSettings } from "@et/contracts";
 import { beforeEach, describe, expect, it } from "vitest";
-import { type Database, openDatabase, SqliteProjectRepository } from "../src/index.ts";
+import {
+  type Database,
+  openDatabase,
+  SqliteProjectRepository,
+  SqliteProjectSettingsRepository,
+} from "../src/index.ts";
 
 const settings: ProjectSettings = {
   customPrompt: "Keep honorifics",
@@ -16,24 +21,26 @@ const settings: ProjectSettings = {
 
 let db: Database;
 let projects: SqliteProjectRepository;
+let projectSettings: SqliteProjectSettingsRepository;
 beforeEach(async () => {
   db = openDatabase(":memory:");
   projects = new SqliteProjectRepository(db);
+  projectSettings = new SqliteProjectSettingsRepository(db);
   await projects.create({ id: "p1", name: "魔女の旅々", createdAt: "2026-10-01T00:00:00.000Z" });
 });
 
 describe("project settings", () => {
   it("has none until saved, then returns the glossary, prompt and conflicts", async () => {
-    expect(await projects.getSettings("p1")).toBeNull();
-    await projects.putSettings("p1", settings);
-    expect(await projects.getSettings("p1")).toEqual(settings);
-    await projects.putSettings("p1", { ...settings, glossaryConflicts: [] });
-    expect((await projects.getSettings("p1"))?.glossaryConflicts).toEqual([]);
+    expect(await projectSettings.get("p1")).toBeNull();
+    await projectSettings.put("p1", settings);
+    expect(await projectSettings.get("p1")).toEqual(settings);
+    await projectSettings.put("p1", { ...settings, glossaryConflicts: [] });
+    expect((await projectSettings.get("p1"))?.glossaryConflicts).toEqual([]);
   });
 
   it("go away with their project", async () => {
-    await projects.putSettings("p1", settings);
+    await projectSettings.put("p1", settings);
     await projects.delete("p1");
-    expect(await projects.getSettings("p1")).toBeNull();
+    expect(await projectSettings.get("p1")).toBeNull();
   });
 });

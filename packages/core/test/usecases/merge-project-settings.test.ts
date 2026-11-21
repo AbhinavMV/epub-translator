@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { describeMergePlan, mergeProjectSettings, type StoredBook } from "../../src/index.ts";
-import { MemoryBooks, MemoryProjects, MemorySettings, sampleParsed } from "./fakes.ts";
+import {
+  MemoryBooks,
+  MemoryProjectSettings,
+  MemoryProjects,
+  MemorySettings,
+  sampleParsed,
+} from "./fakes.ts";
 
 function book(id: string, projectId: string | null, volumeNumber: number | null): StoredBook {
   return {
@@ -20,6 +26,7 @@ async function library({ loose = false } = {}) {
   const deps = {
     books: new MemoryBooks(),
     projects: new MemoryProjects(),
+    projectSettings: new MemoryProjectSettings(),
     settings: new MemorySettings(),
   };
   await deps.projects.create({ id: "p", name: "魔女の旅々", createdAt: "2026-10-01T00:00:00Z" });
@@ -57,14 +64,14 @@ describe("mergeProjectSettings", () => {
       projects: [{ projectId: "p", name: "魔女の旅々", status: "merge", settings: merged }],
       unplaced: [{ bookId: "loose", title: "Book loose" }],
     });
-    expect(await deps.projects.getSettings("p")).toBeNull();
+    expect(await deps.projectSettings.get("p")).toBeNull();
     expect(describeMergePlan(plan).join("\n")).toContain("Witch of Ashes (vol 1)");
   });
 
   it("apply writes the project settings and leaves the books' own terms in place", async () => {
     const deps = await library();
     await mergeProjectSettings(deps, { apply: true });
-    expect(await deps.projects.getSettings("p")).toEqual(merged);
+    expect(await deps.projectSettings.get("p")).toEqual(merged);
     expect(await deps.settings.getLegacyTerms("v1")).toEqual({
       customPrompt: "Keep honorifics.",
       glossary: [{ source: "灰の魔女", target: "Witch of Ashes" }],
@@ -74,7 +81,7 @@ describe("mergeProjectSettings", () => {
   it("apply writes nothing while some books have no project yet", async () => {
     const deps = await library({ loose: true });
     const plan = await mergeProjectSettings(deps, { apply: true });
-    expect(await deps.projects.getSettings("p")).toBeNull();
+    expect(await deps.projectSettings.get("p")).toBeNull();
     expect(describeMergePlan(plan).join("\n")).toContain("run backfill:projects first");
   });
 
@@ -86,7 +93,7 @@ describe("mergeProjectSettings", () => {
     });
     const plan = await mergeProjectSettings(deps, { apply: true });
     expect(plan.projects[0]?.status).toBe("too-large");
-    expect(await deps.projects.getSettings("p")).toBeNull();
+    expect(await deps.projectSettings.get("p")).toBeNull();
     expect(describeMergePlan(plan)[0]).toContain("2002 entries exceed the 2000-entry limit");
   });
 
@@ -94,10 +101,10 @@ describe("mergeProjectSettings", () => {
     const deps = await library();
     await mergeProjectSettings(deps, { apply: true });
     const edited = { ...merged, glossary: [{ source: "灰の魔女", target: "Grey Witch" }] };
-    await deps.projects.putSettings("p", edited);
+    await deps.projectSettings.put("p", edited);
 
     const again = await mergeProjectSettings(deps, { apply: true });
     expect(again.projects).toEqual([{ projectId: "p", name: "魔女の旅々", status: "skip" }]);
-    expect(await deps.projects.getSettings("p")).toEqual(edited);
+    expect(await deps.projectSettings.get("p")).toEqual(edited);
   });
 });

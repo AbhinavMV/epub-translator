@@ -30,8 +30,11 @@ export interface ProjectRepository {
   list(): Promise<Project[]>;
   rename(id: string, name: string): Promise<void>;
   delete(id: string): Promise<void>;
-  getSettings(id: string): Promise<ProjectSettings | null>;
-  putSettings(id: string, settings: ProjectSettings): Promise<void>;
+}
+
+export interface ProjectSettingsRepository {
+  get(projectId: string): Promise<ProjectSettings | null>;
+  put(projectId: string, settings: ProjectSettings): Promise<void>;
 }
 
 export interface BookSettingsRepository {
@@ -79,6 +82,7 @@ export interface BlobStore {
 
 export interface Repositories {
   projects: ProjectRepository;
+  projectSettings: ProjectSettingsRepository;
   books: BookRepository;
   settings: BookSettingsRepository;
   jobs: JobRepository;

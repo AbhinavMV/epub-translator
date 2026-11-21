@@ -7,7 +7,12 @@ import {
   type ProjectSettings,
 } from "@et/contracts";
 import { compareVolumes } from "../domain/project.ts";
-import type { BookRepository, BookSettingsRepository, ProjectRepository } from "../ports/stores.ts";
+import type {
+  BookRepository,
+  BookSettingsRepository,
+  ProjectRepository,
+  ProjectSettingsRepository,
+} from "../ports/stores.ts";
 
 export interface MergeSourceVolume {
   bookId: string;
@@ -64,6 +69,7 @@ export function planProjectSettings(volumes: readonly MergeSourceVolume[]): Proj
 export interface MergeDeps {
   books: BookRepository;
   projects: ProjectRepository;
+  projectSettings: ProjectSettingsRepository;
   settings: BookSettingsRepository;
 }
 
@@ -87,7 +93,7 @@ export async function mergeProjectSettings(
   const projects: MergeProject[] = [];
   for (const project of [...(await deps.projects.list())].reverse()) {
     const base = { projectId: project.id, name: project.name };
-    if (await deps.projects.getSettings(project.id)) {
+    if (await deps.projectSettings.get(project.id)) {
       projects.push({ ...base, status: "skip" });
       continue;
     }
@@ -102,7 +108,7 @@ export async function mergeProjectSettings(
     }
     const settings = planProjectSettings(volumes);
     const status = settings.glossary.length > MAX_GLOSSARY_ENTRIES ? "too-large" : "merge";
-    if (write && status === "merge") await deps.projects.putSettings(project.id, settings);
+    if (write && status === "merge") await deps.projectSettings.put(project.id, settings);
     projects.push({ ...base, status, settings });
   }
   return { projects, unplaced };

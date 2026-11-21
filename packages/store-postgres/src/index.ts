@@ -8,6 +8,7 @@ export * from "./migrations.ts";
 export * from "./parsed-cache.ts";
 export * from "./postgres-sql.ts";
 export * from "./project-repo.ts";
+export * from "./project-settings-repo.ts";
 export * from "./proofread-repo.ts";
 export * from "./rate-limiter.ts";
 export * from "./sql.ts";

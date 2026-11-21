@@ -184,7 +184,7 @@ describe("project settings api", () => {
       inForce: { target: "Ashen Witch", bookId: "b2", volumeNumber: 2 },
       alternatives: [{ target: "Witch of Ashes", bookId: "b1", volumeNumber: 1 }],
     };
-    await services.repos.projects.putSettings(projectId, {
+    await services.repos.projectSettings.put(projectId, {
       ...terms,
       glossaryConflicts: [conflict],
     });
@@ -210,7 +210,7 @@ const witchConflict = {
 describe("glossary conflicts", () => {
   async function withConflict() {
     const ctx = await setup();
-    await ctx.services.repos.projects.putSettings(ctx.projectId, {
+    await ctx.services.repos.projectSettings.put(ctx.projectId, {
       ...terms,
       glossaryConflicts: [witchConflict],
     });

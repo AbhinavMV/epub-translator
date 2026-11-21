@@ -1,4 +1,3 @@
-import { type ProjectSettings, ProjectSettingsSchema } from "@et/contracts";
 import type { Project, ProjectRepository } from "@et/core";
 import type { Database } from "./db.ts";
 
@@ -43,20 +42,5 @@ export class SqliteProjectRepository implements ProjectRepository {
 
   async delete(id: string): Promise<void> {
     this.db.prepare("DELETE FROM projects WHERE id = ?").run(id);
-  }
-
-  async getSettings(id: string): Promise<ProjectSettings | null> {
-    const row = this.db.prepare("SELECT json FROM project_settings WHERE project_id = ?").get(id) as
-      | { json: string }
-      | undefined;
-    return row ? ProjectSettingsSchema.parse(JSON.parse(row.json)) : null;
-  }
-
-  async putSettings(id: string, settings: ProjectSettings): Promise<void> {
-    this.db
-      .prepare(
-        "INSERT INTO project_settings (project_id, json) VALUES (?, ?) ON CONFLICT(project_id) DO UPDATE SET json = excluded.json",
-      )
-      .run(id, JSON.stringify(settings));
   }
 }

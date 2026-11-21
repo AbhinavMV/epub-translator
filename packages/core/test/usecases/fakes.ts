@@ -20,6 +20,7 @@ import type {
   ParsedBook,
   Project,
   ProjectRepository,
+  ProjectSettingsRepository,
   ProofreadRepository,
   ProviderBatch,
   ProviderBatchStatus,
@@ -93,17 +94,25 @@ export class MemoryProjects implements ProjectRepository {
     this.rows.delete(id);
     this.settings.delete(id);
   }
-  async getSettings(id: string) {
-    const row = this.settings.get(id);
+}
+
+export class MemoryProjectSettings implements ProjectSettingsRepository {
+  constructor(readonly rows: Map<string, ProjectSettings> = new Map()) {}
+  async get(projectId: string) {
+    const row = this.rows.get(projectId);
     return row ? structuredClone(row) : null;
   }
-  async putSettings(id: string, settings: ProjectSettings) {
-    this.settings.set(id, structuredClone(settings));
+  async put(projectId: string, settings: ProjectSettings) {
+    this.rows.set(projectId, structuredClone(settings));
   }
 }
 
 export async function seedProjectTerms(
-  deps: { books: BookRepository; projects: ProjectRepository },
+  deps: {
+    books: BookRepository;
+    projects: ProjectRepository;
+    projectSettings: ProjectSettingsRepository;
+  },
   bookId: string,
   terms: ProjectTerms,
   projectId = "p1",
@@ -112,7 +121,7 @@ export async function seedProjectTerms(
     await deps.projects.create({ id: projectId, name: projectId, createdAt: "t" });
   }
   await deps.books.place(bookId, projectId, 1);
-  await deps.projects.putSettings(projectId, { ...terms, glossaryConflicts: [] });
+  await deps.projectSettings.put(projectId, { ...terms, glossaryConflicts: [] });
 }
 
 export class MemorySettings implements BookSettingsRepository {
@@ -248,6 +257,7 @@ export class MemoryProofreads implements ProofreadRepository {
 
 export interface MemoryRepos {
   projects: MemoryProjects;
+  projectSettings: MemoryProjectSettings;
   books: MemoryBooks;
   settings: MemorySettings;
   jobs: MemoryJobs;
@@ -262,8 +272,10 @@ export class MemoryStoreFactory implements StoreFactory {
   forOwner(ownerId: string): MemoryRepos {
     let repos = this.owners.get(ownerId);
     if (!repos) {
+      const projects = new MemoryProjects();
       repos = {
-        projects: new MemoryProjects(),
+        projects,
+        projectSettings: new MemoryProjectSettings(projects.settings),
         books: new MemoryBooks(),
         settings: new MemorySettings(),
         jobs: new MemoryJobs(),

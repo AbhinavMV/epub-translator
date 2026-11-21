@@ -6,18 +6,24 @@ import type {
   ResolveGlossaryConflict,
 } from "@et/contracts";
 import { NotFoundError } from "../domain/errors.ts";
-import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
+import type {
+  BookRepository,
+  ProjectRepository,
+  ProjectSettingsRepository,
+} from "../ports/stores.ts";
 
 const EMPTY: ProjectSettings = { customPrompt: "", glossary: [], glossaryConflicts: [] };
 
 interface TermsDeps {
   books: BookRepository;
-  projects: ProjectRepository;
+  projectSettings: ProjectSettingsRepository;
 }
+
+type SettingsDeps = Pick<TermsDeps, "projectSettings"> & { projects: ProjectRepository };
 
 export async function projectTermsFor(deps: TermsDeps, bookId: string): Promise<ProjectTerms> {
   const book = await deps.books.get(bookId);
-  const settings = book?.projectId ? await deps.projects.getSettings(book.projectId) : null;
+  const settings = book?.projectId ? await deps.projectSettings.get(book.projectId) : null;
   return {
     customPrompt: settings?.customPrompt ?? "",
     glossary: settings?.glossary ?? [],
@@ -25,15 +31,15 @@ export async function projectTermsFor(deps: TermsDeps, bookId: string): Promise<
 }
 
 export async function getProjectSettings(
-  deps: Pick<TermsDeps, "projects">,
+  deps: SettingsDeps,
   projectId: string,
 ): Promise<ProjectSettings> {
   if (!(await deps.projects.get(projectId))) throw new NotFoundError("Project", projectId);
-  return (await deps.projects.getSettings(projectId)) ?? structuredClone(EMPTY);
+  return (await deps.projectSettings.get(projectId)) ?? structuredClone(EMPTY);
 }
 
 export async function updateProjectTerms(
-  deps: Pick<TermsDeps, "projects">,
+  deps: SettingsDeps,
   projectId: string,
   terms: ProjectTerms,
 ): Promise<ProjectSettings> {
@@ -43,7 +49,7 @@ export async function updateProjectTerms(
     glossary: terms.glossary,
     glossaryConflicts: current.glossaryConflicts.filter((c) => stillOpen(c, terms.glossary)),
   };
-  await deps.projects.putSettings(projectId, next);
+  await deps.projectSettings.put(projectId, next);
   return next;
 }
 
@@ -51,7 +57,7 @@ const stillOpen = (conflict: GlossaryConflict, glossary: GlossaryEntry[]) =>
   glossary.some((e) => e.source === conflict.source && e.target === conflict.inForce.target);
 
 export async function resolveGlossaryConflict(
-  deps: Pick<TermsDeps, "projects">,
+  deps: SettingsDeps,
   projectId: string,
   { source, target }: ResolveGlossaryConflict,
 ): Promise<ProjectSettings> {
@@ -66,6 +72,6 @@ export async function resolveGlossaryConflict(
     glossary: current.glossary.map((e) => (e.source === source ? entry : e)),
     glossaryConflicts: current.glossaryConflicts.filter((c) => c !== conflict),
   };
-  await deps.projects.putSettings(projectId, next);
+  await deps.projectSettings.put(projectId, next);
   return next;
 }

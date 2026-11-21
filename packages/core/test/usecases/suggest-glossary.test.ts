@@ -10,6 +10,7 @@ import {
 import {
   MemoryBooks,
   MemoryJobs,
+  MemoryProjectSettings,
   MemoryProjects,
   sampleParsed,
   seedProjectTerms,
@@ -44,6 +45,7 @@ async function setup(extractor: TermExtractor, withJob = true) {
     sampleParsed,
   );
   const projects = new MemoryProjects();
+  const projectSettings = new MemoryProjectSettings();
   const jobs = new MemoryJobs();
   if (withJob) {
     await jobs.insert({
@@ -56,7 +58,7 @@ async function setup(extractor: TermExtractor, withJob = true) {
       createdAt: "",
     });
   }
-  return { deps: { books, projects, jobs, extractor }, jobs };
+  return { deps: { books, projects, projectSettings, jobs, extractor }, jobs };
 }
 
 const input = {

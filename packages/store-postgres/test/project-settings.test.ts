@@ -18,7 +18,7 @@ beforeEach(async () => {
     .projects.create({ id: "p1", name: "魔女の旅々", createdAt: "2026-10-01T00:00:00.000Z" });
 });
 
-const projects = (owner = ALICE) => new PostgresStoreFactory(sql).forOwner(owner).projects;
+const repos = (owner = ALICE) => new PostgresStoreFactory(sql).forOwner(owner);
 
 const settings: ProjectSettings = {
   customPrompt: "Keep honorifics",
@@ -34,17 +34,17 @@ const settings: ProjectSettings = {
 
 describe("project settings", () => {
   it("has none until saved, then returns the glossary, prompt and conflicts", async () => {
-    expect(await projects().getSettings("p1")).toBeNull();
-    await projects().putSettings("p1", settings);
-    expect(await projects().getSettings("p1")).toEqual(settings);
-    await projects().putSettings("p1", { ...settings, glossaryConflicts: [] });
-    expect((await projects().getSettings("p1"))?.glossaryConflicts).toEqual([]);
+    expect(await repos().projectSettings.get("p1")).toBeNull();
+    await repos().projectSettings.put("p1", settings);
+    expect(await repos().projectSettings.get("p1")).toEqual(settings);
+    await repos().projectSettings.put("p1", { ...settings, glossaryConflicts: [] });
+    expect((await repos().projectSettings.get("p1"))?.glossaryConflicts).toEqual([]);
   });
 
   it("go away with their project and are hidden from other owners", async () => {
-    await projects().putSettings("p1", settings);
-    expect(await projects(BOB).getSettings("p1")).toBeNull();
-    await projects().delete("p1");
-    expect(await projects().getSettings("p1")).toBeNull();
+    await repos().projectSettings.put("p1", settings);
+    expect(await repos(BOB).projectSettings.get("p1")).toBeNull();
+    await repos().projects.delete("p1");
+    expect(await repos().projectSettings.get("p1")).toBeNull();
   });
 });

@@ -371,7 +371,7 @@ describe("JobRunner", () => {
   it("fails the chapter instead of crashing when storage throws mid-task", async () => {
     const repos = factory.forOwner(OWNER);
     await seedProjectTerms(repos, "b1", { customPrompt: "", glossary: [] });
-    repos.projects.getSettings = async () => {
+    repos.projectSettings.get = async () => {
       throw new Error("disk I/O error");
     };
     await runner.translateChapter(OWNER, "j1", "ch-0", body);

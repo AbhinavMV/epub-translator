@@ -83,7 +83,7 @@ describe("project settings merge on SQLite", () => {
     const db = openDatabase(path);
     const repos = new SqliteStoreFactory(db).forOwner(LOCAL_OWNER_ID);
     const result = {
-      project: await repos.projects.getSettings("p1"),
+      project: await repos.projectSettings.get("p1"),
       v1: await repos.settings.getLegacyTerms("v1"),
     };
     db.close();
@@ -120,7 +120,7 @@ describe("project settings merge on SQLite", () => {
     const db = openDatabase(path);
     await new SqliteStoreFactory(db)
       .forOwner(LOCAL_OWNER_ID)
-      .projects.putSettings("p1", { ...merged, glossaryConflicts: [] });
+      .projectSettings.put("p1", { ...merged, glossaryConflicts: [] });
     db.close();
 
     const lines: string[] = [];
@@ -144,10 +144,10 @@ describe("project settings merge on Postgres", () => {
     }
 
     await runProjectSettingsMerge(postgresBackfill(sql), { apply: false, log: () => {} });
-    expect(await factory.forOwner(ALICE).projects.getSettings("p1")).toBeNull();
+    expect(await factory.forOwner(ALICE).projectSettings.get("p1")).toBeNull();
 
     await runProjectSettingsMerge(postgresBackfill(sql), { apply: true, log: () => {} });
-    expect(await factory.forOwner(BOB).projects.getSettings("p1")).toEqual(merged);
+    expect(await factory.forOwner(BOB).projectSettings.get("p1")).toEqual(merged);
     expect(await factory.forOwner(ALICE).settings.getLegacyTerms("v2")).toEqual({
       customPrompt: "",
       glossary: [{ source: "灰の魔女", target: "Ashen Witch" }],
