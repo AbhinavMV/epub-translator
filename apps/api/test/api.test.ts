@@ -125,6 +125,10 @@ describe("books api", () => {
     });
     const list = z.array(BookSummarySchema).parse(await (await app.request("/api/books")).json());
     expect(list[0]?.translatedTitle).toBe("The Book");
+    const project = ProjectDetailSchema.parse(
+      await (await app.request(`/api/projects/${book.projectId}`)).json(),
+    );
+    expect(project.books[0]?.translatedTitle).toBe("The Book");
     const again = JobSummarySchema.parse(
       await (await app.request(`/api/books/${book.id}/workspace?targetLang=en`)).json(),
     );
