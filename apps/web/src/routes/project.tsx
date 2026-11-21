@@ -1,3 +1,4 @@
+import type { BookSummary } from "@et/contracts";
 import { Link, useParams } from "@tanstack/react-router";
 import { ChevronLeft, Pencil } from "lucide-react";
 import { type FormEvent, useState } from "react";
@@ -12,12 +13,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectVolume } from "@/components/volume-number-editor";
+import { translatedProjectName } from "@/lib/translated-project-name";
 
-function ProjectName({ projectId, name }: { projectId: string; name: string }) {
+function ProjectName({
+  projectId,
+  name,
+  books,
+}: {
+  projectId: string;
+  name: string;
+  books: readonly BookSummary[];
+}) {
   const rename = useRenameProject(projectId);
   const [draft, setDraft] = useState<string | null>(null);
 
   if (draft === null) {
+    const translatedName = translatedProjectName(books);
     return (
       <div className="flex min-w-0 items-center gap-2">
         <h1 className="truncate font-serif text-xl font-semibold">{name}</h1>
@@ -29,6 +40,11 @@ function ProjectName({ projectId, name }: { projectId: string; name: string }) {
         >
           <Pencil />
         </Button>
+        {translatedName && translatedName !== name ? (
+          <Button variant="ghost" size="sm" onClick={() => setDraft(translatedName)}>
+            Use translated title
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -83,7 +99,11 @@ export function ProjectPage() {
             <ChevronLeft className="size-3" /> Library
           </Link>
           {project.data ? (
-            <ProjectName projectId={projectId} name={project.data.name} />
+            <ProjectName
+              projectId={projectId}
+              name={project.data.name}
+              books={project.data.books}
+            />
           ) : (
             <Skeleton className="h-7 w-48" />
           )}

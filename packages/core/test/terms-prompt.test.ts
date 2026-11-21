@@ -27,4 +27,24 @@ describe("buildTermsPrompt", () => {
     expect(system).toContain("魔王");
     expect(JSON.parse(user)).toMatchObject({ bookTitle: "本", sample: req.sample });
   });
+
+  it("lists existing glossary entries with their renderings", () => {
+    const { system } = buildTermsPrompt(req);
+    expect(system).toContain("- 魔王 → Demon King");
+    expect(system).toMatch(/do not return these sources again/i);
+  });
+
+  it("passes the custom prompt as style instructions that renderings must follow", () => {
+    const { system } = buildTermsPrompt({ ...req, instructions: "Keep -san and -sama." });
+    expect(system).toContain("Style instructions from the reader: Keep -san and -sama.");
+    expect(system).toMatch(/names, honorifics and forms of address/i);
+    expect(system).toMatch(/match the style of the renderings already in the glossary/i);
+  });
+
+  it("leaves out style instructions when the custom prompt is blank", () => {
+    for (const instructions of [undefined, "", "   "]) {
+      const { system } = buildTermsPrompt({ ...req, instructions });
+      expect(system).not.toMatch(/style instructions/i);
+    }
+  });
 });

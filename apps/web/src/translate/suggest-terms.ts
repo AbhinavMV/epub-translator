@@ -21,6 +21,7 @@ export async function suggestTermsInBrowser(
       bookTitle: sample.bookTitle,
       sample: sample.sample,
       existing: sample.existing,
+      instructions: sample.customPrompt,
     },
     signal,
   );

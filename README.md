@@ -34,10 +34,11 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
 
 1. **Library:** lists your projects. Drop an `.epub` file to import it as a volume of a project. **Add to a project** suggests the project with the same series title (the book's title without its volume marker), or **New project** named after the series; you can pick any project instead. **Volume number** is read from the title; left empty, the book becomes volume 1, or the next number after the project's highest volume. Volume numbers may be fractional (2.5).
 2. **Project:** the glossary and custom prompt belong to the project, so every volume uses the same terms.
-   - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Review the suggestions, then save. **Edit prompt** sets the custom prompt, style notes added to every translation.
+   - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Suggested renderings follow the custom prompt and match the renderings already in the glossary, so names, honorifics and forms of address stay consistent. Review the suggestions, then save. **Edit prompt** shows the fixed fidelity and format rules read-only and lets you replace the default style guidance with your own custom prompt.
    - The glossary editor lists any glossary conflicts left by merging volumes' old glossaries, with each rendering and its volume. The one marked in force is used until you pick one.
    - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with. Changing a term does not retranslate earlier volumes.
-   - Rename the project, change a volume's number, move a volume to another project (it carries no glossary terms with it), or delete a volume. Deleting the project deletes all its volumes and their translations.
+   - The pencil beside the name renames the project. Once a volume has an English translation of its title, **Use translated title** opens the rename field filled with the lowest-numbered such volume's translated title, volume marker removed; nothing changes until you save.
+   - Change a volume's number, move a volume to another project (it carries no glossary terms with it), or delete a volume. Deleting the project deletes all its volumes and their translations.
 3. **Editor:**
    - **Choosing how to translate:**
      - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and custom prompt.

@@ -266,17 +266,18 @@ describe("client batches", () => {
 });
 
 describe("glossary sample", () => {
-  it("returns the sample, source language and existing glossary", async () => {
+  it("returns the sample, source language, existing glossary and custom prompt", async () => {
     const book = BookSummarySchema.parse(await (await app.request(`/api/books/${bookId}`)).json());
     const glossary = [{ source: "一", target: "one" }];
     await app.request(
       `/api/projects/${book.projectId}/settings`,
-      send("PUT", { customPrompt: "", glossary }),
+      send("PUT", { customPrompt: "Keep honorifics.", glossary }),
     );
     const res = await app.request(`/api/books/${bookId}/glossary/sample?targetLang=fr`);
     const sample = GlossarySampleSchema.parse(await res.json());
     expect(sample).toMatchObject({ sourceLang: "ja", bookTitle: "本", targetLang: "fr" });
     expect(sample.sample).toContain("一二");
     expect(sample.existing).toEqual(glossary);
+    expect(sample.customPrompt).toBe("Keep honorifics.");
   });
 });

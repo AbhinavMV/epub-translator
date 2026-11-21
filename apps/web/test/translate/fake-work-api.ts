@@ -195,7 +195,8 @@ export class FakeWorkApi implements WorkApi {
       sample: "sample text",
       sourceLang: "ja",
       bookTitle: "B",
-      existing: [],
+      existing: [{ source: "魔王", target: "Demon King" }],
+      customPrompt: "Keep honorifics.",
       targetLang: "en",
     };
   }
