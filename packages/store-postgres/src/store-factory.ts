@@ -6,6 +6,7 @@ import { PostgresBookSettingsRepository } from "./book-settings-repo.ts";
 import { PostgresInviteRepository } from "./invite-repo.ts";
 import { PostgresJobRepository } from "./job-repo.ts";
 import { ParsedBookCache } from "./parsed-cache.ts";
+import { PostgresProjectRepository } from "./project-repo.ts";
 import { PostgresProofreadRepository } from "./proofread-repo.ts";
 import type { Sql } from "./sql.ts";
 import { PostgresTranslationRepository } from "./translation-repo.ts";
@@ -41,6 +42,7 @@ export class PostgresStoreFactory implements StoreFactory {
   forOwner(ownerId: string): Repositories & { books: PostgresBookRepository } {
     assertOwner(ownerId);
     return {
+      projects: new PostgresProjectRepository(this.sql, ownerId),
       books: new PostgresBookRepository(this.sql, ownerId, this.cache),
       settings: new PostgresBookSettingsRepository(this.sql, ownerId),
       jobs: new PostgresJobRepository(this.sql, ownerId),

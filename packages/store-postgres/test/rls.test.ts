@@ -1,7 +1,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql, withOwner } from "../src/index.ts";
-import { batch, book, job, parsed } from "./fixtures.ts";
+import { batch, book, job, parsed, project } from "./fixtures.ts";
 import { ALICE, BOB, createTestDatabase, resetData } from "./harness.ts";
 
 let db: PGlite;
@@ -14,7 +14,8 @@ afterAll(() => db.close());
 beforeEach(async () => {
   await resetData(db);
   const bob = new PostgresStoreFactory(sql).forOwner(BOB);
-  await bob.books.insert(book, parsed);
+  await bob.projects.create(project);
+  await bob.books.insert({ ...book, projectId: project.id, volumeNumber: 1 }, parsed);
   await bob.jobs.insert(job);
   await bob.translations.put("j1", "s1", { text: "secret", status: "done" });
   await bob.batches.insert(batch());
@@ -34,6 +35,7 @@ beforeEach(async () => {
 });
 
 const OWNER_TABLES = [
+  "projects",
   "books",
   "book_settings",
   "jobs",
@@ -100,6 +102,12 @@ describe("row level security", () => {
           "insert into jobs (owner_id, id, book_id, target_lang, created_at) values ($1, 'jx', 'b1', 'fr', now())",
           [ALICE],
         ),
+      ),
+    ).rejects.toThrow(/foreign key/);
+    await expect(
+      sql.query(
+        "insert into books (owner_id, id, sha256, title, created_at, parsed_json, project_id) values ($1, 'bx', 'x', 't', now(), '{}', $2)",
+        [ALICE, project.id],
       ),
     ).rejects.toThrow(/foreign key/);
     await expect(

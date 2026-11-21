@@ -12,9 +12,12 @@ interface BookRow {
   source_lang: string | null;
   cover_href: string | null;
   created_at: Date | string;
+  project_id: string | null;
+  volume_number: number | string | null;
 }
 
-const COLUMNS = "id, sha256, title, author, source_lang, cover_href, created_at";
+const COLUMNS =
+  "id, sha256, title, author, source_lang, cover_href, created_at, project_id, volume_number";
 
 function toBook(row: BookRow): StoredBook {
   return {
@@ -25,6 +28,8 @@ function toBook(row: BookRow): StoredBook {
     sourceLang: row.source_lang,
     coverHref: row.cover_href,
     createdAt: iso(row.created_at),
+    projectId: row.project_id,
+    volumeNumber: row.volume_number === null ? null : Number(row.volume_number),
   };
 }
 
@@ -39,7 +44,7 @@ export class PostgresBookRepository implements BookRepository {
     await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query(
         `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::text::jsonb)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10, $11::text::jsonb)`,
         [
           this.ownerId,
           book.id,
@@ -49,6 +54,8 @@ export class PostgresBookRepository implements BookRepository {
           book.sourceLang,
           book.coverHref,
           book.createdAt,
+          book.projectId,
+          book.volumeNumber,
           JSON.stringify(parsed),
         ],
       ),
@@ -59,7 +66,7 @@ export class PostgresBookRepository implements BookRepository {
     return withOwner(this.sql, this.ownerId, async (tx) => {
       await tx.query(
         `INSERT INTO books (owner_id, ${COLUMNS}, parsed_json)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::text::jsonb)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9, $10, $11::text::jsonb)
          ON CONFLICT (owner_id, sha256) DO NOTHING`,
         [
           this.ownerId,
@@ -70,6 +77,8 @@ export class PostgresBookRepository implements BookRepository {
           book.sourceLang,
           book.coverHref,
           book.createdAt,
+          book.projectId,
+          book.volumeNumber,
           JSON.stringify(parsed),
         ],
       );
@@ -135,6 +144,26 @@ export class PostgresBookRepository implements BookRepository {
       ),
     );
     return rows.map(toBook);
+  }
+
+  async listByProject(projectId: string): Promise<StoredBook[]> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<BookRow>(
+        `SELECT ${COLUMNS} FROM books WHERE owner_id = $1 AND project_id = $2
+         ORDER BY volume_number NULLS LAST, created_at, id`,
+        [this.ownerId, projectId],
+      ),
+    );
+    return rows.map(toBook);
+  }
+
+  async place(id: string, projectId: string, volumeNumber: number): Promise<void> {
+    await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query(
+        "UPDATE books SET project_id = $3, volume_number = $4 WHERE owner_id = $1 AND id = $2",
+        [this.ownerId, id, projectId, volumeNumber],
+      ),
+    );
   }
 
   async delete(id: string): Promise<void> {

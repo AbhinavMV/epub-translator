@@ -55,5 +55,5 @@ export async function createTestDatabase(): Promise<{ db: PGlite; sql: Sql }> {
 }
 
 export async function resetData(db: PGlite): Promise<void> {
-  await db.exec("truncate public.books, public.app_users, public.invites cascade");
+  await db.exec("truncate public.projects, public.books, public.app_users, public.invites cascade");
 }

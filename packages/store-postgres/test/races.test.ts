@@ -45,6 +45,7 @@ describe("concurrent find-then-insert", () => {
     const stored = new Map<string, Uint8Array>();
     const deps = {
       books: repos.books,
+      projects: repos.projects,
       blobs: {
         put: async (k: string, b: Uint8Array) => void stored.set(k, b),
         get: async (k: string) => stored.get(k) as Uint8Array,
@@ -59,5 +60,6 @@ describe("concurrent find-then-insert", () => {
     const books = await settled(Array.from({ length: 6 }, () => importBook(deps, bytes)));
     expect(new Set(books.map((b) => b.id)).size).toBe(1);
     expect(await repos.books.list()).toHaveLength(1);
+    expect((await repos.projects.list()).map((p) => p.id)).toEqual([books[0]?.projectId]);
   });
 });

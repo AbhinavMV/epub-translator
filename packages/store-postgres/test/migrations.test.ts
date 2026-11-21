@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
 import { applyMigrations, concatMigrations, loadMigrations, MIGRATIONS_DIR } from "../src/index.ts";
-import { createTestDatabase, pgliteSql } from "./harness.ts";
+import { ALICE, createTestDatabase, pgliteSql } from "./harness.ts";
 
 describe("migrations", () => {
   it("loads files in order and flags the storage migration as supabase-only", () => {
@@ -17,6 +17,7 @@ describe("migrations", () => {
       "0006_exports_text_supabase.sql",
       "0007_private_owner_role.sql",
       "0008_proofreads.sql",
+      "0009_projects.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
@@ -63,6 +64,44 @@ describe("migrations", () => {
     const storage = readFileSync(join(MIGRATIONS_DIR, "0004_storage_supabase.sql"), "utf8");
     expect(storage).toContain("(storage.foldername(name))[1] = (select auth.uid()::text)");
     expect(storage).toContain("on conflict (id) do nothing");
+  });
+});
+
+describe("0009_projects", () => {
+  it("adds unplaced project columns to existing books and re-runs by hand", async () => {
+    const db = new PGlite();
+    const sql = pgliteSql(db);
+    await db.exec(`
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create function auth.uid() returns uuid language sql as 'select null::uuid';
+      create role anon nologin;
+      create role authenticated nologin;
+    `);
+    const all = loadMigrations().filter((m) => !m.supabaseOnly);
+    await applyMigrations(
+      sql,
+      all.filter((m) => m.name < "0009"),
+    );
+    await db.query("insert into auth.users (id) values ($1)", [ALICE]);
+    await db.query(
+      "insert into books (owner_id, id, sha256, title, created_at, parsed_json) values ($1, 'b1', 's', '本 2', now(), '{}')",
+      [ALICE],
+    );
+    await applyMigrations(sql, all);
+    const m = all.find((x) => x.name === "0009_projects.sql");
+    await db.exec(m?.sql ?? "");
+    const rows = await sql.query<{ title: string; project_id: null; volume_number: null }>(
+      "select title, project_id, volume_number from books",
+    );
+    expect(rows).toEqual([{ title: "本 2", project_id: null, volume_number: null }]);
+    await db.close();
+  });
+
+  it("ships apply-0009.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0009.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0009_projects.sql"), "utf8");
+    expect(apply).toBe(m);
   });
 });
 
