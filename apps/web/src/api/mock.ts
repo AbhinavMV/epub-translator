@@ -404,6 +404,11 @@ export function createMockApi(): Api {
       project.name = name.trim();
       return delay({ ...project });
     },
+    async deleteProject(id) {
+      for (const book of booksOf(id)) books.delete(book.id);
+      projects.delete(id);
+      await delay(null);
+    },
     listBooks: () => delay([...books.values()].map((b) => b.summary)),
     async prepareImport(file) {
       const title = file.name.replace(/\.epub$/i, "");
@@ -448,6 +453,16 @@ export function createMockApi(): Api {
       const book = books.get(bookId);
       if (!book) throw new Error("Book not found");
       book.summary = { ...book.summary, volumeNumber };
+      return delay(book.summary);
+    },
+    async moveBook(bookId, projectId) {
+      const book = books.get(bookId);
+      if (!book) throw new Error("Book not found");
+      if (!projects.has(projectId)) throw new Error("Project not found");
+      const volumeNumber =
+        parseVolumeTitle(book.summary.title).volumeNumber ??
+        unnumberedVolumeNumber(booksOf(projectId).map((b) => b.volumeNumber ?? null));
+      book.summary = { ...book.summary, projectId, volumeNumber };
       return delay(book.summary);
     },
     async getBook(id): Promise<BookDetail> {

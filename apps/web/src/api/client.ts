@@ -72,9 +72,11 @@ export interface Api {
   listProjects(): Promise<ProjectSummary[]>;
   getProject(id: string): Promise<ProjectDetail>;
   renameProject(id: string, name: string): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
   listBooks(): Promise<BookSummary[]>;
   prepareImport(file: File): Promise<PendingImport>;
   setVolumeNumber(bookId: string, volumeNumber: number): Promise<BookSummary>;
+  moveBook(bookId: string, projectId: string): Promise<BookSummary>;
   getBook(id: string): Promise<BookDetail>;
   deleteBook(id: string): Promise<void>;
   saveSettings(id: string, settings: BookSettings): Promise<BookSettings>;
@@ -202,6 +204,9 @@ export function createHttpApi(
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),
       }),
+    async deleteProject(id) {
+      await raw(`/projects/${enc(id)}`, { method: "DELETE" });
+    },
     listBooks: () => json("/books", list(BookSummarySchema)),
     async prepareImport(file) {
       if (signed) {
@@ -245,6 +250,12 @@ export function createHttpApi(
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ volumeNumber }),
+      }),
+    moveBook: (bookId, projectId) =>
+      json(`/books/${enc(bookId)}/project`, BookSummarySchema, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId }),
       }),
     getBook: (id) => json(`/books/${enc(id)}`, BookDetailSchema),
     async deleteBook(id) {
