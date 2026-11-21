@@ -42,45 +42,47 @@ export function ProjectGlossarySuggestions({
 
   if (!latest) return null;
 
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
-          <SelectTrigger size="sm" className="w-[9rem]" aria-label="Volume to sample">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {books.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {volumeLabel(b)}
-              </SelectItem>
-            ))}
-            {books.length > 1 && <SelectItem value={ALL_VOLUMES}>All volumes</SelectItem>}
-          </SelectContent>
-        </Select>
-        <Select value={targetLang} onValueChange={setTargetLang}>
-          <SelectTrigger size="sm" className="w-[7.5rem]" aria-label="Suggest renderings in">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TARGET_LANGUAGES.map((l) => (
-              <SelectItem key={l.code} value={l.code}>
-                {l.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
-      </div>
-      <GlossarySuggestions
-        key={sampled?.id ?? ALL_VOLUMES}
-        bookIds={sampled ? [sampled.id] : volumes.map((b) => b.id)}
-        targetLang={targetLang}
-        providers={providers.data}
-        selection={selection}
-        onAdd={onAdd}
-        onRunningChange={setRunning}
-      />
+  const controls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
+        <SelectTrigger size="sm" className="w-[8rem]" aria-label="Volume to sample">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {books.map((b) => (
+            <SelectItem key={b.id} value={b.id}>
+              {volumeLabel(b)}
+            </SelectItem>
+          ))}
+          {books.length > 1 && <SelectItem value={ALL_VOLUMES}>All volumes</SelectItem>}
+        </SelectContent>
+      </Select>
+      <Select value={targetLang} onValueChange={setTargetLang}>
+        <SelectTrigger size="sm" className="w-[6.5rem]" aria-label="Suggest renderings in">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {TARGET_LANGUAGES.map((l) => (
+            <SelectItem key={l.code} value={l.code}>
+              {l.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
     </div>
+  );
+
+  return (
+    <GlossarySuggestions
+      key={sampled?.id ?? ALL_VOLUMES}
+      bookIds={sampled ? [sampled.id] : volumes.map((b) => b.id)}
+      targetLang={targetLang}
+      providers={providers.data}
+      selection={selection}
+      onAdd={onAdd}
+      onRunningChange={setRunning}
+      controls={controls}
+    />
   );
 }

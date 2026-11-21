@@ -227,7 +227,7 @@ export function PagedReader({
         aria-label="Chapter text"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: focusable so the text shows a focus ring and receives paging keys
         tabIndex={0}
-        className="relative min-h-0 flex-1 touch-pan-y overflow-hidden outline-none select-text focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
+        className="relative min-h-0 flex-1 touch-pan-y overflow-hidden outline-none select-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         ref={viewportRef}
         onClick={onClick}
         onTouchStart={(e) => {

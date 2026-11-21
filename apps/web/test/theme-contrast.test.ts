@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -64,6 +65,8 @@ const pairs: [fg: string, bg: string, min: number][] = [
   ["primary", "background", TEXT],
   ["primary", "card", TEXT],
   ["primary-foreground", "primary", TEXT],
+  ["primary-foreground", "primary-hover", TEXT],
+  ["cover-fallback-foreground", "cover-fallback", TEXT],
   ["rail-active-foreground", "rail-active", TEXT],
   ["destructive", "background", TEXT],
   ["destructive", "card", TEXT],
@@ -88,6 +91,33 @@ describe.each(Object.entries(themes))("%s theme", (_name, tokens) => {
     const apart = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
     expect(apart(hue(tokens.flag), hue(tokens.primary))).toBeGreaterThan(90);
     expect(apart(hue(tokens.destructive), hue(tokens.primary))).toBeGreaterThan(90);
+  });
+});
+
+describe("component colour classes", () => {
+  const srcDir = fileURLToPath(new URL("../src", import.meta.url));
+  const sources = readdirSync(srcDir, { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".tsx"))
+    .map((file) => ({ file, text: readFileSync(join(srcDir, file), "utf8") }));
+  const offenders = (pattern: RegExp) =>
+    sources.filter(({ text }) => pattern.test(text)).map(({ file }) => file);
+
+  it("draws focus rings at full strength so they keep 3:1", () => {
+    expect(offenders(/focus-visible:ring-(ring|destructive)\/\d+/)).toEqual([]);
+  });
+
+  it("darkens primary on hover with a token instead of fading it", () => {
+    expect(offenders(/bg-primary\/90/)).toEqual([]);
+  });
+
+  it("sets cover placeholder text on the cover token, not primary on a primary tint", () => {
+    expect(offenders(/from-primary\/\d+[^"]*text-primary\b/)).toEqual([]);
+  });
+
+  it("keeps proofreading kind badges off the primary blue", () => {
+    const review = sources.find(({ file }) => file.endsWith("proofread-review.tsx"));
+    expect(review?.text).toBeDefined();
+    expect(review?.text).not.toMatch(/\b(sky|blue|cyan|indigo)-\d/);
   });
 });
 

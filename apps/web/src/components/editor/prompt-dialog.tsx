@@ -44,11 +44,11 @@ export function PromptDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
           <MessageSquareText />
-          <span className="hidden sm:inline">Custom prompt</span>
+          Custom prompt
           {value ? <span className="size-1.5 rounded-full bg-primary" /> : null}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Custom prompt</DialogTitle>
           <DialogDescription>

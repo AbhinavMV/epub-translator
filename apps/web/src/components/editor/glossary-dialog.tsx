@@ -95,7 +95,7 @@ export function GlossaryDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" disabled={!glossary}>
           <BookA />
-          <span className="hidden sm:inline">Glossary</span>
+          Glossary
           {count > 0 && (
             <span className="rounded-sm bg-primary/15 px-1 font-mono text-[10px] text-foreground">
               {count}
@@ -103,7 +103,7 @@ export function GlossaryDialog({
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Glossary</DialogTitle>
           <DialogDescription>
@@ -146,15 +146,18 @@ export function GlossaryDialog({
           </ScrollArea>
         ) : (
           <ScrollArea className="max-h-[50vh] pr-3">
-            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase sm:grid-cols-[1fr_1fr_1fr_auto]">
               <span>Source</span>
               <span>Rendering</span>
-              <span>Note</span>
+              <span className="hidden sm:block">Note</span>
               <span className="w-8" />
             </div>
             <div className="flex flex-col gap-2">
               {rows.map((r) => (
-                <div key={r.key} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                <div
+                  key={r.key}
+                  className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b pb-2 last:border-b-0 sm:grid-cols-[1fr_1fr_1fr_auto] sm:border-b-0 sm:pb-0"
+                >
                   <Input
                     aria-label="Source term"
                     value={r.source}
@@ -167,6 +170,8 @@ export function GlossaryDialog({
                   />
                   <Input
                     aria-label="Note"
+                    placeholder="Note"
+                    className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto sm:placeholder:text-transparent"
                     value={r.note}
                     onChange={(e) => update(r.key, { note: e.target.value })}
                   />
@@ -174,6 +179,7 @@ export function GlossaryDialog({
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Remove entry"
+                    className="col-start-3 row-start-1 sm:col-start-auto sm:row-start-auto"
                     onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
                   >
                     <Trash2 />
@@ -191,7 +197,7 @@ export function GlossaryDialog({
         <Button
           variant="outline"
           size="sm"
-          className="self-start"
+          className="justify-self-start"
           disabled={showConflicts || rows.length >= MAX_ENTRIES}
           onClick={() =>
             setRows((rs) => [...rs, { key: rowKey++, source: "", target: "", note: "" }])

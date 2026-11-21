@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type NewImport = PendingImport & { preview: { kind: "new" } };
 
@@ -78,9 +79,8 @@ function ImportForm({ pending, onClose }: { pending: NewImport; onClose: () => v
         <label htmlFor={`${ids}-project`} className="text-sm font-medium">
           Project
         </label>
-        <select
+        <NativeSelect
           id={`${ids}-project`}
-          className="h-9 rounded-md border bg-background px-2 text-sm"
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
         >
@@ -90,7 +90,7 @@ function ImportForm({ pending, onClose }: { pending: NewImport; onClose: () => v
               {p.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         {projectId === "" && (
           <Input
             aria-label="New project name"

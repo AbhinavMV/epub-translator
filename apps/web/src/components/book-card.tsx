@@ -2,6 +2,7 @@ import type { BookSummary } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { CoverPlaceholder } from "@/components/cover-placeholder";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,12 +29,12 @@ export function BookCard({
   const original = shownTitle !== book.title ? book.title : null;
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
+    <div className="group relative flex flex-1 flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
       <Link
         to="/books/$bookId"
         params={{ bookId: book.id }}
         search={{}}
-        className="flex flex-1 flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="flex flex-1 flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
       >
         <div className="aspect-[2/3] w-full overflow-hidden bg-muted">
           {book.coverUrl && !coverFailed ? (
@@ -45,9 +46,7 @@ export function BookCard({
               className="size-full object-cover"
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 p-4 text-center font-serif text-lg text-primary">
-              {book.title.slice(0, 2)}
-            </div>
+            <CoverPlaceholder title={book.title} />
           )}
         </div>
         <div className="flex flex-col gap-1 p-3">

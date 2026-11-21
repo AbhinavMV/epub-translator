@@ -1,6 +1,6 @@
 import type { GlossaryEntry, ProviderInfo, SampleSize } from "@et/contracts";
 import { Loader2, Sparkles, Square } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useGlossaryPlans } from "@/api/queries";
 import { chunkSteps } from "@/api/suggestion-run";
 import { useSuggestionRun } from "@/api/use-suggestion-run";
@@ -42,6 +42,7 @@ export function GlossarySuggestions({
   selection,
   onAdd,
   onRunningChange,
+  controls,
 }: {
   bookIds: readonly string[];
   targetLang: string;
@@ -49,6 +50,7 @@ export function GlossarySuggestions({
   selection: Selection | null;
   onAdd: (entries: GlossaryEntry[]) => void;
   onRunningChange?: (running: boolean) => void;
+  controls?: ReactNode;
 }) {
   const [size, setSize] = useState<SampleSize>("large");
   const plans = useGlossaryPlans(bookIds, size);
@@ -106,6 +108,7 @@ export function GlossarySuggestions({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
+      {controls}
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
