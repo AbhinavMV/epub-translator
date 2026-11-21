@@ -31,7 +31,7 @@ function renderIt(overrides: Partial<Api>, onAdd = vi.fn()) {
     <QueryClientProvider client={new QueryClient()}>
       <ApiProvider api={api}>
         <GlossarySuggestions
-          bookId="b1"
+          bookIds={["b1"]}
           targetLang="en"
           providers={providers}
           selection={{ provider: "anthropic", model: "claude-sonnet-5-5" }}

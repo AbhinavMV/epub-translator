@@ -1,7 +1,7 @@
 import type { GlossaryEntry, ProviderInfo, SampleSize } from "@et/contracts";
 import { Loader2, Sparkles, Square } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGlossaryPlan } from "@/api/queries";
+import { useGlossaryPlans } from "@/api/queries";
 import { chunkSteps } from "@/api/suggestion-run";
 import { useSuggestionRun } from "@/api/use-suggestion-run";
 import { Button } from "@/components/ui/button";
@@ -26,19 +26,24 @@ const SAMPLE_SIZES: { value: SampleSize; label: string }[] = [
 const requestsLabel = (requests: number, chars: number) =>
   `${number.format(requests)} ${requests === 1 ? "request" : "requests"} · ~${number.format(chars)} chars`;
 
+const planLabel = (volumes: number, requests: number, chars: number) =>
+  volumes > 1
+    ? `${volumes} volumes · ${requestsLabel(requests, chars)}`
+    : requestsLabel(requests, chars);
+
 export function suggestionModel(provider: ProviderInfo | undefined, selected: string): string {
   return provider?.termsModel || selected;
 }
 
 export function GlossarySuggestions({
-  bookId,
+  bookIds,
   targetLang,
   providers,
   selection,
   onAdd,
   onRunningChange,
 }: {
-  bookId: string;
+  bookIds: readonly string[];
   targetLang: string;
   providers: ProviderInfo[] | undefined;
   selection: Selection | null;
@@ -46,7 +51,7 @@ export function GlossarySuggestions({
   onRunningChange?: (running: boolean) => void;
 }) {
   const [size, setSize] = useState<SampleSize>("large");
-  const plan = useGlossaryPlan(bookId, size);
+  const plans = useGlossaryPlans(bookIds, size);
   const { state: run, start, stop, reset } = useSuggestionRun();
   const [modelOverride, setModelOverride] = useState<{ provider: string; model: string } | null>(
     null,
@@ -64,14 +69,17 @@ export function GlossarySuggestions({
   const models = [...new Set([defaultModel, ...(provider?.models ?? []), model])].filter(Boolean);
 
   const begin = () => {
-    if (!provider || !model || !plan.data) return;
+    if (!provider || !model || !plans) return;
     setUnchecked(new Set());
-    void start(chunkSteps(bookId, plan.data.requests), {
-      provider: provider.id,
-      model,
-      targetLang,
-      sampleSize: size,
-    });
+    void start(
+      plans.flatMap((p) => chunkSteps(p.bookId, p.requests)),
+      {
+        provider: provider.id,
+        model,
+        targetLang,
+        sampleSize: size,
+      },
+    );
   };
 
   const toggle = (index: number) =>
@@ -88,6 +96,13 @@ export function GlossarySuggestions({
   };
 
   const selectedCount = suggestions.length - unchecked.size;
+  const volume = run.step ? bookIds.indexOf(run.step.bookId) + 1 : 0;
+  const progress =
+    bookIds.length > 1
+      ? `Suggesting… Vol ${volume} of ${bookIds.length}`
+      : run.total > 1
+        ? `Suggesting… ${run.done + 1} of ${run.total}`
+        : "Suggesting…";
 
   return (
     <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
@@ -95,15 +110,11 @@ export function GlossarySuggestions({
         <Button
           variant="outline"
           size="sm"
-          disabled={!provider || !model || !plan.data || run.running}
+          disabled={!provider || !model || !plans || run.running}
           onClick={begin}
         >
           {run.running ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {run.running
-            ? run.total > 1
-              ? `Suggesting… ${run.done + 1} of ${run.total}`
-              : "Suggesting…"
-            : "Suggest from book"}
+          {run.running ? progress : "Suggest from book"}
         </Button>
         {run.running && (
           <Button variant="ghost" size="sm" onClick={stop}>
@@ -151,9 +162,13 @@ export function GlossarySuggestions({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        {plan.data && (
+        {plans && (
           <span className="text-xs text-muted-foreground">
-            {requestsLabel(plan.data.requests, plan.data.chars)}
+            {planLabel(
+              plans.length,
+              plans.reduce((n, p) => n + p.requests, 0),
+              plans.reduce((n, p) => n + p.chars, 0),
+            )}
           </span>
         )}
       </div>

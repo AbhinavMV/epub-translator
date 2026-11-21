@@ -30,6 +30,9 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};
+Element.prototype.scrollIntoView ??= () => {};
 
 function renderAt(path: string, overrides: Partial<Api>, bookPage: () => ReactNode = () => null) {
   const api = { ...createMockApi(), ...overrides };
@@ -222,6 +225,112 @@ describe("project glossary and prompt", () => {
         { source: "サヤ", target: "Saya" },
       ],
     });
+  });
+});
+
+describe("suggesting from all volumes", () => {
+  const plans: Record<string, { requests: number; chars: number }> = {
+    v1: { requests: 2, chars: 80_000 },
+    v2: { requests: 1, chars: 30_000 },
+    v3: { requests: 1, chars: 10_000 },
+  };
+  const outOfOrder: ProjectDetail = {
+    ...detail,
+    books: [book("v3", 2.5), book("v1", 1), book("v2", 2)],
+  };
+
+  function allVolumesApi(suggestGlossary: Api["suggestGlossary"]) {
+    return {
+      ...projectApi(),
+      getProject: vi.fn(async () => outOfOrder),
+      planGlossarySample: vi.fn(
+        async (bookId: string) => plans[bookId] ?? { requests: 0, chars: 0 },
+      ),
+      suggestGlossary: vi.fn(suggestGlossary),
+    };
+  }
+
+  async function chooseAllVolumes() {
+    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Volume to sample" }));
+    await userEvent.click(await screen.findByRole("option", { name: "All volumes" }));
+  }
+
+  it("shows the volume count, requests and characters before starting", async () => {
+    renderAt(
+      "/projects/p1",
+      allVolumesApi(async () => ({ terms: [], usage: null })),
+    );
+    await chooseAllVolumes();
+    expect(await screen.findByText("3 volumes · 4 requests · ~120,000 chars")).toBeInTheDocument();
+  });
+
+  it("samples every volume in volume order, the earliest volume's rendering winning", async () => {
+    const byVolume: Record<string, { source: string; target: string }[][]> = {
+      v1: [[{ source: "灰の魔女", target: "Ashen Witch" }], [{ source: "サヤ", target: "Saya" }]],
+      v2: [
+        [
+          { source: "サヤ", target: "Sayaa" },
+          { source: "ミナ", target: "Mina" },
+        ],
+      ],
+      v3: [[{ source: "フラン", target: "Fran" }]],
+    };
+    const api = allVolumesApi(async (bookId, body) => ({
+      terms: byVolume[bookId]?.[body.chunk ?? 0] ?? [],
+      usage: null,
+    }));
+    renderAt("/projects/p1", api);
+    await chooseAllVolumes();
+    await screen.findByText(/3 volumes/);
+    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
+    expect(api.suggestGlossary.mock.calls.map(([id, body]) => [id, body.chunk])).toEqual([
+      ["v1", 0],
+      ["v1", 1],
+      ["v2", 0],
+      ["v3", 0],
+    ]);
+    expect(screen.getByText(/Saya$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Sayaa/)).not.toBeInTheDocument();
+  });
+
+  it("shows which volume is being sampled and keeps what was gathered when stopped", async () => {
+    const api = allVolumesApi((bookId, _body, signal) =>
+      bookId === "v1"
+        ? Promise.resolve({ terms: [{ source: "サヤ", target: "Saya" }], usage: null })
+        : new Promise<never>((_, reject) => {
+            signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+    );
+    renderAt("/projects/p1", api);
+    await chooseAllVolumes();
+    await screen.findByText(/3 volumes/);
+    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    expect(await screen.findByText(/Vol 2 of 3/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /suggest from book/i })).toBeEnabled(),
+    );
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("ends the run on a failed request, keeping the terms gathered so far", async () => {
+    const api = allVolumesApi(async (bookId) => {
+      if (bookId === "v2") throw new Error("Rate limited");
+      return { terms: [{ source: `${bookId}-term`, target: "T" }], usage: null };
+    });
+    renderAt("/projects/p1", api);
+    await chooseAllVolumes();
+    await screen.findByText(/3 volumes/);
+    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Rate limited");
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(api.suggestGlossary).toHaveBeenCalledTimes(3);
   });
 });
 
