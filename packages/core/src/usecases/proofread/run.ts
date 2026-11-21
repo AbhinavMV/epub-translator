@@ -9,6 +9,7 @@ import { FatalProviderError } from "../../domain/errors.ts";
 import type { Proofreader, ProofreadResult } from "../../ports/proofreader.ts";
 import type { Repositories } from "../../ports/stores.ts";
 import type { Clock, Sleep } from "../../ports/system.ts";
+import { glossaryUsedIn } from "../../translation/glossary.ts";
 import { proofreadInput } from "./input.ts";
 import { recordProofread } from "./record.ts";
 
@@ -77,7 +78,10 @@ export async function proofreadParts(
         target: input.target,
         bookTitle: input.bookTitle,
         ...(input.instructions ? { instructions: input.instructions } : {}),
-        glossary: input.glossary,
+        glossary: glossaryUsedIn(
+          input.glossary,
+          segments.map((s) => s.source),
+        ),
         notes: outcome.notes,
         segments,
       }),

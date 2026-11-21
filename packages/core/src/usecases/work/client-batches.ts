@@ -15,12 +15,11 @@ import { vetClientResults } from "./vet-results.ts";
 
 export type BatchSharedRequest = Omit<
   WorkUnit,
-  "leaseId" | "jobId" | "chapterId" | "model" | "segments"
+  "leaseId" | "jobId" | "chapterId" | "model" | "segments" | "glossary"
 >;
 
-export interface BatchUnit {
+export interface BatchUnit extends Pick<WorkUnit, "segments" | "glossary"> {
   customId: string;
-  segments: { id: string; text: string }[];
 }
 
 export interface BatchPlanPage {
@@ -50,11 +49,13 @@ export async function planBatchUnits(
       segments.map((s) => s.id),
     ),
   );
+  const requestContext = { job, parsed, settings, contextSize: input.contextSize };
   const {
     model: _model,
     segments: _segments,
+    glossary: _glossary,
     ...shared
-  } = segmentRequest({ job, parsed, settings, contextSize: input.contextSize }, "", [], context);
+  } = segmentRequest(requestContext, "", [], context);
   if (await repos.batches.openForChapter(job.id, input.chapterId)) {
     return { shared, units: [], nextOffset: null };
   }
@@ -69,10 +70,8 @@ export async function planBatchUnits(
     const split = splits[next] ?? [];
     const size = split.reduce((n, s) => n + s.sourceText.length, 0);
     if (units.length > 0 && used + size > budget) break;
-    units.push({
-      customId: String(next),
-      segments: split.map((s) => ({ id: s.id, text: s.sourceText })),
-    });
+    const { segments, glossary } = segmentRequest(requestContext, "", split, context);
+    units.push({ customId: String(next), segments, ...(glossary ? { glossary } : {}) });
     used += size;
   }
   return { shared, units, nextOffset: next < splits.length ? next : null };

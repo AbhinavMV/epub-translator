@@ -56,7 +56,7 @@ beforeEach(async () => {
   });
   await repos.settings.put("b1", {
     customPrompt: "be terse",
-    glossary: [{ source: "一", target: "one" }],
+    glossary: [{ source: "文0", target: "text zero" }],
     provider: null,
     model: null,
   });
@@ -81,15 +81,17 @@ describe("planBatchUnits pages", () => {
   const plan = (offset: number, pageChars: number) =>
     planBatchUnits(repos, { jobId: "j1", chapterId: "ch-0", offset, pageChars, ...limits });
 
-  it("sends the prompt fields once and keeps them out of the units", async () => {
+  it("sends the prompt fields once and gives only the unit that uses a term its entry", async () => {
     const page = await plan(0, 1_000_000);
     expect(page.shared).toMatchObject({
       sourceLang: "ja",
       bookTitle: "本",
       instructions: "be terse",
-      glossary: [{ source: "一", target: "one" }],
     });
-    for (const unit of page.units) {
+    expect(page.shared).not.toHaveProperty("glossary");
+    const [first, ...rest] = page.units;
+    expect(first?.glossary).toEqual([{ source: "文0", target: "text zero" }]);
+    for (const unit of rest) {
       expect(Object.keys(unit).sort()).toEqual(["customId", "segments"]);
     }
   });

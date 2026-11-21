@@ -23,7 +23,7 @@ interface Row {
   note: string;
 }
 
-const MAX_ENTRIES = 500;
+const MAX_ENTRIES = 2000;
 let rowKey = 0;
 const toRows = (entries: GlossaryEntry[]): Row[] =>
   entries.map((e) => ({ key: rowKey++, source: e.source, target: e.target, note: e.note ?? "" }));

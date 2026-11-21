@@ -209,6 +209,30 @@ describe("SegmentTranslator", () => {
     expect(out.usage).toEqual({ inputTokens: 30, outputTokens: 15 });
   });
 
+  it("sends each half of a split batch only the glossary entries it uses", async () => {
+    const provider = new ScriptedProvider([{ kind: "truncated", usage }, echo, echo]);
+    await translator(provider).translateBatch(
+      {
+        ...request([
+          { id: "a", text: "シャル" },
+          { id: "b", text: "王都" },
+        ]),
+        context: [{ source: "魔王", target: "Demon King" }],
+        glossary: [
+          { source: "シャル", target: "Charlotte" },
+          { source: "王都", target: "Royal Capital" },
+          { source: "魔王", target: "Demon King" },
+        ],
+      },
+      signal,
+    );
+    expect(provider.requests.map((r) => r.glossary?.map((g) => g.source))).toEqual([
+      ["シャル", "王都", "魔王"],
+      ["シャル", "魔王"],
+      ["王都", "魔王"],
+    ]);
+  });
+
   it("marks a single segment that still truncates as failed", async () => {
     const provider = new ScriptedProvider([{ kind: "truncated", usage }]);
     const out = await translator(provider).translateBatch(
