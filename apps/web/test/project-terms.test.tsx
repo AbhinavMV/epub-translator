@@ -178,7 +178,7 @@ describe("project glossary and prompt", () => {
     renderAt("/projects/p1", api);
     await userEvent.click(await screen.findByRole("button", { name: /edit prompt/i }));
     expect(screen.getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
-      "Use natural, readable English while preserving the source meaning.",
+      "Use natural, readable prose in the target language while preserving the source meaning.",
     );
     await userEvent.click(screen.getByRole("button", { name: "Save prompt" }));
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {

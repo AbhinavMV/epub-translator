@@ -1,4 +1,4 @@
-import { defaultStyleGuidance, fixedPromptRules, storedCustomPrompt } from "@et/core";
+import { DEFAULT_STYLE_GUIDANCE, fixedPromptRules, storedCustomPrompt } from "@et/core";
 import { MessageSquareText } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export function PromptDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setDraft(value || defaultStyleGuidance(targetName));
+        if (next) setDraft(value || DEFAULT_STYLE_GUIDANCE);
         setOpen(next);
       }}
     >
@@ -83,7 +83,7 @@ export function PromptDialog({
           <Button
             disabled={saving}
             onClick={async () => {
-              await onSave(storedCustomPrompt(draft, targetName));
+              await onSave(storedCustomPrompt(draft));
               setOpen(false);
             }}
           >

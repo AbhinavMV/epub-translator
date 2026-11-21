@@ -26,17 +26,16 @@ export function fixedPromptRules(sourceLang: string | null, target: string): str
   ].join("\n");
 }
 
-export function defaultStyleGuidance(targetName: string): string {
-  return `Use natural, readable ${targetName} while preserving the source meaning.`;
-}
+export const DEFAULT_STYLE_GUIDANCE =
+  "Use natural, readable prose in the target language while preserving the source meaning.";
 
-export function storedCustomPrompt(text: string, targetName: string): string {
+export function storedCustomPrompt(text: string): string {
   const trimmed = text.trim();
-  return trimmed === defaultStyleGuidance(targetName) ? "" : trimmed;
+  return trimmed === DEFAULT_STYLE_GUIDANCE ? "" : trimmed;
 }
 
 function systemPrompt(req: SegmentBatchRequest): string {
-  const style = req.instructions?.trim() || defaultStyleGuidance(req.target.name);
+  const style = req.instructions?.trim() || DEFAULT_STYLE_GUIDANCE;
   const lines = [fixedPromptRules(req.sourceLang, req.target.name), style];
   if (req.glossary && req.glossary.length > 0) {
     lines.push("", "GLOSSARY:");

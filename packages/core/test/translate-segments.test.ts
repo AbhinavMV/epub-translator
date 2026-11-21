@@ -96,17 +96,16 @@ describe("batchSegments", () => {
 
 describe("storedCustomPrompt", () => {
   it("stores nothing for empty text or the unchanged default style guidance", () => {
-    expect(storedCustomPrompt("  ", "English")).toBe("");
+    expect(storedCustomPrompt("  ")).toBe("");
     expect(
       storedCustomPrompt(
-        " Use natural, readable English while preserving the source meaning.\n",
-        "English",
+        " Use natural, readable prose in the target language while preserving the source meaning.\n",
       ),
     ).toBe("");
   });
 
   it("stores edited style guidance trimmed", () => {
-    expect(storedCustomPrompt(" Keep honorifics.\n", "English")).toBe("Keep honorifics.");
+    expect(storedCustomPrompt(" Keep honorifics.\n")).toBe("Keep honorifics.");
   });
 });
 
@@ -131,14 +130,17 @@ describe("buildPrompt", () => {
 
   it("uses the default style guidance when there is no custom prompt", () => {
     const { system } = buildPrompt(request([]));
-    expect(system).toContain("Use natural, readable English while preserving the source meaning.");
+    expect(system).toContain(
+      "Use natural, readable prose in the target language while preserving the source meaning.",
+    );
+    expect(system).not.toMatch(/readable English/);
     expect(system).toContain("FIDELITY RULES");
     expect(system).toContain("FORMAT RULES");
   });
 
   it("replaces the default style guidance with the custom prompt", () => {
     const { system } = buildPrompt({ ...request([]), instructions: "Keep honorifics." });
-    expect(system).not.toContain("Use natural, readable English");
+    expect(system).not.toContain("Use natural, readable prose");
     expect(system).toContain("Keep honorifics.");
     expect(system).toContain("FIDELITY RULES");
     expect(system).toContain("FORMAT RULES");
