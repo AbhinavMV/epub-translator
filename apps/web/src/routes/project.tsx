@@ -6,6 +6,7 @@ import { useDeleteBook, useProject, useRenameProject } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
 import { BookCard } from "@/components/book-card";
+import { ProjectTermsSection } from "@/components/project/project-terms";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,8 @@ export function ProjectPage() {
         <ThemeToggle />
         <UserMenu />
       </header>
+
+      <ProjectTermsSection projectId={projectId} books={project.data?.books ?? []} />
 
       <section aria-labelledby="volumes-heading" className="flex flex-col gap-4">
         <h2

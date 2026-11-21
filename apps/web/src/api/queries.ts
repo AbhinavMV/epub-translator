@@ -2,6 +2,7 @@ import type {
   BookSettings,
   ChapterView,
   JobSummary,
+  ProjectTerms,
   ProofreadDecisionBody,
   SuggestGlossaryBody,
   TranslateBody,
@@ -33,6 +34,24 @@ export function useRenameProject(id: string) {
   return useMutation({
     mutationFn: (name: string) => api.renameProject(id, name),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.projects }),
+  });
+}
+
+export function useProjectSettings(id: string | undefined) {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.projectSettings(id ?? ""),
+    queryFn: () => api.getProjectSettings(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveProjectTerms(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (terms: ProjectTerms) => api.saveProjectTerms(id, terms),
+    onSuccess: (settings) => queryClient.setQueryData(keys.projectSettings(id), settings),
   });
 }
 

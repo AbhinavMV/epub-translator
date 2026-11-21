@@ -47,8 +47,8 @@ export function PromptDialog({
         <DialogHeader>
           <DialogTitle>Edit prompt</DialogTitle>
           <DialogDescription>
-            Extra instructions appended to the translation prompt for this book, such as tone,
-            honorifics or how to render names.
+            Extra instructions appended to the translation prompt for every book in this project,
+            such as tone, honorifics or how to render names.
           </DialogDescription>
         </DialogHeader>
         <Textarea

@@ -19,8 +19,11 @@ import {
   type ProjectDetail,
   ProjectDetailSchema,
   ProjectSchema,
+  type ProjectSettings,
+  ProjectSettingsSchema,
   type ProjectSummary,
   ProjectSummarySchema,
+  type ProjectTerms,
   type ProofreadBody,
   type ProofreadDecisionBody,
   type ProofreadRun,
@@ -64,6 +67,8 @@ export interface Api {
   listProjects(): Promise<ProjectSummary[]>;
   getProject(id: string): Promise<ProjectDetail>;
   renameProject(id: string, name: string): Promise<Project>;
+  getProjectSettings(id: string): Promise<ProjectSettings>;
+  saveProjectTerms(id: string, terms: ProjectTerms): Promise<ProjectSettings>;
   listBooks(): Promise<BookSummary[]>;
   uploadBook(file: File): Promise<BookSummary>;
   getBook(id: string): Promise<BookDetail>;
@@ -192,6 +197,13 @@ export function createHttpApi(
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),
+      }),
+    getProjectSettings: (id) => json(`/projects/${enc(id)}/settings`, ProjectSettingsSchema),
+    saveProjectTerms: (id, terms) =>
+      json(`/projects/${enc(id)}/settings`, ProjectSettingsSchema, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(terms),
       }),
     listBooks: () => json("/books", list(BookSummarySchema)),
     async uploadBook(file) {
