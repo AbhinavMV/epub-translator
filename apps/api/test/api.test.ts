@@ -10,14 +10,16 @@ import {
   ProviderInfoSchema,
 } from "@et/contracts";
 import {
+  buildTermsPrompt,
   type ChapterRenderer,
   type EpubAssets,
   type EpubExporter,
   type EpubParser,
   InvalidEpubError,
   type ParsedBook,
+  type TermExtractionRequest,
 } from "@et/core";
-import { FakeProvider } from "@et/providers";
+import { FakeProvider, FakeTermExtractor } from "@et/providers";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createApp } from "../src/app.ts";
@@ -283,17 +285,45 @@ describe("glossary suggestion api", () => {
       headers: { "content-type": "application/json" },
     });
 
+  class RecordingTermExtractor extends FakeTermExtractor {
+    prompts: string[] = [];
+    override extractTerms(req: TermExtractionRequest, signal: AbortSignal) {
+      this.prompts.push(buildTermsPrompt(req).system);
+      return super.extractTerms(req, signal);
+    }
+  }
+
   async function setupLatin() {
+    const extractor = new RecordingTermExtractor();
     const services = createLocalServices({
       dataDir: ":memory:",
       env: {},
       epub: { parser: { parse: async () => latin }, assets, renderer, exporter },
       fakeProvider: new FakeProvider(),
+      fakeTermExtractor: extractor,
     });
     const app = createApp(services);
     const book = BookSummarySchema.parse(await (await upload(app)).json());
-    return { app, book };
+    return { app, book, extractor };
   }
+
+  it("builds the suggestion prompt with the project's custom prompt and glossary renderings", async () => {
+    const { app, book, extractor } = await setupLatin();
+    await app.request(`/api/projects/${book.projectId}/settings`, {
+      method: "PUT",
+      body: JSON.stringify({
+        customPrompt: "Keep honorifics.",
+        glossary: [{ source: "Alice", target: "Alicia" }],
+      }),
+      headers: { "content-type": "application/json" },
+    });
+
+    await post(app, book.id, { provider: "fake", model: "fake-echo" });
+
+    expect(extractor.prompts).toHaveLength(1);
+    expect(extractor.prompts[0]).toContain("Style instructions from the reader: Keep honorifics.");
+    expect(extractor.prompts[0]).toContain("- Alice → Alicia");
+  });
 
   it("returns unsaved suggestions that skip existing glossary sources, with usage headers", async () => {
     const { app, book } = await setupLatin();

@@ -7,6 +7,7 @@ export interface TermExtractionRequest {
   bookTitle: string;
   sample: string;
   existing: GlossaryEntry[];
+  instructions?: string;
 }
 
 export type TermExtractionResult =
