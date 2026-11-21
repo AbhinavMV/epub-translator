@@ -19,6 +19,7 @@ import {
   type RecordedBatch,
   RecordedBatchSchema,
   type RecordProofreadBody,
+  type SampleSize,
   type WorkResultBody,
   type WorkUnitDto,
   WorkUnitSchema,
@@ -39,7 +40,10 @@ export interface WorkApi {
     body: BatchResultsBody,
   ): Promise<ChapterProgress>;
   endBatch(jobId: string, batchId: string, body: BatchStatusBody): Promise<ChapterProgress>;
-  glossarySample(bookId: string, targetLang: string): Promise<GlossarySample>;
+  glossarySample(
+    bookId: string,
+    query: { targetLang: string; size: SampleSize; chunk: number },
+  ): Promise<GlossarySample>;
   proofreadInput(jobId: string, chapterId: string): Promise<ProofreadInput>;
   recordProofread(
     jobId: string,
@@ -126,10 +130,10 @@ export function createWorkApi(fetchFn: typeof fetch = (...args) => fetch(...args
         "PUT",
         body,
       ),
-    glossarySample: (bookId, targetLang) =>
+    glossarySample: (bookId, { targetLang, size, chunk }) =>
       json(
         GlossarySampleSchema,
-        `/books/${enc(bookId)}/glossary/sample?targetLang=${enc(targetLang)}`,
+        `/books/${enc(bookId)}/glossary/sample?targetLang=${enc(targetLang)}&size=${enc(size)}&chunk=${chunk}`,
         "GET",
       ),
   };

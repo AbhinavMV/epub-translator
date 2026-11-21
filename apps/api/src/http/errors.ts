@@ -13,6 +13,7 @@ import {
   NotFoundError,
   ProviderNotConfiguredError,
   RateLimitedError,
+  SampleChunkOutOfRangeError,
   UnauthorizedError,
 } from "@et/core";
 import type { Context } from "hono";
@@ -32,6 +33,7 @@ export function errorStatus(err: unknown): ContentfulStatusCode {
   if (err instanceof InvalidUploadPathError) return 400;
   if (
     err instanceof InvalidWorkResultError ||
+    err instanceof SampleChunkOutOfRangeError ||
     err instanceof ProviderNotConfiguredError ||
     err instanceof BatchNotSupportedError ||
     err instanceof UnknownLanguageError

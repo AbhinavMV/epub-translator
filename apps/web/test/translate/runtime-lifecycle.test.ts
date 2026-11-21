@@ -66,6 +66,7 @@ class EditingProofreader implements Proofreader {
 
 const proofreader = new EditingProofreader();
 const termRequests: TermExtractionRequest[] = [];
+const termSignals: AbortSignal[] = [];
 
 function bundleOf(provider: TranslationProvider): BrowserProvider {
   return {
@@ -73,8 +74,9 @@ function bundleOf(provider: TranslationProvider): BrowserProvider {
     provider,
     batch: {} as BrowserProvider["batch"],
     terms: {
-      extractTerms: async (req: TermExtractionRequest) => {
+      extractTerms: async (req: TermExtractionRequest, signal: AbortSignal) => {
         termRequests.push(req);
+        termSignals.push(signal);
         return { kind: "ok", terms: [], usage };
       },
     } as unknown as BrowserProvider["terms"],
@@ -206,6 +208,29 @@ describe("provider bundle cache", () => {
 });
 
 describe("glossary suggestions in the browser", () => {
+  it("fetch the chosen chunk of the chosen sample size and send it to the extractor", async () => {
+    termRequests.length = 0;
+    await runtime.suggestGlossary("b1", {
+      provider: "anthropic",
+      model: "m",
+      sampleSize: "volume",
+      chunk: 2,
+    });
+    expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "volume", chunk: 2 });
+    expect(termRequests[0]?.sample).toBe("sample text 2");
+  });
+
+  it("pass the run's abort signal to the extractor", async () => {
+    const ctrl = new AbortController();
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" }, ctrl.signal);
+    expect(termSignals.at(-1)).toBe(ctrl.signal);
+  });
+
+  it("default to one large sample", async () => {
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });
+    expect(api.sampleQueries.at(-1)).toEqual({ bookId: "b1", size: "large", chunk: 0 });
+  });
+
   it("send the project's custom prompt and glossary to the extractor", async () => {
     termRequests.length = 0;
     await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });

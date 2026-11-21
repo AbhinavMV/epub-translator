@@ -132,13 +132,18 @@ export class ClientRuntime {
     if (outcome.progress.length > 0) this.emit({ kind: "progress", jobId });
   }
 
-  async suggestGlossary(bookId: string, body: Parameters<typeof suggestTermsInBrowser>[2]) {
+  async suggestGlossary(
+    bookId: string,
+    body: Parameters<typeof suggestTermsInBrowser>[2],
+    signal?: AbortSignal,
+  ) {
     await this.ensureKey(body.provider as KeyedProvider);
     try {
       return await suggestTermsInBrowser(
         { api: this.deps.api, bundleFor: (p) => this.requireBundle(p, body.model) },
         bookId,
         body,
+        signal,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

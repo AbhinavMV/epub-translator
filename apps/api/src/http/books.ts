@@ -199,7 +199,13 @@ export function booksRoutes(s: Services) {
       if (!extractor) throw new ProviderNotConfiguredError(body.provider);
       const { terms, usage } = await suggestGlossary(
         { ...c.var.repos, extractor },
-        { bookId: c.req.param("id"), model: body.model, targetLang: body.targetLang ?? "en" },
+        {
+          bookId: c.req.param("id"),
+          model: body.model,
+          targetLang: body.targetLang ?? "en",
+          ...(body.sampleSize ? { sampleSize: body.sampleSize } : {}),
+          ...(body.chunk !== undefined ? { chunk: body.chunk } : {}),
+        },
         c.req.raw.signal,
       );
       c.header("x-usage-input-tokens", String(usage.inputTokens));

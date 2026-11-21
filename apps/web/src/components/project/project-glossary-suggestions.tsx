@@ -29,6 +29,7 @@ export function ProjectGlossarySuggestions({
   const [bookId, setBookId] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState("en");
   const [chosen, setChosen] = useState<Selection | null>(null);
+  const [running, setRunning] = useState(false);
   const selection = chosen ?? resolveSelection(undefined, providers.data);
   const sampled = books.find((b) => b.id === bookId) ?? books.at(-1);
 
@@ -37,7 +38,7 @@ export function ProjectGlossarySuggestions({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={sampled.id} onValueChange={setBookId}>
+        <Select value={sampled.id} onValueChange={setBookId} disabled={running}>
           <SelectTrigger size="sm" className="w-[9rem]" aria-label="Volume to sample">
             <SelectValue />
           </SelectTrigger>
@@ -64,11 +65,13 @@ export function ProjectGlossarySuggestions({
         <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
       </div>
       <GlossarySuggestions
+        key={sampled.id}
         bookId={sampled.id}
         targetLang={targetLang}
         providers={providers.data}
         selection={selection}
         onAdd={onAdd}
+        onRunningChange={setRunning}
       />
     </div>
   );
