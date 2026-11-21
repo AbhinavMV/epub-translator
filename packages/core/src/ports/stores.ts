@@ -63,6 +63,8 @@ export interface TranslationRepository {
   forJob(jobId: string): Promise<Map<string, SegmentTranslation>>;
   /** Status only (no text), for progress summaries that run often. */
   statusesForJob(jobId: string): Promise<Map<string, SegmentTranslation["status"]>>;
+  /** Segments stored as done or flagged, including any the book no longer has. */
+  translatedCount(jobId: string): Promise<number>;
   forSegments(
     jobId: string,
     segmentIds: readonly string[],

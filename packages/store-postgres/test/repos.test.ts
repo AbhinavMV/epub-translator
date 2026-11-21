@@ -190,6 +190,15 @@ describe("PostgresTranslationRepository", () => {
     );
   });
 
+  it("counts done and flagged segments of one job and owner", async () => {
+    await repos.translations.put("j1", "s1", { text: "a", status: "done" });
+    await repos.translations.put("j1", "s2", { text: "b", status: "flagged" });
+    await repos.translations.put("j1", "s3", { text: "", status: "failed" });
+    expect(await repos.translations.translatedCount("j1")).toBe(2);
+    expect(await repos.translations.translatedCount("other")).toBe(0);
+    expect(await factory.forOwner(BOB).translations.translatedCount("j1")).toBe(0);
+  });
+
   it("keeps the reason a segment failed", async () => {
     await repos.translations.put("j1", "s1", { text: "", status: "failed", note: "declined" });
     await repos.translations.put("j1", "s2", { text: "ok", status: "done" });
