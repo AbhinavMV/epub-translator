@@ -89,20 +89,35 @@ describe("SqliteBookSettingsRepository", () => {
   it("returns defaults until settings are saved", async () => {
     await new SqliteBookRepository(db).insert(book, parsed);
     const repo = new SqliteBookSettingsRepository(db);
-    expect(await repo.get("b1")).toEqual({
-      customPrompt: "",
-      glossary: [],
-      provider: null,
-      model: null,
-    });
-    const s = {
-      customPrompt: "Keep honorifics",
-      glossary: [{ source: "シャル", target: "Charlotte" }],
-      provider: "anthropic" as const,
-      model: "claude-sonnet-5-5",
-    };
+    expect(await repo.get("b1")).toEqual({ provider: null, model: null });
+    const s = { provider: "anthropic" as const, model: "claude-sonnet-5-5" };
     await repo.put("b1", s);
     expect(await repo.get("b1")).toEqual(s);
+  });
+
+  it("keeps a book's pre-project terms when its model changes", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    db.prepare("INSERT INTO book_settings (book_id, json) VALUES (?, ?)").run(
+      "b1",
+      JSON.stringify({
+        customPrompt: "Keep honorifics",
+        glossary: [{ source: "シャル", target: "Charlotte" }],
+        provider: null,
+        model: null,
+      }),
+    );
+    const repo = new SqliteBookSettingsRepository(db);
+    await repo.put("b1", { provider: "openai", model: "gpt" });
+    expect(await repo.get("b1")).toEqual({ provider: "openai", model: "gpt" });
+    expect(await repo.getLegacyTerms("b1")).toEqual({
+      customPrompt: "Keep honorifics",
+      glossary: [{ source: "シャル", target: "Charlotte" }],
+    });
+  });
+
+  it("has no pre-project terms for a book that never had settings", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    expect(await new SqliteBookSettingsRepository(db).getLegacyTerms("b1")).toBeNull();
   });
 });
 
