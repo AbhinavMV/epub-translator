@@ -199,6 +199,93 @@ describe("project settings api", () => {
   });
 });
 
+const witchConflict = {
+  source: "灰の魔女",
+  inForce: { target: "Ashen Witch", bookId: "b2", volumeNumber: 2 },
+  alternatives: [
+    { target: "Witch of Ashes", note: "Volume 1 wording", bookId: "b1", volumeNumber: 1 },
+  ],
+};
+
+describe("glossary conflicts", () => {
+  async function withConflict() {
+    const ctx = await setup();
+    await ctx.services.repos.projects.putSettings(ctx.projectId, {
+      ...terms,
+      glossaryConflicts: [witchConflict],
+    });
+    const resolve = (body: unknown) =>
+      ctx.app.request(
+        `/api/projects/${ctx.projectId}/glossary-conflicts/resolve`,
+        send("POST", body),
+      );
+    const get = async () =>
+      ProjectSettingsSchema.parse(
+        await (await ctx.app.request(`/api/projects/${ctx.projectId}/settings`)).json(),
+      );
+    return { ...ctx, resolve, get };
+  }
+
+  it("resolving makes the picked rendering the entry and the next request uses it", async () => {
+    const { first, resolve, get, translate } = await withConflict();
+    const res = await resolve({ source: "灰の魔女", target: "Witch of Ashes" });
+    expect(res.status).toBe(200);
+    const expected = {
+      ...terms,
+      glossary: [
+        { source: "イレイナ", target: "Elaina" },
+        { source: "灰の魔女", target: "Witch of Ashes", note: "Volume 1 wording" },
+      ],
+      glossaryConflicts: [],
+    };
+    expect(ProjectSettingsSchema.parse(await res.json())).toEqual(expected);
+    expect(await get()).toEqual(expected);
+    expect(await translate(first.id, "ch-0")).toMatchObject({ glossary: expected.glossary });
+  });
+
+  it("keeping the rendering in force clears the conflict without changing the entry", async () => {
+    const { resolve, get } = await withConflict();
+    expect((await resolve({ source: "灰の魔女", target: "Ashen Witch" })).status).toBe(200);
+    expect(await get()).toEqual({ ...terms, glossaryConflicts: [] });
+  });
+
+  it("404s an unknown conflict or a rendering the conflict does not offer", async () => {
+    const { resolve, get } = await withConflict();
+    expect((await resolve({ source: "イレイナ", target: "Elaina" })).status).toBe(404);
+    expect((await resolve({ source: "灰の魔女", target: "Grey Witch" })).status).toBe(404);
+    expect((await resolve({ source: "灰の魔女" })).status).toBe(400);
+    expect((await get()).glossaryConflicts).toEqual([witchConflict]);
+  });
+
+  it("drops the conflict when its entry is deleted, and does not bring the entry back", async () => {
+    const { putTerms, resolve, get } = await withConflict();
+    await putTerms({ customPrompt: "", glossary: [terms.glossary[0]] });
+    expect(await get()).toEqual({
+      customPrompt: "",
+      glossary: [terms.glossary[0]],
+      glossaryConflicts: [],
+    });
+    expect((await resolve({ source: "灰の魔女", target: "Witch of Ashes" })).status).toBe(404);
+    expect((await get()).glossary).toEqual([terms.glossary[0]]);
+  });
+
+  it("drops the conflict when the reader retypes the entry's rendering", async () => {
+    const { putTerms, get } = await withConflict();
+    const glossary = [terms.glossary[0], { source: "灰の魔女", target: "Grey Witch" }];
+    await putTerms({ customPrompt: "", glossary });
+    expect(await get()).toEqual({ customPrompt: "", glossary, glossaryConflicts: [] });
+  });
+
+  it("404s an unknown project", async () => {
+    const { app } = await setup();
+    const res = await app.request(
+      "/api/projects/nope/glossary-conflicts/resolve",
+      send("POST", { source: "灰の魔女", target: "Ashen Witch" }),
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("suggest glossary", () => {
   it("skips terms already in the project glossary and leaves saving to the project", async () => {
     const { app, second, putTerms } = await setup();

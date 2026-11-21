@@ -171,6 +171,12 @@ export const GlossaryConflictSchema = z.object({
 });
 export type GlossaryConflict = z.infer<typeof GlossaryConflictSchema>;
 
+export const ResolveGlossaryConflictSchema = z.object({
+  source: z.string().min(1),
+  target: z.string().min(1),
+});
+export type ResolveGlossaryConflict = z.infer<typeof ResolveGlossaryConflictSchema>;
+
 export const ProjectSettingsSchema = ProjectTermsSchema.extend({
   glossaryConflicts: z.array(GlossaryConflictSchema),
 });

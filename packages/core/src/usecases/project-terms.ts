@@ -1,4 +1,10 @@
-import type { ProjectSettings, ProjectTerms } from "@et/contracts";
+import type {
+  GlossaryConflict,
+  GlossaryEntry,
+  ProjectSettings,
+  ProjectTerms,
+  ResolveGlossaryConflict,
+} from "@et/contracts";
 import { NotFoundError } from "../domain/errors.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
 
@@ -32,7 +38,34 @@ export async function updateProjectTerms(
   terms: ProjectTerms,
 ): Promise<ProjectSettings> {
   const current = await getProjectSettings(deps, projectId);
-  const next = { ...current, customPrompt: terms.customPrompt, glossary: terms.glossary };
+  const next = {
+    customPrompt: terms.customPrompt,
+    glossary: terms.glossary,
+    glossaryConflicts: current.glossaryConflicts.filter((c) => stillOpen(c, terms.glossary)),
+  };
+  await deps.projects.putSettings(projectId, next);
+  return next;
+}
+
+const stillOpen = (conflict: GlossaryConflict, glossary: GlossaryEntry[]) =>
+  glossary.some((e) => e.source === conflict.source && e.target === conflict.inForce.target);
+
+export async function resolveGlossaryConflict(
+  deps: Pick<TermsDeps, "projects">,
+  projectId: string,
+  { source, target }: ResolveGlossaryConflict,
+): Promise<ProjectSettings> {
+  const current = await getProjectSettings(deps, projectId);
+  const conflict = current.glossaryConflicts.find((c) => c.source === source);
+  if (!conflict) throw new NotFoundError("Glossary conflict", source);
+  const picked = [conflict.inForce, ...conflict.alternatives].find((r) => r.target === target);
+  if (!picked) throw new NotFoundError("Rendering", target);
+  const entry: GlossaryEntry = { source, target, ...(picked.note ? { note: picked.note } : {}) };
+  const next = {
+    ...current,
+    glossary: current.glossary.map((e) => (e.source === source ? entry : e)),
+    glossaryConflicts: current.glossaryConflicts.filter((c) => c !== conflict),
+  };
   await deps.projects.putSettings(projectId, next);
   return next;
 }
