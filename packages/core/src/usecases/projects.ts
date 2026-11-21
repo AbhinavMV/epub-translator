@@ -1,6 +1,7 @@
 import type { StoredBook } from "../domain/book.ts";
 import { NotFoundError } from "../domain/errors.ts";
-import { compareVolumes, type Project } from "../domain/project.ts";
+import { compareVolumes, type Project, unnumberedVolumeNumber } from "../domain/project.ts";
+import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
 
 export interface ProjectWithBooks {
@@ -44,6 +45,24 @@ export async function setVolumeNumber(
   if (!book?.projectId) throw new NotFoundError("Book", bookId);
   await deps.books.place(bookId, book.projectId, volumeNumber);
   return { ...book, volumeNumber };
+}
+
+export async function moveBook(
+  deps: ProjectDeps,
+  bookId: string,
+  projectId: string,
+): Promise<StoredBook> {
+  const book = await deps.books.get(bookId);
+  if (!book) throw new NotFoundError("Book", bookId);
+  const project = await deps.projects.get(projectId);
+  if (!project) throw new NotFoundError("Project", projectId);
+  if (book.projectId === projectId) return book;
+  const existing = await deps.books.listByProject(projectId);
+  const volumeNumber =
+    parseVolumeTitle(book.title).volumeNumber ??
+    unnumberedVolumeNumber(existing.map((b) => b.volumeNumber));
+  await deps.books.place(bookId, projectId, volumeNumber);
+  return { ...book, projectId, volumeNumber };
 }
 
 export async function renameProject(

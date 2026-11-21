@@ -77,7 +77,7 @@ export function createApp(services: Services, options: AppOptions = {}) {
   }
   return app
     .route("/api/uploads", uploadsRoutes(services))
-    .route("/api/projects", projectsRoutes())
+    .route("/api/projects", projectsRoutes(services))
     .route("/api/books", booksRoutes(services))
     .route("/api/books", glossarySampleRoutes())
     .route("/api/jobs", jobsRoutes(services, { events: options.events ?? true }))
