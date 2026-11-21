@@ -7,6 +7,7 @@ import type { SegmentBatchResult } from "../ports/translation-provider.ts";
 import { batchSegments } from "../translation/batcher.ts";
 import { settleOnce } from "../translation/settle.ts";
 import { chapterWork } from "./chapter-work.ts";
+import { projectTermsFor } from "./project-terms.ts";
 import { recordResults } from "./work/record-results.ts";
 import { segmentRequest } from "./work/request.ts";
 
@@ -61,7 +62,7 @@ export class BatchRunner {
     const parsed = job ? await repos.books.getParsed(job.bookId) : null;
     if (!provider || !job || !parsed) return;
 
-    const settings = await repos.settings.get(job.bookId);
+    const terms = await projectTermsFor(repos, job.bookId);
     const segments = parsed.segments.filter((s) => s.chapterId === chapterId);
     const { pending, context } = chapterWork(
       segments,
@@ -73,7 +74,7 @@ export class BatchRunner {
     const splits = batchSegments(pending, this.options.maxChars, this.options.maxCount);
     if (splits.length === 0) return;
 
-    const requestContext = { job, parsed, settings, contextSize: this.options.contextSize };
+    const requestContext = { job, parsed, terms, contextSize: this.options.contextSize };
     const requests: BatchRequest[] = splits.map((split, i) => ({
       customId: String(i),
       request: segmentRequest(requestContext, body.model, split, context),

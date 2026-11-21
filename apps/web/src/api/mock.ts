@@ -10,6 +10,7 @@ import type {
   JobSummary,
   Project,
   ProjectDetail,
+  ProjectSettings,
   ProofreadKind,
   ProviderInfo,
   SegmentStatus,
@@ -198,6 +199,7 @@ interface SegState {
 export function createMockApi(): Api {
   const books = new Map<string, { summary: BookSummary; settings: BookSettings }>();
   const projects = new Map<string, Project>();
+  const projectSettings = new Map<string, ProjectSettings>();
   const jobs = new Map<string, JobSummary>();
   const segs = new Map<string, SegState>();
   const sources = new Map<string, Set<MockSource>>();
@@ -229,7 +231,7 @@ export function createMockApi(): Api {
         projectId,
         volumeNumber: placement?.volumeNumber ?? 1,
       },
-      settings: { customPrompt: "", glossary: [], provider: null, model: null },
+      settings: { provider: null, model: null },
     });
   };
   addBook("mock-book", "お隣の天使様 (sample)");
@@ -408,6 +410,25 @@ export function createMockApi(): Api {
       for (const book of booksOf(id)) books.delete(book.id);
       projects.delete(id);
       await delay(null);
+    },
+    async getProjectSettings(id) {
+      if (!projects.has(id)) throw new Error("Project not found");
+      return delay(
+        structuredClone(
+          projectSettings.get(id) ?? { customPrompt: "", glossary: [], glossaryConflicts: [] },
+        ),
+      );
+    },
+    async saveProjectTerms(id, terms) {
+      if (!projects.has(id)) throw new Error("Project not found");
+      const next = {
+        glossaryConflicts: [],
+        ...projectSettings.get(id),
+        customPrompt: terms.customPrompt,
+        glossary: terms.glossary,
+      };
+      projectSettings.set(id, next);
+      return delay(structuredClone(next));
     },
     listBooks: () => delay([...books.values()].map((b) => b.summary)),
     async prepareImport(file) {

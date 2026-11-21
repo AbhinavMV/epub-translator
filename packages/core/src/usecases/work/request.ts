@@ -1,4 +1,4 @@
-import { type BookSettings, getTargetLanguage } from "@et/contracts";
+import { getTargetLanguage, type ProjectTerms } from "@et/contracts";
 import type { ParsedBook, ParsedSegment } from "../../domain/book.ts";
 import type { Job } from "../../domain/job.ts";
 import type { SegmentBatchRequest } from "../../ports/translation-provider.ts";
@@ -8,7 +8,7 @@ import { promptExtras } from "../chapter-work.ts";
 export interface RequestContext {
   job: Job;
   parsed: ParsedBook;
-  settings: Pick<BookSettings, "customPrompt" | "glossary">;
+  terms: ProjectTerms;
   contextSize: number;
 }
 
@@ -19,7 +19,7 @@ export function segmentRequest(
   context: { source: string; target: string }[],
 ): SegmentBatchRequest {
   const recent = context.slice(-ctx.contextSize);
-  const glossary = glossaryUsedIn(ctx.settings.glossary, [
+  const glossary = glossaryUsedIn(ctx.terms.glossary, [
     ...segments.map((s) => s.sourceText),
     ...recent.map((c) => c.source),
   ]);
@@ -30,6 +30,6 @@ export function segmentRequest(
     bookTitle: ctx.parsed.title,
     context: recent,
     segments: segments.map((s) => ({ id: s.id, text: s.sourceText })),
-    ...promptExtras(ctx.settings.customPrompt, glossary),
+    ...promptExtras(ctx.terms.customPrompt, glossary),
   };
 }

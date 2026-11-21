@@ -18,6 +18,7 @@ describe("migrations", () => {
       "0007_private_owner_role.sql",
       "0008_proofreads.sql",
       "0009_projects.sql",
+      "0010_project_settings.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
@@ -101,6 +102,21 @@ describe("0009_projects", () => {
   it("ships apply-0009.sql identical to the migration", () => {
     const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0009.sql"), "utf8");
     const m = readFileSync(join(MIGRATIONS_DIR, "0009_projects.sql"), "utf8");
+    expect(apply).toBe(m);
+  });
+});
+
+describe("0010_project_settings", () => {
+  it("re-runs by hand", async () => {
+    const { db } = await createTestDatabase();
+    const m = loadMigrations().find((x) => x.name === "0010_project_settings.sql");
+    await db.exec(m?.sql ?? "");
+    await db.close();
+  });
+
+  it("ships apply-0010.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0010.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0010_project_settings.sql"), "utf8");
     expect(apply).toBe(m);
   });
 });

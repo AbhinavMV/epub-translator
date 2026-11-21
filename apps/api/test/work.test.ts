@@ -267,9 +267,16 @@ describe("client batches", () => {
 
 describe("glossary sample", () => {
   it("returns the sample, source language and existing glossary", async () => {
+    const book = BookSummarySchema.parse(await (await app.request(`/api/books/${bookId}`)).json());
+    const glossary = [{ source: "一", target: "one" }];
+    await app.request(
+      `/api/projects/${book.projectId}/settings`,
+      send("PUT", { customPrompt: "", glossary }),
+    );
     const res = await app.request(`/api/books/${bookId}/glossary/sample?targetLang=fr`);
     const sample = GlossarySampleSchema.parse(await res.json());
     expect(sample).toMatchObject({ sourceLang: "ja", bookTitle: "本", targetLang: "fr" });
     expect(sample.sample).toContain("一二");
+    expect(sample.existing).toEqual(glossary);
   });
 });

@@ -1,6 +1,7 @@
 import { getTargetLanguage, type ProofreadInput, type ProofreadSegment } from "@et/contracts";
 import type { Repositories } from "../../ports/stores.ts";
 import { promptExtras } from "../chapter-work.ts";
+import { projectTermsFor } from "../project-terms.ts";
 import { loadChapterJob } from "../work/plan-work-unit.ts";
 
 export const PROOFREAD_PART_CHARS = 12_000;
@@ -33,7 +34,7 @@ export async function proofreadInput(
   partChars = PROOFREAD_PART_CHARS,
 ): Promise<ProofreadInput> {
   const { job, parsed } = await loadChapterJob(repos, jobId, chapterId);
-  const settings = await repos.settings.get(job.bookId);
+  const terms = await projectTermsFor(repos, job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === chapterId);
   const translations = await repos.translations.forSegments(
     jobId,
@@ -45,13 +46,13 @@ export async function proofreadInput(
       ? [{ id: s.id, source: s.sourceText, translation: t.text }]
       : [];
   });
-  const { instructions } = promptExtras(settings.customPrompt, []);
+  const { instructions } = promptExtras(terms.customPrompt, []);
   return {
     sourceLang: job.sourceLang,
     target: getTargetLanguage(job.targetLang),
     bookTitle: parsed.title,
     ...(instructions ? { instructions } : {}),
-    glossary: settings.glossary,
+    glossary: terms.glossary,
     parts: splitProofreadParts(items, partChars),
   };
 }

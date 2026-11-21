@@ -1,5 +1,6 @@
+import { type ProjectSettings, ProjectSettingsSchema } from "@et/contracts";
 import type { Project, ProjectRepository } from "@et/core";
-import { iso } from "./convert.ts";
+import { iso, json } from "./convert.ts";
 import type { Sql } from "./sql.ts";
 import { withOwner } from "./with-owner.ts";
 
@@ -63,6 +64,26 @@ export class PostgresProjectRepository implements ProjectRepository {
   async delete(id: string): Promise<void> {
     await withOwner(this.sql, this.ownerId, (tx) =>
       tx.query("DELETE FROM projects WHERE owner_id = $1 AND id = $2", [this.ownerId, id]),
+    );
+  }
+
+  async getSettings(id: string): Promise<ProjectSettings | null> {
+    const rows = await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query<{ json: unknown }>(
+        "SELECT json FROM project_settings WHERE owner_id = $1 AND project_id = $2",
+        [this.ownerId, id],
+      ),
+    );
+    return rows[0] ? ProjectSettingsSchema.parse(json(rows[0].json)) : null;
+  }
+
+  async putSettings(id: string, settings: ProjectSettings): Promise<void> {
+    await withOwner(this.sql, this.ownerId, (tx) =>
+      tx.query(
+        `INSERT INTO project_settings (owner_id, project_id, json) VALUES ($1, $2, $3::text::jsonb)
+         ON CONFLICT (owner_id, project_id) DO UPDATE SET json = excluded.json`,
+        [this.ownerId, id, JSON.stringify(settings)],
+      ),
     );
   }
 }

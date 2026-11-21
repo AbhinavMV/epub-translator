@@ -5,6 +5,7 @@ import {
   GlossaryEntrySchema,
   JobSummarySchema,
   ProjectDetailSchema,
+  ProjectSettingsSchema,
   ProjectSummarySchema,
   ProviderInfoSchema,
 } from "@et/contracts";
@@ -144,18 +145,13 @@ describe("books api", () => {
       await (await app.request(`/api/books/${book.id}`)).json(),
     );
     expect(detail.chapters[0]).toMatchObject({ id: "ch-0", segmentCount: 2, charCount: 5 });
-    expect(detail.settings.customPrompt).toBe("");
+    expect(detail.settings).toEqual({ provider: null, model: null });
   });
 
   it("settings round-trip and reject invalid bodies", async () => {
     const { app } = setup();
     const book = BookSummarySchema.parse(await (await upload(app)).json());
-    const settings = {
-      customPrompt: "Be terse",
-      glossary: [{ source: "シャル", target: "Charlotte" }],
-      provider: "fake",
-      model: "fake-echo",
-    };
+    const settings = { provider: "fake", model: "fake-echo" };
     const put = await app.request(`/api/books/${book.id}/settings`, {
       method: "PUT",
       body: JSON.stringify(settings),
@@ -164,7 +160,7 @@ describe("books api", () => {
     expect(put.status).toBe(200);
     const bad = await app.request(`/api/books/${book.id}/settings`, {
       method: "PUT",
-      body: JSON.stringify({ customPrompt: 1 }),
+      body: JSON.stringify({ provider: "nope" }),
       headers: { "content-type": "application/json" },
     });
     expect(bad.status).toBe(400);
@@ -301,14 +297,9 @@ describe("glossary suggestion api", () => {
 
   it("returns unsaved suggestions that skip existing glossary sources, with usage headers", async () => {
     const { app, book } = await setupLatin();
-    await app.request(`/api/books/${book.id}/settings`, {
+    await app.request(`/api/projects/${book.projectId}/settings`, {
       method: "PUT",
-      body: JSON.stringify({
-        customPrompt: "",
-        glossary: [{ source: "Alice", target: "Alicia" }],
-        provider: null,
-        model: null,
-      }),
+      body: JSON.stringify({ customPrompt: "", glossary: [{ source: "Alice", target: "Alicia" }] }),
       headers: { "content-type": "application/json" },
     });
 
@@ -322,10 +313,10 @@ describe("glossary suggestion api", () => {
         .map((t) => t.source),
     ).toEqual(["Bob"]);
     expect(Number(res.headers.get("x-usage-input-tokens"))).toBeGreaterThan(0);
-    const detail = BookDetailSchema.parse(
-      await (await app.request(`/api/books/${book.id}`)).json(),
+    const project = ProjectSettingsSchema.parse(
+      await (await app.request(`/api/projects/${book.projectId}/settings`)).json(),
     );
-    expect(detail.settings.glossary).toHaveLength(1);
+    expect(project.glossary).toHaveLength(1);
   });
 
   it("returns 400 for a provider that is not configured", async () => {

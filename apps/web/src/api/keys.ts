@@ -1,6 +1,7 @@
 export const keys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
+  projectSettings: (id: string) => ["project-settings", id] as const,
   books: ["books"] as const,
   book: (id: string) => ["book", id] as const,
   providers: ["providers"] as const,

@@ -3,6 +3,7 @@ import type {
   ChapterView,
   ImportPlacement,
   JobSummary,
+  ProjectTerms,
   ProofreadDecisionBody,
   SuggestGlossaryBody,
   TranslateBody,
@@ -45,6 +46,7 @@ export function useDeleteProject(id: string) {
     mutationFn: () => api.deleteProject(id),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: keys.project(id) });
+      queryClient.removeQueries({ queryKey: keys.projectSettings(id) });
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: keys.books }),
         queryClient.invalidateQueries({ queryKey: keys.projects, exact: true }),
@@ -63,6 +65,24 @@ export function useMoveBook(bookId: string) {
         invalidateLibrary(queryClient),
         queryClient.invalidateQueries({ queryKey: keys.book(bookId) }),
       ]),
+  });
+}
+
+export function useProjectSettings(id: string | undefined) {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.projectSettings(id ?? ""),
+    queryFn: () => api.getProjectSettings(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveProjectTerms(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (terms: ProjectTerms) => api.saveProjectTerms(id, terms),
+    onSuccess: (settings) => queryClient.setQueryData(keys.projectSettings(id), settings),
   });
 }
 

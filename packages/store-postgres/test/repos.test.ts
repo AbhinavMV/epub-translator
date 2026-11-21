@@ -81,39 +81,49 @@ describe("PostgresBookRepository", () => {
 
   it("cascades deletes to settings, jobs and translations", async () => {
     await repos.books.insert(book, parsed);
-    await repos.settings.put("b1", {
-      customPrompt: "x",
-      glossary: [],
-      provider: null,
-      model: null,
-    });
+    await repos.settings.put("b1", { provider: "openai", model: "x" });
     await repos.jobs.insert(job);
     await repos.translations.put("j1", "s1", { text: "a", status: "done" });
     await repos.books.delete("b1");
     expect(await repos.jobs.get("j1")).toBeNull();
     expect((await repos.translations.forJob("j1")).size).toBe(0);
-    expect(await repos.settings.get("b1")).toMatchObject({ customPrompt: "" });
+    expect(await repos.settings.get("b1")).toEqual({ provider: null, model: null });
   });
 });
 
 describe("PostgresBookSettingsRepository", () => {
   it("returns defaults until settings are saved", async () => {
     await repos.books.insert(book, parsed);
-    expect(await repos.settings.get("b1")).toEqual({
-      customPrompt: "",
-      glossary: [],
-      provider: null,
-      model: null,
-    });
-    const s = {
-      customPrompt: "Keep honorifics",
-      glossary: [{ source: "シャル", target: "Charlotte" }],
-      provider: "anthropic" as const,
-      model: "claude-sonnet-5-5",
-    };
+    expect(await repos.settings.get("b1")).toEqual({ provider: null, model: null });
+    const s = { provider: "anthropic" as const, model: "claude-sonnet-5-5" };
     await repos.settings.put("b1", s);
     await repos.settings.put("b1", s);
     expect(await repos.settings.get("b1")).toEqual(s);
+    await repos.settings.put("b1", { provider: null, model: null });
+    expect(await repos.settings.get("b1")).toEqual({ provider: null, model: null });
+  });
+
+  it("keeps a book's pre-project terms when its model changes", async () => {
+    await repos.books.insert(book, parsed);
+    expect(await repos.settings.getLegacyTerms("b1")).toBeNull();
+    await sql.query(
+      "insert into book_settings (owner_id, book_id, json) values ($1, 'b1', $2::text::jsonb)",
+      [
+        ALICE,
+        JSON.stringify({
+          customPrompt: "Keep honorifics",
+          glossary: [{ source: "シャル", target: "Charlotte" }],
+          provider: null,
+          model: null,
+        }),
+      ],
+    );
+    await repos.settings.put("b1", { provider: "openai", model: "gpt" });
+    expect(await repos.settings.get("b1")).toEqual({ provider: "openai", model: "gpt" });
+    expect(await repos.settings.getLegacyTerms("b1")).toEqual({
+      customPrompt: "Keep honorifics",
+      glossary: [{ source: "シャル", target: "Charlotte" }],
+    });
   });
 });
 

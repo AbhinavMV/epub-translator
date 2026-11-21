@@ -1,7 +1,7 @@
-import type { BookSettings, GlossaryEntry, ProviderInfo, TranslateMode } from "@et/contracts";
+import type { ProviderInfo, TranslateMode } from "@et/contracts";
 import { TARGET_LANGUAGES } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Menu } from "lucide-react";
+import { BookOpen, Library, Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppMark } from "@/components/app-mark";
 import { BookTitle } from "@/components/book-title";
@@ -15,14 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { KeysDialog } from "@/keys/keys-dialog";
-import { GlossaryDialog } from "./glossary-dialog";
 import { ModeToggle } from "./mode-toggle";
 import type { Selection } from "./model-selection";
-import { PromptDialog } from "./prompt-dialog";
 import { ProviderSelect } from "./provider-select";
 
 export function EditorHeader({
   bookId,
+  projectId,
   title,
   translatedTitle,
   chapterId,
@@ -35,14 +34,11 @@ export function EditorHeader({
   onMode,
   targetLang,
   onTargetLang,
-  settings,
-  saving,
-  onSaveGlossary,
-  onSavePrompt,
   onOpenRail,
   proofread,
 }: {
   bookId: string;
+  projectId: string | null | undefined;
   title: string | undefined;
   translatedTitle: string | null | undefined;
   chapterId: string | undefined;
@@ -55,10 +51,6 @@ export function EditorHeader({
   onMode: (mode: TranslateMode) => void;
   targetLang: string;
   onTargetLang: (code: string) => void;
-  settings: BookSettings | undefined;
-  saving: boolean;
-  onSaveGlossary: (glossary: GlossaryEntry[]) => Promise<unknown>;
-  onSavePrompt: (prompt: string) => Promise<unknown>;
   onOpenRail: () => void;
   proofread?: ReactNode;
 }) {
@@ -97,21 +89,18 @@ export function EditorHeader({
             ))}
           </SelectContent>
         </Select>
-        <GlossaryDialog
-          bookId={bookId}
-          targetLang={targetLang}
-          providers={providers}
-          selection={selection}
-          settings={settings}
-          saving={saving}
-          onSave={onSaveGlossary}
-        />
-        <PromptDialog
-          value={settings?.customPrompt}
-          disabled={!settings}
-          saving={saving}
-          onSave={onSavePrompt}
-        />
+        {projectId ? (
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              to="/projects/$projectId"
+              params={{ projectId }}
+              aria-label="Project glossary and prompt"
+            >
+              <Library />
+              <span className="hidden sm:inline">Project</span>
+            </Link>
+          </Button>
+        ) : null}
         {proofread}
         {chapterId ? (
           <Button variant="outline" size="sm" asChild>

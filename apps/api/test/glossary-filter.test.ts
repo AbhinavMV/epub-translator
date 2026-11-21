@@ -100,10 +100,15 @@ async function setup() {
     await (await app.request("/api/books", { method: "POST", body: form })).json(),
   );
   const saved = await app.request(
-    `/api/books/${book.id}/settings`,
-    send("PUT", { customPrompt: "", glossary, provider: "fake", model: "fake-echo" }),
+    `/api/projects/${book.projectId}/settings`,
+    send("PUT", { customPrompt: "", glossary }),
   );
   expect(saved.status).toBe(200);
+  const model = await app.request(
+    `/api/books/${book.id}/settings`,
+    send("PUT", { provider: "fake", model: "fake-echo" }),
+  );
+  expect(model.status).toBe(200);
   const job = JobSummarySchema.parse(
     await (await app.request(`/api/books/${book.id}/workspace?targetLang=en`)).json(),
   );
@@ -117,21 +122,6 @@ async function setup() {
   };
   return { app, services, provider, batch, proofreader, jobId: job.id, bookId: book.id, translate };
 }
-
-describe("glossary size", () => {
-  it("accepts 2,000 entries and rejects more", async () => {
-    const { app, bookId } = await setup();
-    const entries = (n: number) =>
-      Array.from({ length: n }, (_, i) => ({ source: `語${i}`, target: `term ${i}` }));
-    const put = (n: number) =>
-      app.request(
-        `/api/books/${bookId}/settings`,
-        send("PUT", { customPrompt: "", glossary: entries(n), provider: null, model: null }),
-      );
-    expect((await put(2000)).status).toBe(200);
-    expect((await put(2001)).status).toBe(400);
-  });
-});
 
 describe("glossary sent with live translation", () => {
   it("sends no glossary when the batch uses none of its terms", async () => {

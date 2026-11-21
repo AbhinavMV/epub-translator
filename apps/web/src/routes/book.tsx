@@ -1,9 +1,4 @@
-import {
-  type BookSettings,
-  CONTENTS_CHAPTER_ID,
-  type GlossaryEntry,
-  type TranslateMode,
-} from "@et/contracts";
+import { type BookSettings, CONTENTS_CHAPTER_ID, type TranslateMode } from "@et/contracts";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -215,6 +210,7 @@ export function BookPage() {
     <div className="flex h-dvh flex-col">
       <EditorHeader
         bookId={bookId}
+        projectId={book.data?.projectId}
         title={book.data?.title}
         translatedTitle={job.data?.titles.book}
         chapterId={chapterId}
@@ -227,10 +223,6 @@ export function BookPage() {
         onMode={onMode}
         targetLang={targetLang}
         onTargetLang={setTargetLang}
-        settings={settings}
-        saving={saveSettings.isPending}
-        onSaveGlossary={(glossary: GlossaryEntry[]) => persist({ glossary })}
-        onSavePrompt={(customPrompt) => persist({ customPrompt })}
         onOpenRail={() => setRailOpen(true)}
         proofread={
           <ProofreadMenu

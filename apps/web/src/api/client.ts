@@ -22,8 +22,11 @@ import {
   type ProjectDetail,
   ProjectDetailSchema,
   ProjectSchema,
+  type ProjectSettings,
+  ProjectSettingsSchema,
   type ProjectSummary,
   ProjectSummarySchema,
+  type ProjectTerms,
   type ProofreadBody,
   type ProofreadDecisionBody,
   type ProofreadRun,
@@ -73,6 +76,8 @@ export interface Api {
   getProject(id: string): Promise<ProjectDetail>;
   renameProject(id: string, name: string): Promise<Project>;
   deleteProject(id: string): Promise<void>;
+  getProjectSettings(id: string): Promise<ProjectSettings>;
+  saveProjectTerms(id: string, terms: ProjectTerms): Promise<ProjectSettings>;
   listBooks(): Promise<BookSummary[]>;
   prepareImport(file: File): Promise<PendingImport>;
   setVolumeNumber(bookId: string, volumeNumber: number): Promise<BookSummary>;
@@ -207,6 +212,13 @@ export function createHttpApi(
     async deleteProject(id) {
       await raw(`/projects/${enc(id)}`, { method: "DELETE" });
     },
+    getProjectSettings: (id) => json(`/projects/${enc(id)}/settings`, ProjectSettingsSchema),
+    saveProjectTerms: (id, terms) =>
+      json(`/projects/${enc(id)}/settings`, ProjectSettingsSchema, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(terms),
+      }),
     listBooks: () => json("/books", list(BookSummarySchema)),
     async prepareImport(file) {
       if (signed) {

@@ -1,6 +1,6 @@
-import type { BookSettings, GlossaryEntry, ProviderInfo } from "@et/contracts";
+import { type GlossaryEntry, MAX_GLOSSARY_ENTRIES } from "@et/contracts";
 import { BookA, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GlossarySuggestions } from "./glossary-suggestions";
-import type { Selection } from "./model-selection";
 
 interface Row {
   key: number;
@@ -23,32 +21,26 @@ interface Row {
   note: string;
 }
 
-const MAX_ENTRIES = 2000;
+const MAX_ENTRIES = MAX_GLOSSARY_ENTRIES;
 let rowKey = 0;
 const toRows = (entries: GlossaryEntry[]): Row[] =>
   entries.map((e) => ({ key: rowKey++, source: e.source, target: e.target, note: e.note ?? "" }));
 
 export function GlossaryDialog({
-  bookId,
-  targetLang,
-  providers,
-  selection,
-  settings,
+  glossary,
   saving,
   onSave,
+  suggestions,
 }: {
-  bookId: string;
-  targetLang: string;
-  providers: ProviderInfo[] | undefined;
-  selection: Selection | null;
-  settings: BookSettings | undefined;
+  glossary: GlossaryEntry[] | undefined;
   saving: boolean;
   onSave: (glossary: GlossaryEntry[]) => Promise<unknown>;
+  suggestions: (add: (entries: GlossaryEntry[]) => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
 
-  const count = settings?.glossary.length ?? 0;
+  const count = glossary?.length ?? 0;
   const update = (key: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
@@ -60,14 +52,14 @@ export function GlossaryDialog({
     });
 
   const submit = async () => {
-    const glossary = rows
+    const next = rows
       .filter((r) => r.source.trim() && r.target.trim())
       .map((r) => ({
         source: r.source.trim(),
         target: r.target.trim(),
         ...(r.note.trim() ? { note: r.note.trim() } : {}),
       }));
-    await onSave(glossary);
+    await onSave(next);
     setOpen(false);
   };
 
@@ -75,12 +67,12 @@ export function GlossaryDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setRows(toRows(settings?.glossary ?? []));
+        if (next) setRows(toRows(glossary ?? []));
         setOpen(next);
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={!settings}>
+        <Button variant="outline" size="sm" disabled={!glossary}>
           <BookA />
           <span className="hidden sm:inline">Glossary</span>
           {count > 0 && (
@@ -94,16 +86,11 @@ export function GlossaryDialog({
         <DialogHeader>
           <DialogTitle>Glossary</DialogTitle>
           <DialogDescription>
-            Terms the model must translate consistently. Applied only when the source term appears.
+            Terms every book in this project must translate the same way. Applied only when the
+            source term appears.
           </DialogDescription>
         </DialogHeader>
-        <GlossarySuggestions
-          bookId={bookId}
-          targetLang={targetLang}
-          providers={providers}
-          selection={selection}
-          onAdd={addSuggestions}
-        />
+        {suggestions(addSuggestions)}
         <ScrollArea className="max-h-[50vh] pr-3">
           <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
             <span>Source</span>

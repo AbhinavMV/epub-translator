@@ -7,7 +7,13 @@ import {
   type TermExtractionResult,
   type TermExtractor,
 } from "../../src/index.ts";
-import { MemoryBooks, MemoryJobs, MemorySettings, sampleParsed } from "./fakes.ts";
+import {
+  MemoryBooks,
+  MemoryJobs,
+  MemoryProjects,
+  sampleParsed,
+  seedProjectTerms,
+} from "./fakes.ts";
 
 class StubExtractor implements TermExtractor {
   last: TermExtractionRequest | null = null;
@@ -37,7 +43,7 @@ async function setup(extractor: TermExtractor, withJob = true) {
     },
     sampleParsed,
   );
-  const settings = new MemorySettings();
+  const projects = new MemoryProjects();
   const jobs = new MemoryJobs();
   if (withJob) {
     await jobs.insert({
@@ -50,7 +56,7 @@ async function setup(extractor: TermExtractor, withJob = true) {
       createdAt: "",
     });
   }
-  return { deps: { books, settings, jobs, extractor }, jobs, settings };
+  return { deps: { books, projects, jobs, extractor }, jobs };
 }
 
 const input = {
@@ -60,7 +66,7 @@ const input = {
 };
 
 describe("suggestGlossary", () => {
-  it("drops terms already in the glossary and duplicates", async () => {
+  it("drops terms already in the project glossary and duplicates", async () => {
     const extractor = new StubExtractor({
       kind: "ok",
       usage,
@@ -71,12 +77,10 @@ describe("suggestGlossary", () => {
         { source: "C", target: "c" },
       ],
     });
-    const { deps, settings } = await setup(extractor);
-    await settings.put("b1", {
+    const { deps } = await setup(extractor);
+    await seedProjectTerms(deps, "b1", {
       customPrompt: "",
       glossary: [{ source: "A", target: "x" }],
-      provider: null,
-      model: null,
     });
 
     const out = await suggestGlossary(deps, input, signal);

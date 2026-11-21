@@ -6,7 +6,13 @@ import {
   recordClientBatch,
   type SegmentTranslation,
 } from "../../../src/index.ts";
-import { counterIds, fixedClock, type MemoryRepos, MemoryStoreFactory } from "../fakes.ts";
+import {
+  counterIds,
+  fixedClock,
+  type MemoryRepos,
+  MemoryStoreFactory,
+  seedProjectTerms,
+} from "../fakes.ts";
 
 const limits = { maxChars: 100, maxCount: 2, contextSize: 8 };
 const usage = { inputTokens: 3, outputTokens: 4 };
@@ -56,11 +62,9 @@ beforeEach(async () => {
     usage: zero,
     createdAt: "t",
   });
-  await repos.settings.put("b1", {
+  await seedProjectTerms(repos, "b1", {
     customPrompt: "be terse",
     glossary: [{ source: "文0", target: "text zero" }],
-    provider: null,
-    model: null,
   });
 });
 

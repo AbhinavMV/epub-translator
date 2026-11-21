@@ -16,10 +16,10 @@ import {
   fixedClock,
   type MemoryBooks,
   type MemoryJobs,
-  type MemorySettings,
   MemoryStoreFactory,
   type MemoryTranslations,
   sampleParsed,
+  seedProjectTerms,
 } from "./fakes.ts";
 
 class EchoProvider implements TranslationProvider {
@@ -54,7 +54,6 @@ let factory: MemoryStoreFactory;
 let books: MemoryBooks;
 let jobs: MemoryJobs;
 let translations: MemoryTranslations;
-let settings: MemorySettings;
 let provider: EchoProvider;
 let events: JobEvent[];
 let runner: JobRunner;
@@ -63,7 +62,7 @@ const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
 beforeEach(async () => {
   factory = new MemoryStoreFactory();
-  ({ books, jobs, translations, settings } = factory.forOwner(OWNER));
+  ({ books, jobs, translations } = factory.forOwner(OWNER));
   await books.insert(
     {
       id: "b1",
@@ -208,14 +207,12 @@ describe("JobRunner", () => {
   });
 
   it("passes custom prompt, glossary and book metadata to the provider", async () => {
-    await settings.put("b1", {
+    await seedProjectTerms(factory.forOwner(OWNER), "b1", {
       customPrompt: "Use British spelling",
       glossary: [
         { source: "三", target: "Three" },
         { source: "シャル", target: "Charlotte" },
       ],
-      provider: null,
-      model: null,
     });
     await runner.translateChapter(OWNER, "j1", "ch-1", body);
     await runner.whenIdle();
@@ -372,7 +369,9 @@ describe("JobRunner", () => {
   });
 
   it("fails the chapter instead of crashing when storage throws mid-task", async () => {
-    settings.get = async () => {
+    const repos = factory.forOwner(OWNER);
+    await seedProjectTerms(repos, "b1", { customPrompt: "", glossary: [] });
+    repos.projects.getSettings = async () => {
       throw new Error("disk I/O error");
     };
     await runner.translateChapter(OWNER, "j1", "ch-0", body);

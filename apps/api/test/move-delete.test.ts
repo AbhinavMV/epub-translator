@@ -188,10 +188,18 @@ describe("delete a project", () => {
 });
 
 describe("delete a project's last book", () => {
-  it("leaves the empty project for the next volume", async () => {
+  it("leaves the empty project, with its glossary, for the next volume", async () => {
     const { app, form, imported, project, projects, send } = setup();
     const one = await imported("魔女の旅々 1");
+    const terms = {
+      customPrompt: "Keep honorifics",
+      glossary: [{ source: "イレイナ", target: "Elaina" }],
+    };
+    expect((await send("PUT", `/api/projects/${one.projectId}/settings`, terms)).status).toBe(200);
     expect((await send("DELETE", `/api/books/${one.id}`)).status).toBe(204);
+
+    const settings = await (await app.request(`/api/projects/${one.projectId}/settings`)).json();
+    expect(settings).toMatchObject(terms);
 
     expect((await project(one.projectId ?? "")).books).toEqual([]);
     expect(await projects()).toMatchObject([{ id: one.projectId, volumeCount: 0 }]);
