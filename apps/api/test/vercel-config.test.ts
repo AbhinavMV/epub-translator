@@ -17,6 +17,7 @@ const VercelConfig = z.object({
     }),
   ),
   regions: z.array(z.string()).length(1),
+  git: z.object({ deploymentEnabled: z.record(z.string(), z.boolean()) }),
   rewrites: z.array(
     z.object({ source: z.string(), destination: z.object({ service: z.string() }) }),
   ),
@@ -49,6 +50,10 @@ describe("vercel.json", () => {
       ["/api/(.*)", "api"],
       ["/(.*)", "web"],
     ]);
+  });
+
+  it("deploys only main, so pull requests get no preview deployment", () => {
+    expect(config.git.deploymentEnabled).toEqual({ "**": false, main: true });
   });
 
   it("deploys functions to Mumbai", () => {

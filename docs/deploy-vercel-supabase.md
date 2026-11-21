@@ -61,8 +61,8 @@ A template with blank values is in `apps/api/.env.hosted.example`. Never use the
 ## 4. Import the repository on Vercel
 
 1. Vercel, Add New, Project, import the GitHub repository.
-2. Leave Root Directory at the repository root and Framework Preset on Other. The root `vercel.json` defines both services, their install and build commands, the `bom1` (Mumbai) function region, the rewrites and the security headers.
-3. Add the environment variables above for Production and Preview. Previews share the production database and storage, so keep Standard Deployment Protection on.
+2. Leave Root Directory at the repository root and Framework Preset on Other. The root `vercel.json` defines both services, their install and build commands, the `bom1` (Mumbai) function region, the rewrites and the security headers. It also turns off Git deployments for every branch except `main`, so pull requests get no preview deployment.
+3. Add the environment variables above for Production. Branches other than `main` do not deploy; if you deploy a preview by hand (`vercel deploy`), add the variables for Preview too. Previews share the production database and storage, so keep Standard Deployment Protection on.
 4. Deploy. If Services is not enabled for your account, enable it under Project Settings, or use the fallback in the section below.
 5. Set `ALLOWED_HOSTS` and `APP_URL` to the assigned domain and redeploy. A request whose Host is not listed gets a 403, including preview URLs unless you list them.
 

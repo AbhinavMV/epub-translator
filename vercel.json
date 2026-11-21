@@ -20,6 +20,9 @@
     }
   },
   "regions": ["bom1"],
+  "git": {
+    "deploymentEnabled": { "**": false, "main": true }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": { "service": "api" } },
     { "source": "/(.*)", "destination": { "service": "web" } }
