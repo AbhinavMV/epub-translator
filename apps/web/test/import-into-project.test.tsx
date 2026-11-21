@@ -240,4 +240,29 @@ describe("volume number on the project page", () => {
       ]),
     );
   });
+
+  it("cancelling the volume number edit keeps the number", async () => {
+    const project: ProjectDetail = {
+      id: "p1",
+      name: "Wandering Witch",
+      createdAt: "2026-10-02T00:00:00.000Z",
+      books: [book("v1", "魔女の旅々 1", 1)],
+    };
+    const setVolumeNumber = vi.fn();
+    renderAt("/projects/p1", { getProject: vi.fn(async () => project), setVolumeNumber });
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
+    );
+    await userEvent.type(
+      screen.getByRole("spinbutton", { name: "Volume number of 魔女の旅々 1" }),
+      "4",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(
+      screen.getByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
+    ).toBeInTheDocument();
+    expect(setVolumeNumber).not.toHaveBeenCalled();
+  });
 });

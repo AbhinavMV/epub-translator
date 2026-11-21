@@ -171,7 +171,7 @@ export function GlossaryDialog({
                   <Input
                     aria-label="Note"
                     placeholder="Note"
-                    className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto"
+                    className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto sm:placeholder:text-transparent"
                     value={r.note}
                     onChange={(e) => update(r.key, { note: e.target.value })}
                   />

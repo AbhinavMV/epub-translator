@@ -45,7 +45,7 @@ export function ProjectGlossarySuggestions({
   const controls = (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
-        <SelectTrigger size="sm" className="w-[9rem]" aria-label="Volume to sample">
+        <SelectTrigger size="sm" className="w-[8rem]" aria-label="Volume to sample">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -58,7 +58,7 @@ export function ProjectGlossarySuggestions({
         </SelectContent>
       </Select>
       <Select value={targetLang} onValueChange={setTargetLang}>
-        <SelectTrigger size="sm" className="w-[7.5rem]" aria-label="Suggest renderings in">
+        <SelectTrigger size="sm" className="w-[6.5rem]" aria-label="Suggest renderings in">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
