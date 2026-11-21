@@ -38,6 +38,7 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
    - The glossary editor lists any glossary conflicts left by merging volumes' old glossaries, with each rendering and its volume. The one marked in force is used until you pick one.
    - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with. Changing a glossary entry does not retranslate earlier volumes.
    - The pencil and bin beside the name rename and delete the project. Once a volume has an English translation of its title, **Use translated title** opens the rename field filled with the lowest-numbered such volume's translated title, volume marker removed; nothing changes until you save.
+   - Each volume card shows the volume's translated title once there is one (the original is in its tooltip), and a **Translated** badge once the volume is completely translated, naming the language when it is not English.
    - Change a volume's number, move a volume to another project (it carries no glossary entries with it), or delete a volume. Deleting the project deletes all its volumes and their translations.
 3. **Editor:**
    - **Choosing how to translate:**

@@ -166,6 +166,36 @@ describe("Project page", () => {
     expect(screen.queryByText(/^Fully translated/)).not.toBeInTheDocument();
   });
 
+  it("badges each completely translated volume, naming the language unless it is English", async () => {
+    renderAt("/projects/p1", {
+      getProject: vi.fn(async () => ({
+        ...detail,
+        books: [
+          { ...book("v1", "魔女の旅々", 1), translatedLang: "en" },
+          { ...book("v2", "魔女の旅々 2", 2), translatedLang: "fr" },
+          { ...book("v25", "魔女の旅々 2.5", 2.5), translatedLang: null },
+        ],
+      })),
+    });
+    await screen.findByText("Translated · French");
+    const card = (href: string) =>
+      screen.getAllByRole("link").find((l) => l.getAttribute("href") === href) as HTMLElement;
+    expect(within(card("/books/v1")).getByText("Translated")).toBeInTheDocument();
+    expect(within(card("/books/v2")).getByText("Translated · French")).toBeInTheDocument();
+    expect(within(card("/books/v25")).queryByText(/^Translated/)).not.toBeInTheDocument();
+  });
+
+  it("shows only the translated title on a volume card", async () => {
+    renderAt("/projects/p1", {
+      getProject: vi.fn(async () => ({
+        ...detail,
+        books: [{ ...book("v1", "魔女の旅々", 1), translatedTitle: "Wandering Witch" }],
+      })),
+    });
+    const link = await screen.findByRole("link", { name: /Wandering Witch/ });
+    expect(within(link).queryByText("魔女の旅々")).not.toBeInTheDocument();
+  });
+
   it("renames the project", async () => {
     let current = detail;
     const renameProject = vi.fn(async (_id: string, name: string) => {

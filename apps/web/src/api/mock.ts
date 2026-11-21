@@ -409,19 +409,18 @@ export function createMockApi(): Api {
       .filter((b) => b.projectId === projectId)
       .sort(compareVolumes);
 
+  const translated = (job: JobSummary) => job.progress.reduce((n, p) => n + p.done, 0);
+  const isComplete = (b: BookSummary, lang: string) =>
+    [...jobs.values()].some(
+      (j) => j.bookId === b.id && j.targetLang === lang && translated(j) >= b.segmentCount,
+    );
+  const allLangs = () =>
+    [...new Set([...jobs.values()].map((j) => j.targetLang))].sort(compareTargetLanguages);
+  const volumeLang = (b: BookSummary) => allLangs().find((lang) => isComplete(b, lang)) ?? null;
   const fullyTranslatedLang = (projectId: string) => {
     const volumes = booksOf(projectId);
-    const translated = (job: JobSummary) => job.progress.reduce((n, p) => n + p.done, 0);
-    const complete = (lang: string) =>
-      volumes.every((b) =>
-        [...jobs.values()].some(
-          (j) => j.bookId === b.id && j.targetLang === lang && translated(j) >= b.segmentCount,
-        ),
-      );
-    const langs = [...new Set([...jobs.values()].map((j) => j.targetLang))].sort(
-      compareTargetLanguages,
-    );
-    return volumes.length > 0 ? (langs.find(complete) ?? null) : null;
+    const complete = (lang: string) => volumes.every((b) => isComplete(b, lang));
+    return volumes.length > 0 ? (allLangs().find(complete) ?? null) : null;
   };
 
   const api: Api = {
@@ -442,7 +441,7 @@ export function createMockApi(): Api {
       if (!project) throw new Error("Project not found");
       return delay({
         ...project,
-        books: booksOf(id),
+        books: booksOf(id).map((b) => ({ ...b, translatedLang: volumeLang(b) })),
         fullyTranslatedLang: fullyTranslatedLang(id),
       });
     },

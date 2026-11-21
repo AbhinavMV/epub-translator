@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { CoverPlaceholder } from "@/components/cover-placeholder";
+import { TranslatedBadge } from "@/components/fully-translated-badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,7 +61,6 @@ export function BookCard({
               {original ? `${shownTitle} — ${original}` : shownTitle}
             </TooltipContent>
           </Tooltip>
-          {original && <p className="truncate text-xs text-muted-foreground">{original}</p>}
           <p className="truncate text-xs text-muted-foreground">
             {book.author ?? "Unknown author"}
           </p>
@@ -71,6 +71,11 @@ export function BookCard({
             {book.chapterCount} chapters
             {book.sourceLang ? ` · ${book.sourceLang.toUpperCase()}` : ""}
           </p>
+          {book.translatedLang ? (
+            <div className="mt-1">
+              <TranslatedBadge lang={book.translatedLang} />
+            </div>
+          ) : null}
         </div>
       </Link>
       <Button
