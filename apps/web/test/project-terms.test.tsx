@@ -160,6 +160,15 @@ describe("project glossary and custom prompt", () => {
     });
   });
 
+  it("shows the fixed rules without naming a language, since every target shares them", async () => {
+    renderAt("/projects/p1", projectApi());
+    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
+    const rules = within(screen.getByRole("dialog")).getByRole("region", { name: /fixed rules/i });
+    expect(rules.textContent?.split("\n")[0]).toBe(
+      "Translate the identified source-language target passages into the target language.",
+    );
+  });
+
   it("shows the fixed rules read-only above the project's custom prompt", async () => {
     renderAt("/projects/p1", projectApi());
     await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
@@ -167,9 +176,6 @@ describe("project glossary and custom prompt", () => {
     const rules = within(dialog).getByRole("region", { name: /fixed rules/i });
     expect(rules).toHaveTextContent(/FIDELITY RULES/);
     expect(rules).toHaveTextContent(/FORMAT RULES/);
-    expect(rules).toHaveTextContent(
-      /Translate the identified Japanese target passages into English/,
-    );
     expect(within(rules).queryByRole("textbox")).toBeNull();
     expect(within(dialog).getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
       "Keep honorifics.",

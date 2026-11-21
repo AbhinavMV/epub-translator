@@ -17,15 +17,11 @@ const MAX = 4000;
 
 export function PromptDialog({
   value,
-  sourceLang,
-  targetName,
   disabled,
   saving,
   onSave,
 }: {
   value: string | undefined;
-  sourceLang: string | null;
-  targetName: string;
   disabled: boolean;
   saving: boolean;
   onSave: (prompt: string) => Promise<unknown>;
@@ -62,7 +58,7 @@ export function PromptDialog({
           className="max-h-48 overflow-y-auto rounded-md border bg-muted/50 p-3"
         >
           <pre className="font-mono text-xs whitespace-pre-wrap text-muted-foreground">
-            {fixedPromptRules(sourceLang, targetName)}
+            {fixedPromptRules("source-language", "the target language")}
           </pre>
         </section>
         <Textarea

@@ -1,9 +1,4 @@
-import {
-  type BookSummary,
-  type GlossaryRendering,
-  getTargetLanguage,
-  type ProjectTerms,
-} from "@et/contracts";
+import type { BookSummary, GlossaryRendering, ProjectTerms } from "@et/contracts";
 import { toast } from "sonner";
 import { useProjectSettings, useResolveGlossaryConflict, useSaveProjectTerms } from "@/api/queries";
 import { GlossaryDialog } from "@/components/editor/glossary-dialog";
@@ -70,8 +65,6 @@ export function ProjectTermsSection({
         />
         <PromptDialog
           value={data?.customPrompt}
-          sourceLang={books[0]?.sourceLang ?? null}
-          targetName={getTargetLanguage("en").name}
           disabled={!data}
           saving={save.isPending}
           onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}

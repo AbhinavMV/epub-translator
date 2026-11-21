@@ -148,7 +148,10 @@ describe("buildPrompt", () => {
 
   it("starts with the fixed rules shown to the reader", () => {
     const { system } = buildPrompt({ ...request([]), instructions: "Keep honorifics." });
-    expect(system.startsWith(fixedPromptRules("ja", "English"))).toBe(true);
+    expect(system.startsWith(fixedPromptRules("Japanese", "English"))).toBe(true);
+    expect(system.split("\n")[0]).toBe(
+      "Translate the identified Japanese target passages into English.",
+    );
   });
 
   it("appends the glossary only when present", () => {
