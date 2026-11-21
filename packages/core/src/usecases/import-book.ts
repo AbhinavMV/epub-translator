@@ -44,6 +44,11 @@ async function suggestProject(
       return deps.projects.get(book.projectId);
     }
   }
+  for (const project of await deps.projects.list()) {
+    if (project.name === seriesTitle && (await deps.books.listByProject(project.id)).length === 0) {
+      return project;
+    }
+  }
   return null;
 }
 
