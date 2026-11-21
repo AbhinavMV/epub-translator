@@ -29,7 +29,7 @@ export function BookCard({
   const original = shownTitle !== book.title ? book.title : null;
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
+    <div className="group relative flex flex-1 flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
       <Link
         to="/books/$bookId"
         params={{ bookId: book.id }}
