@@ -61,7 +61,7 @@ describe("refreshParsedBooks", () => {
     }
   });
 
-  it("drops translations of segments the re-parsed book no longer has", async () => {
+  it("keeps translations of segments the re-parsed book no longer has", async () => {
     await books.insert(stored("b-old", "old"), { ...sampleParsed });
     const [kept, dropped] = sampleParsed.segments;
     await jobs.insert({
@@ -81,7 +81,9 @@ describe("refreshParsedBooks", () => {
       segments: sampleParsed.segments.filter((s) => s.id !== dropped?.id),
     };
     await refreshParsedBooks({ ...deps(), parser: new StubParser(upgraded) });
-    expect([...(await translations.forJob("j1")).keys()]).toEqual([kept?.id]);
+    expect([...(await translations.forJob("j1")).keys()].sort()).toEqual(
+      [kept?.id, dropped?.id].sort(),
+    );
   });
 
   it("leaves books already at the current parser version alone", async () => {
