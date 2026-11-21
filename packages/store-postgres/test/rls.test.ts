@@ -19,7 +19,12 @@ beforeEach(async () => {
   await bob.jobs.insert(job);
   await bob.translations.put("j1", "s1", { text: "secret", status: "done" });
   await bob.batches.insert(batch());
-  await bob.settings.put("b1", { customPrompt: "p", glossary: [], provider: null, model: null });
+  await bob.settings.put("b1", { provider: null, model: null });
+  await bob.projects.putSettings(project.id, {
+    customPrompt: "p",
+    glossary: [],
+    glossaryConflicts: [],
+  });
   await sql.query(
     "insert into work_leases (owner_id, id, job_id, chapter_id, segment_ids, leased_until) values ($1, 'l1', 'j1', 'ch-0', '[]', now() + interval '1 hour')",
     [BOB],
@@ -36,6 +41,7 @@ beforeEach(async () => {
 
 const OWNER_TABLES = [
   "projects",
+  "project_settings",
   "books",
   "book_settings",
   "jobs",
