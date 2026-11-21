@@ -23,7 +23,8 @@ export async function runProjectScript(
   } else if (values.postgres && !values.sqlite && process.env.DATABASE_URL) {
     target = postgresUrlTarget(process.env.DATABASE_URL, values.owner);
   } else {
-    console.error(values.postgres ? `DATABASE_URL is not set\n${usage}` : usage);
+    const noUrl = values.postgres && !values.sqlite && !process.env.DATABASE_URL;
+    console.error(noUrl ? `DATABASE_URL is not set\n${usage}` : usage);
     process.exit(1);
   }
   await run(target, { apply: values.apply, log: (line) => console.log(line) });
