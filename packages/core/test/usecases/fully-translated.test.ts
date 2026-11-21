@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  completeLanguages,
   fullyTranslatedLanguage,
   type SegmentTranslation,
   type StoredBook,
@@ -129,5 +130,19 @@ describe("fullyTranslatedLanguage", () => {
       throw new Error("parsed volume loaded");
     };
     expect(await fullyTranslatedLanguage(s, [v1])).toBe("en");
+  });
+});
+
+describe("completeLanguages", () => {
+  it("lists each volume's complete languages, English first", async () => {
+    const s = store();
+    const v1 = await volume(s, "v1");
+    const v2 = await volume(s, "v2");
+    const v3 = await volume(s, "v3");
+    await translate(s, v1, "fr");
+    await translate(s, v1, "en");
+    await translate(s, v2, "de");
+    await translate(s, v3, "en", ["done"]);
+    expect(await completeLanguages(s, [v1, v2, v3])).toEqual([["en", "fr"], ["de"], []]);
   });
 });

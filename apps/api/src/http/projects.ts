@@ -33,11 +33,15 @@ export function projectsRoutes(s: Services) {
     })
     .get("/:id", async (c) => {
       const { repos } = c.var;
-      const { project, books, fullyTranslatedLang } = await projectOverview(
+      const { project, books, fullyTranslatedLang, volumeLangs } = await projectOverview(
         repos,
         c.req.param("id"),
       );
-      return c.json({ ...project, books: await summaries(repos, books), fullyTranslatedLang });
+      const volumes = (await summaries(repos, books)).map((summary) => ({
+        ...summary,
+        translatedLang: volumeLangs.get(summary.id) ?? null,
+      }));
+      return c.json({ ...project, books: volumes, fullyTranslatedLang });
     })
     .patch("/:id", validate("json", RenameProjectBodySchema), async (c) => {
       const project = await renameProject(c.var.repos, c.req.param("id"), c.req.valid("json").name);

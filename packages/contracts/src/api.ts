@@ -76,6 +76,7 @@ export const BookSummarySchema = z.object({
   createdAt: z.string(),
   projectId: z.string().nullable().optional(),
   volumeNumber: z.number().nullable().optional(),
+  translatedLang: z.string().nullable().optional(),
 });
 export type BookSummary = z.infer<typeof BookSummarySchema>;
 

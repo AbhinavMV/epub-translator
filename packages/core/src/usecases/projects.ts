@@ -3,7 +3,7 @@ import { NotFoundError } from "../domain/errors.ts";
 import { compareVolumes, type Project, unnumberedVolumeNumber } from "../domain/project.ts";
 import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
-import { type FullyTranslatedDeps, fullyTranslatedLanguage } from "./fully-translated.ts";
+import { commonLanguage, completeLanguages, type FullyTranslatedDeps } from "./fully-translated.ts";
 
 export interface ProjectWithBooks {
   project: Project;
@@ -40,12 +40,19 @@ export async function requireProject(
 export interface ProjectOverview extends ProjectWithBooks {
   /** The target language every volume is completely translated into, if any. */
   fullyTranslatedLang: string | null;
+  /** Per volume id, the preferred target language that volume is completely translated into. */
+  volumeLangs: Map<string, string | null>;
 }
 
 type OverviewDeps = ProjectDeps & FullyTranslatedDeps;
 
 async function overview(deps: OverviewDeps, entry: ProjectWithBooks): Promise<ProjectOverview> {
-  return { ...entry, fullyTranslatedLang: await fullyTranslatedLanguage(deps, entry.books) };
+  const perVolume = await completeLanguages(deps, entry.books);
+  return {
+    ...entry,
+    fullyTranslatedLang: commonLanguage(perVolume),
+    volumeLangs: new Map(entry.books.map((b, i) => [b.id, perVolume[i]?.[0] ?? null])),
+  };
 }
 
 export async function listProjectOverviews(deps: OverviewDeps): Promise<ProjectOverview[]> {

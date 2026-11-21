@@ -237,15 +237,19 @@ describe("projects api", () => {
       const detail = ProjectDetailSchema.parse(
         await (await app.request(`/api/projects/${book.projectId}`)).json(),
       );
-      return [summary?.fullyTranslatedLang, detail.fullyTranslatedLang];
+      return [
+        summary?.fullyTranslatedLang,
+        detail.fullyTranslatedLang,
+        detail.books[0]?.translatedLang,
+      ];
     };
     await services.repos.translations.put(workspace.id, "a.xhtml#0", { text: "a", status: "done" });
-    expect(await fullyTranslated()).toEqual([null, null]);
+    expect(await fullyTranslated()).toEqual([null, null, null]);
     await services.repos.translations.put(workspace.id, "a.xhtml#1", {
       text: "b",
       status: "flagged",
     });
-    expect(await fullyTranslated()).toEqual(["fr", "fr"]);
+    expect(await fullyTranslated()).toEqual(["fr", "fr", "fr"]);
   });
 
   it("project page lists books in volume order and shows volume 1's cover in the library", async () => {

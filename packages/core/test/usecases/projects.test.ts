@@ -76,6 +76,7 @@ describe("project overviews", () => {
     expect(await projectOverview(deps, book.projectId ?? "")).toMatchObject({
       project: overview?.project,
       fullyTranslatedLang: "fr",
+      volumeLangs: new Map([[book.id, "fr"]]),
     });
     await expect(projectOverview(deps, "missing")).rejects.toBeInstanceOf(NotFoundError);
   });

@@ -348,9 +348,13 @@ describe("fully translated projects", () => {
       const detail = ProjectDetailSchema.parse(
         await (await app.request(`${HOST}/api/projects/${book.projectId}`, as("alice"))).json(),
       );
-      return [list[0]?.fullyTranslatedLang, detail.fullyTranslatedLang];
+      return [
+        list[0]?.fullyTranslatedLang,
+        detail.fullyTranslatedLang,
+        detail.books[0]?.translatedLang,
+      ];
     };
-    expect(await fullyTranslated()).toEqual([null, null]);
+    expect(await fullyTranslated()).toEqual([null, null, null]);
 
     const unit = WorkUnitSchema.parse(
       await (
@@ -366,7 +370,7 @@ describe("fully translated projects", () => {
       }),
     );
     expect(results.status).toBe(200);
-    expect(await fullyTranslated()).toEqual(["en", "en"]);
+    expect(await fullyTranslated()).toEqual(["en", "en", "en"]);
   });
 });
 
