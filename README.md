@@ -23,7 +23,7 @@ pnpm dev                                 # api on 127.0.0.1:8787, web on http://
 
 Keys stay in `apps/api/.env` on your machine. The browser only sees whether a provider is configured. Data (the SQLite database and uploaded books) lives in `apps/api/data/`.
 
-**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`. Each prints what it would do; add `--apply` to write. The second moves each book's glossary and prompt onto its project (translations use no glossary until it runs), keeping the higher volume's rendering when volumes disagree and recording the others as glossary conflicts.
+**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and then `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`, in that order. Each prints what it would do; add `--apply` to write. The SQLite schema upgrades itself when either script or the API opens the file. Run the backfill again after upgrading from an earlier projects build: it records each project's series title, which import uses to find a project whose books were all deleted. The second moves each book's glossary and prompt onto its project (translations use no glossary until it runs), keeping the higher volume's rendering when volumes disagree and recording the others as glossary conflicts.
 
 **Without a key:** set `ENABLE_FAKE_PROVIDER=1` in `apps/api/.env` to get "Offline test (no translation)", which echoes the source with a `[en]` prefix so you can try the whole flow for free.
 
