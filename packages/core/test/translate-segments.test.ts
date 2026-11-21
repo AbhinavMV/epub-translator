@@ -8,7 +8,7 @@ import type {
   TranslationProvider,
 } from "../src/ports/translation-provider.ts";
 import { batchSegments } from "../src/translation/batcher.ts";
-import { buildPrompt } from "../src/translation/prompt.ts";
+import { buildPrompt, fixedPromptRules, storedCustomPrompt } from "../src/translation/prompt.ts";
 import { SegmentTranslator } from "../src/translation/translate-segments.ts";
 
 const usage = { inputTokens: 10, outputTokens: 5 };
@@ -94,6 +94,21 @@ describe("batchSegments", () => {
   });
 });
 
+describe("storedCustomPrompt", () => {
+  it("stores nothing for empty text or the unchanged default style guidance", () => {
+    expect(storedCustomPrompt("  ")).toBe("");
+    expect(
+      storedCustomPrompt(
+        " Use natural, readable prose in the target language while preserving the source meaning.\n",
+      ),
+    ).toBe("");
+  });
+
+  it("stores edited style guidance trimmed", () => {
+    expect(storedCustomPrompt(" Keep honorifics.\n")).toBe("Keep honorifics.");
+  });
+});
+
 describe("buildPrompt", () => {
   it("includes target name and token rules", () => {
     const { system } = buildPrompt(request([{ id: "a", text: "x" }]));
@@ -113,16 +128,35 @@ describe("buildPrompt", () => {
     expect(a).toBe(b);
   });
 
-  it("appends reader instructions and glossary only when present", () => {
-    const plain = buildPrompt(request([])).system;
-    expect(plain).not.toContain("Additional instructions from the reader");
-    expect(plain).not.toContain("GLOSSARY");
+  it("uses the default style guidance when there is no custom prompt", () => {
+    const { system } = buildPrompt(request([]));
+    expect(system).toContain(
+      "Use natural, readable prose in the target language while preserving the source meaning.",
+    );
+    expect(system).not.toMatch(/readable English/);
+    expect(system).toContain("FIDELITY RULES");
+    expect(system).toContain("FORMAT RULES");
+  });
+
+  it("replaces the default style guidance with the custom prompt", () => {
+    const { system } = buildPrompt({ ...request([]), instructions: "Keep honorifics." });
+    expect(system).not.toContain("Use natural, readable prose");
+    expect(system).toContain("Keep honorifics.");
+    expect(system).toContain("FIDELITY RULES");
+    expect(system).toContain("FORMAT RULES");
+  });
+
+  it("starts with the fixed rules shown to the reader", () => {
+    const { system } = buildPrompt({ ...request([]), instructions: "Keep honorifics." });
+    expect(system.startsWith(fixedPromptRules("ja", "English"))).toBe(true);
+  });
+
+  it("appends the glossary only when present", () => {
+    expect(buildPrompt(request([])).system).not.toContain("GLOSSARY");
     const rich = buildPrompt({
       ...request([]),
-      instructions: "Be formal",
       glossary: [{ source: "魔王", target: "Demon King", note: "title" }],
     }).system;
-    expect(rich).toContain("Additional instructions from the reader: Be formal");
     expect(rich).toContain("魔王 → Demon King (title)");
   });
 
