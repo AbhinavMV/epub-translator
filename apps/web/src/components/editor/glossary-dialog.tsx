@@ -107,8 +107,8 @@ export function GlossaryDialog({
         <DialogHeader>
           <DialogTitle>Glossary</DialogTitle>
           <DialogDescription>
-            Terms every book in this project must translate the same way. Applied only when the
-            source term appears.
+            Glossary entries every volume in this project must render the same way. An entry applies
+            only where its source term appears.
           </DialogDescription>
         </DialogHeader>
         {suggestions(addSuggestions)}
@@ -120,7 +120,7 @@ export function GlossaryDialog({
               aria-pressed={!showConflicts}
               onClick={() => setConflictsOnly(false)}
             >
-              All terms
+              All entries
             </Button>
             <Button
               variant={showConflicts ? "secondary" : "outline"}
@@ -135,8 +135,8 @@ export function GlossaryDialog({
         {showConflicts && conflicts ? (
           <ScrollArea className="max-h-[50vh] pr-3">
             <p className="pb-3 text-sm text-muted-foreground">
-              Merged volumes rendered these terms differently. Translation uses the rendering in
-              force until you pick one.
+              Merged volumes gave these entries different renderings. Translation uses the rendering
+              in force until you pick one.
             </p>
             <GlossaryConflictList
               conflicts={conflicts.conflicts}
@@ -148,7 +148,7 @@ export function GlossaryDialog({
           <ScrollArea className="max-h-[50vh] pr-3">
             <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
               <span>Source</span>
-              <span>Target</span>
+              <span>Rendering</span>
               <span>Note</span>
               <span className="w-8" />
             </div>
@@ -161,7 +161,7 @@ export function GlossaryDialog({
                     onChange={(e) => update(r.key, { source: e.target.value })}
                   />
                   <Input
-                    aria-label="Target term"
+                    aria-label="Rendering"
                     value={r.target}
                     onChange={(e) => update(r.key, { target: e.target.value })}
                   />
@@ -182,7 +182,7 @@ export function GlossaryDialog({
               ))}
               {rows.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  No terms yet. Add character names and recurring terms.
+                  No glossary entries yet. Add character names and other recurring source terms.
                 </p>
               )}
             </div>
@@ -197,7 +197,7 @@ export function GlossaryDialog({
             setRows((rs) => [...rs, { key: rowKey++, source: "", target: "", note: "" }])
           }
         >
-          <Plus /> Add term
+          <Plus /> Add entry
         </Button>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>

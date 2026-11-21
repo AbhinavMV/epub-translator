@@ -86,9 +86,9 @@ export function BookCard({
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this book?</DialogTitle>
+            <DialogTitle>Delete this volume?</DialogTitle>
             <DialogDescription>
-              “{shownTitle}” and all of its translations will be removed from this machine.
+              “{shownTitle}” and all of its translations will be deleted.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

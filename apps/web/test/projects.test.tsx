@@ -123,11 +123,11 @@ describe("Library", () => {
       ]),
     });
     const english = await screen.findByRole("link", { name: /魔女の旅々/ });
-    expect(within(english).getByText("Translated")).toBeInTheDocument();
+    expect(within(english).getByText("Fully translated")).toBeInTheDocument();
     const french = screen.getByRole("link", { name: /Empty project/ });
-    expect(within(french).getByText("Translated · French")).toBeInTheDocument();
+    expect(within(french).getByText("Fully translated · French")).toBeInTheDocument();
     const none = screen.getByRole("link", { name: /Untranslated/ });
-    expect(within(none).queryByText(/^Translated/)).not.toBeInTheDocument();
+    expect(within(none).queryByText(/^Fully translated/)).not.toBeInTheDocument();
   });
 });
 
@@ -151,7 +151,7 @@ describe("Project page", () => {
     });
     const header = (await screen.findByRole("heading", { level: 1 })).closest("header");
     expect(
-      within(header as HTMLElement).getByText("Translated · Brazilian Portuguese"),
+      within(header as HTMLElement).getByText("Fully translated · Brazilian Portuguese"),
     ).toBeInTheDocument();
   });
 
@@ -160,7 +160,7 @@ describe("Project page", () => {
       getProject: vi.fn(async () => ({ ...detail, fullyTranslatedLang: null })),
     });
     await screen.findByRole("heading", { level: 1 });
-    expect(screen.queryByText(/^Translated/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Fully translated/)).not.toBeInTheDocument();
   });
 
   it("renames the project", async () => {

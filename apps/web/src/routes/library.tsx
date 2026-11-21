@@ -77,7 +77,7 @@ export function LibraryPage() {
           </div>
         ) : (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            No books yet. Drop an EPUB above to begin.
+            No projects yet. Drop an EPUB above to start one.
           </p>
         )}
       </section>

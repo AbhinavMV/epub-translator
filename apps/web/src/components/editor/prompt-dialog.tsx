@@ -44,13 +44,13 @@ export function PromptDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
           <MessageSquareText />
-          <span className="hidden sm:inline">Edit prompt</span>
+          <span className="hidden sm:inline">Custom prompt</span>
           {value ? <span className="size-1.5 rounded-full bg-primary" /> : null}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Edit prompt</DialogTitle>
+          <DialogTitle>Custom prompt</DialogTitle>
           <DialogDescription>
             The custom prompt takes the place of the default style guidance for every volume in this
             project, such as tone, honorifics or how to render names. The fidelity and format rules
@@ -87,7 +87,7 @@ export function PromptDialog({
               setOpen(false);
             }}
           >
-            Save prompt
+            Save custom prompt
           </Button>
         </DialogFooter>
       </DialogContent>

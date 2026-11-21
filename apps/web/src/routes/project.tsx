@@ -147,7 +147,7 @@ export function ProjectPage() {
           </div>
         ) : (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            This project has no books.
+            This project has no volumes.
           </p>
         )}
       </section>

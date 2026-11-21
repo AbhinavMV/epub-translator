@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/dialog";
 
 function consequence(count: number) {
-  if (count === 0) return "It has no books.";
-  const books = count === 1 ? "1 book" : `${count} books`;
-  return `${books} will be deleted with it, along with all of their translations.`;
+  if (count === 0) return "It has no volumes.";
+  const volumes = count === 1 ? "1 volume" : `${count} volumes`;
+  return `${volumes} will be deleted with it, along with all of their translations.`;
 }
 
 export function DeleteProjectButton({ project }: { project: ProjectDetail | undefined }) {

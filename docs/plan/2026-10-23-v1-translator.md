@@ -484,7 +484,7 @@ The user supplied a screenshot of Dusk Translate's editor and asked for that lay
 - The job-level statuses `paused`/`cancelled` are dropped, and the job summary status is derived from its chapters.
 
 **New per-book settings** are stored in a `book_settings` table (the glossary and custom prompt later moved to the project; see Amendment F):
-- `customPrompt` (the "Edit prompt" dialog), appended to the system prompt under "Additional instructions from the reader:";
+- `customPrompt` (the "Custom prompt" dialog), appended to the system prompt under "Additional instructions from the reader:";
 - `glossary: {source, target, note?}[]` (the "Glossary" dialog), rendered into the system prompt as a term list;
 - the last-used provider and model.
 
@@ -503,7 +503,7 @@ The user supplied a screenshot of Dusk Translate's editor and asked for that lay
   - an app mark and the book title (single line, ellipsis);
   - a provider/model select (unconfigured providers are disabled with the env hint, and keys stay server-side per the global constraints);
   - a target-language select;
-  - Glossary, Edit prompt and Reader-mode buttons, and a theme toggle (light/sepia/dark).
+  - Glossary, Custom prompt and Reader-mode buttons, and a theme toggle (light/sepia/dark).
 - **Left rail "Chapters":** a row per chapter with the index, title, char count, a status dot and a mini progress bar. The active row is inverted, as in Dusk.
 - **Toolbar:**
   - **Translate chapter** (primary, blue), Translate all, ← Prev, Next →, Export TXT and **Export EPUB**;
@@ -567,7 +567,7 @@ The user asked for the deferred items now. Each runs as a parallel Sonnet track 
 | Track | Scope | Key interfaces |
 |---|---|---|
 | **Batch** | Economy mode via the vendor batch APIs (50% cost, up to 24 h) | `TranslateBody.mode: "live" \| "batch"` (default live). A separate port `BatchTranslationProvider { submit(requests): Promise<string>; fetch(batchId): Promise<BatchFetch> }` lives in its own provider files. `provider_batches` table; the runner polls and resumes on boot; the UI shows a mode toggle and a "submitted" chapter state. |
-| **Glossary** | "Suggest from book": extracts names and recurring terms with a cheap model | Port `TermExtractor { extractTerms(req): Promise<TermResult> }` in its own provider files. Use case `suggestGlossary`. `POST /api/books/:id/glossary/suggest {provider, model, sampleSize?, chunk?}` → `GlossaryEntry[]`, where `sampleSize` is `standard` (~12k chars), `large` (~40k, the default) or `volume` (the whole volume in ~40k-char chunks, one request per `chunk`). `GET /api/books/:id/glossary/plan?size=` → `{requests, chars}` in both modes. A Glossary dialog button merges the suggestions for review. Sampling all volumes needs no endpoint of its own: the web app plans each volume and runs its chunks in volume order. |
+| **Glossary** | "Suggest from volume" (or "Suggest from all volumes"): extracts names and recurring terms with a cheap model | Port `TermExtractor { extractTerms(req): Promise<TermResult> }` in its own provider files. Use case `suggestGlossary`. `POST /api/books/:id/glossary/suggest {provider, model, sampleSize?, chunk?}` → `GlossaryEntry[]`, where `sampleSize` is `standard` (~12k chars), `large` (~40k, the default) or `volume` (the whole volume in ~40k-char chunks, one request per `chunk`). `GET /api/books/:id/glossary/plan?size=` → `{requests, chars}` in both modes. A Glossary dialog button merges the suggestions for review. Sampling all volumes needs no endpoint of its own: the web app plans each volume and runs its chunks in volume order. |
 | **Bilingual + RTL** | Export layout `translation \| bilingual` and correct RTL output | `GET /api/jobs/:id/export?layout=bilingual`. Bilingual inserts the translated block after the source, with target `lang`/`dir` and ids stripped. RTL targets get `dir="rtl"` on documents, in the editor panes and in the reader. |
 | **Paged reader** | Page-by-page reading mode in the web reader | CSS multi-column pagination; ←/→, tap zones and a page x/y indicator; scroll and paged modes. |
 

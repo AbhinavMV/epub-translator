@@ -95,7 +95,7 @@ describe("glossary conflicts", () => {
       source: "灰の魔女",
       target: "Witch of Ashes",
     });
-    expect(await screen.findAllByRole("textbox", { name: "Target term" })).toHaveLength(2);
+    expect(await screen.findAllByRole("textbox", { name: "Rendering" })).toHaveLength(2);
     expect(screen.getByDisplayValue("Witch of Ashes")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /conflict/ })).toBeNull();
   });

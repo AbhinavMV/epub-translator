@@ -99,7 +99,7 @@ export function GlossarySuggestions({
   const volume = run.step ? bookIds.indexOf(run.step.bookId) + 1 : 0;
   const progress =
     bookIds.length > 1
-      ? `Suggesting… Vol ${volume} of ${bookIds.length}`
+      ? `Suggesting… volume ${volume} of ${bookIds.length}`
       : run.total > 1
         ? `Suggesting… ${run.done + 1} of ${run.total}`
         : "Suggesting…";
@@ -114,7 +114,11 @@ export function GlossarySuggestions({
           onClick={begin}
         >
           {run.running ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {run.running ? progress : "Suggest from book"}
+          {run.running
+            ? progress
+            : bookIds.length > 1
+              ? "Suggest from all volumes"
+              : "Suggest from volume"}
         </Button>
         {run.running && (
           <Button variant="ghost" size="sm" onClick={stop}>
