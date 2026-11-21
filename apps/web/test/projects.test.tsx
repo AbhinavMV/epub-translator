@@ -154,3 +154,67 @@ describe("Project page", () => {
     expect(renameProject).not.toHaveBeenCalled();
   });
 });
+
+describe("Use translated title", () => {
+  const translated = (
+    id: string,
+    volumeNumber: number,
+    translatedTitle: string | null,
+  ): BookSummary => ({ ...book(id, `魔女の旅々 ${volumeNumber}`, volumeNumber), translatedTitle });
+
+  const withBooks = (books: BookSummary[], name = "魔女の旅々"): ProjectDetail => ({
+    ...detail,
+    name,
+    books,
+  });
+
+  it("is not offered when no volume has a translated title", async () => {
+    renderAt("/projects/p1", { getProject: vi.fn(async () => detail) });
+    await screen.findByRole("heading", { level: 1, name: "魔女の旅々" });
+    expect(screen.queryByRole("button", { name: "Use translated title" })).toBeNull();
+  });
+
+  it("is not offered when the translated title already is the name", async () => {
+    const project = withBooks([translated("v3", 3, "Some Series, Vol. 3")], "Some Series");
+    renderAt("/projects/p1", { getProject: vi.fn(async () => project) });
+    await screen.findByRole("heading", { level: 1, name: "Some Series" });
+    expect(screen.queryByRole("button", { name: "Use translated title" })).toBeNull();
+  });
+
+  it("pre-fills the rename field without the volume marker and saves only on save", async () => {
+    let current = withBooks([translated("v3", 3, "Some Series, Vol. 3")]);
+    const renameProject = vi.fn(async (_id: string, name: string) => {
+      current = { ...current, name };
+      return { id: current.id, name, createdAt: current.createdAt };
+    });
+    renderAt("/projects/p1", { getProject: vi.fn(async () => current), renameProject });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Use translated title" }));
+    expect(screen.getByRole("textbox", { name: "Project name" })).toHaveValue("Some Series");
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("heading", { level: 1, name: "魔女の旅々" })).toBeInTheDocument();
+    expect(renameProject).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Use translated title" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(renameProject).toHaveBeenCalledWith("p1", "Some Series");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Some Series" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use translated title" })).toBeNull();
+  });
+
+  it("takes the title of the lowest-numbered translated volume", async () => {
+    const project = withBooks([
+      translated("v1", 1, null),
+      translated("v4", 4, "Wandering Witch Vol. 4"),
+      translated("v2", 2, "The Journey of Elaina 2"),
+    ]);
+    renderAt("/projects/p1", { getProject: vi.fn(async () => project) });
+    await userEvent.click(await screen.findByRole("button", { name: "Use translated title" }));
+    expect(screen.getByRole("textbox", { name: "Project name" })).toHaveValue(
+      "The Journey of Elaina",
+    );
+  });
+});
