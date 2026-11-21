@@ -20,15 +20,16 @@ function rail(titles: { book: string | null; chapters: Record<string, string> })
 }
 
 describe("ChapterRail titles", () => {
-  it("shows the translated chapter title with the original underneath", () => {
+  it("shows only the translated chapter title, with the original as its tooltip", () => {
     rail({ book: null, chapters: { c1: "Chapter One" } });
-    expect(screen.getByText("Chapter One")).toBeInTheDocument();
-    expect(screen.getByText("第一章")).toBeInTheDocument();
+    expect(screen.getByText("Chapter One")).toHaveAttribute("title", "第一章");
+    expect(screen.queryByText("第一章")).toBeNull();
   });
 
-  it("shows only the source title until a translation exists", () => {
+  it("shows the original title, without a tooltip, until a translation exists", () => {
     rail({ book: null, chapters: {} });
     expect(screen.getAllByText("第一章")).toHaveLength(1);
+    expect(screen.getByText("第一章")).not.toHaveAttribute("title");
   });
 
   it("lists the generated title and navigation item first, without a chapter number", () => {

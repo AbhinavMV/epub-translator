@@ -63,12 +63,12 @@ export function ChapterRail({
               )}
               <span className="ml-auto">{formatCount(chapter.charCount)} chars</span>
             </span>
-            <span className="line-clamp-2 text-sm leading-snug font-medium">{label}</span>
-            {original && (
-              <span className="line-clamp-1 text-xs leading-snug text-muted-foreground">
-                {original}
-              </span>
-            )}
+            <span
+              title={original ?? undefined}
+              className="line-clamp-2 text-sm leading-snug font-medium"
+            >
+              {label}
+            </span>
             {ratio > 0 && ratio < 1 && (
               <span className="mt-0.5 block h-0.5 overflow-hidden rounded-full bg-current/15">
                 <span
