@@ -373,3 +373,10 @@ create index if not exists projects_series_title on public.projects (owner_id, s
 -- Run only after backfill:projects --apply has placed every book in a project (and
 -- merge:project-settings --apply has moved the glossaries); it fails while any book has none.
 alter table public.books alter column project_id set not null;
+
+-- 0013_book_segment_count.sql
+-- Lets the library decide "fully translated" without loading every parsed book.
+alter table public.books add column if not exists segment_count integer not null default 0;
+update public.books
+set segment_count = coalesce(jsonb_array_length(parsed_json -> 'segments'), 0)
+where segment_count = 0;

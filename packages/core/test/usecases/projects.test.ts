@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   importBook,
+  listProjectOverviews,
   listProjects,
   moveBook,
   NotFoundError,
+  projectOverview,
   renameProject,
   requireProject,
 } from "../../src/index.ts";
@@ -12,7 +14,9 @@ import {
   fakeHasher,
   MemoryBlobs,
   MemoryBooks,
+  MemoryJobs,
   MemoryProjects,
+  MemoryTranslations,
   StubParser,
   sampleParsed,
 } from "./fakes.ts";
@@ -48,6 +52,32 @@ describe("listProjects", () => {
     expect(byId[one.projectId ?? ""]?.map((b) => b.id)).toEqual([two.id, one.id]);
     expect(byId[two.projectId ?? ""]).toEqual([]);
     expect(byId.empty).toEqual([]);
+  });
+});
+
+describe("project overviews", () => {
+  it("name the language every volume is fully translated into, in the list and for one project", async () => {
+    const deps = { ...library(), jobs: new MemoryJobs(), translations: new MemoryTranslations() };
+    const book = await importTitled(deps, "本 1", 1);
+    await deps.jobs.insert({
+      id: "j1",
+      bookId: book.id,
+      targetLang: "fr",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: "",
+    });
+    for (const s of sampleParsed.segments) {
+      await deps.translations.put("j1", s.id, { text: "t", status: "done" });
+    }
+    const [overview] = await listProjectOverviews(deps);
+    expect(overview).toMatchObject({ books: [book], fullyTranslatedLang: "fr" });
+    expect(await projectOverview(deps, book.projectId ?? "")).toMatchObject({
+      project: overview?.project,
+      fullyTranslatedLang: "fr",
+    });
+    await expect(projectOverview(deps, "missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 

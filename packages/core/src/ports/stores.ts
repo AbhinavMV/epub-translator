@@ -18,6 +18,8 @@ export interface BookRepository {
   findBySha256(sha256: string): Promise<StoredBook | null>;
   getParsed(id: string): Promise<ParsedBook | null>;
   updateParsed(id: string, parsed: ParsedBook): Promise<void>;
+  /** Stored counts, so a summary need not load parsed books; unknown ids are absent. */
+  segmentCounts(ids: readonly string[]): Promise<Map<string, number>>;
   list(): Promise<StoredBook[]>;
   listByProject(projectId: string): Promise<StoredBook[]>;
   place(id: string, projectId: string, volumeNumber: number): Promise<void>;

@@ -121,11 +121,13 @@ describe("fullyTranslatedLanguage", () => {
     expect(await fullyTranslatedLanguage(s, [v1])).toBe("de");
   });
 
-  it("ignores translations left behind for segments the volume no longer has", async () => {
+  it("decides from stored counts without loading any parsed volume", async () => {
     const s = store();
     const v1 = await volume(s, "v1");
-    await translate(s, v1, "en", ["done", "done"]);
-    await s.translations.put("v1-en", "old.xhtml#0", { text: "t", status: "done" });
-    expect(await fullyTranslatedLanguage(s, [v1])).toBeNull();
+    await translate(s, v1, "en");
+    s.books.getParsed = async () => {
+      throw new Error("parsed volume loaded");
+    };
+    expect(await fullyTranslatedLanguage(s, [v1])).toBe("en");
   });
 });
