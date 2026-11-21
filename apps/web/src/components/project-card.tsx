@@ -1,6 +1,7 @@
 import type { ProjectSummary } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { FullyTranslatedBadge } from "@/components/fully-translated-badge";
 
 export function ProjectCard({ project }: { project: ProjectSummary }) {
   const [coverFailed, setCoverFailed] = useState(false);
@@ -32,6 +33,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
         <p className="font-mono text-[11px] text-muted-foreground">
           {project.volumeCount === 1 ? "1 volume" : `${project.volumeCount} volumes`}
         </p>
+        <FullyTranslatedBadge lang={project.fullyTranslatedLang} />
       </div>
     </Link>
   );

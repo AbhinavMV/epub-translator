@@ -56,7 +56,7 @@ export function ChapterRail({
               {suggestions > 0 && (
                 <span
                   title={`${suggestions} proofreading suggestion${suggestions === 1 ? "" : "s"}`}
-                  className="rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-900 normal-case dark:bg-amber-950 dark:text-amber-100"
+                  className="rounded-full bg-flag/15 px-1.5 text-[10px] text-foreground normal-case"
                 >
                   {suggestions} to review
                 </span>

@@ -209,6 +209,9 @@ export class MemoryTranslations implements TranslationRepository {
     this.statusesForJobCalls.push(jobId);
     return new Map([...this.job(jobId)].map(([id, t]) => [id, t.status] as const));
   }
+  async translatedCount(jobId: string) {
+    return [...this.job(jobId).values()].filter((t) => t.status !== "failed").length;
+  }
   async forJob(jobId: string) {
     this.forJobCalls.push(jobId);
     return new Map(this.job(jobId));

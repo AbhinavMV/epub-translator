@@ -164,7 +164,7 @@ const PROVIDERS: ProviderInfo[] = [
 
 function coverFor(title: string): string {
   const glyph = title.slice(0, 2);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9a37a"/><stop offset="1" stop-color="#b4532a"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="165" font-size="54" text-anchor="middle" fill="#fff8ee" font-family="serif">${glyph}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fb3f2"/><stop offset="1" stop-color="#2f6fde"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="165" font-size="54" text-anchor="middle" fill="#ffffff" font-family="serif">${glyph}</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
@@ -408,6 +408,20 @@ export function createMockApi(): Api {
       .filter((b) => b.projectId === projectId)
       .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
 
+  const fullyTranslatedLang = (projectId: string) => {
+    const volumes = booksOf(projectId);
+    const complete = (lang: string) =>
+      volumes.every((b) =>
+        [...jobs.values()].some(
+          (j) => j.bookId === b.id && j.targetLang === lang && j.status === "done",
+        ),
+      );
+    const langs = [...new Set([...jobs.values()].map((j) => j.targetLang))].sort(
+      (a, b) => Number(b === "en") - Number(a === "en"),
+    );
+    return volumes.length > 0 ? (langs.find(complete) ?? null) : null;
+  };
+
   const api: Api = {
     listProjects: () =>
       delay(
@@ -417,13 +431,18 @@ export function createMockApi(): Api {
             ...p,
             volumeCount: booksOf(p.id).length,
             coverUrl: first?.coverUrl ?? null,
+            fullyTranslatedLang: fullyTranslatedLang(p.id),
           };
         }),
       ),
     async getProject(id): Promise<ProjectDetail> {
       const project = projects.get(id);
       if (!project) throw new Error("Project not found");
-      return delay({ ...project, books: booksOf(id) });
+      return delay({
+        ...project,
+        books: booksOf(id),
+        fullyTranslatedLang: fullyTranslatedLang(id),
+      });
     },
     async renameProject(id, name) {
       const project = projects.get(id);

@@ -1,6 +1,7 @@
 import { RenameProjectBodySchema } from "@et/contracts";
 import {
   deleteProject,
+  fullyTranslatedLanguage,
   libraryBookTitle,
   listProjects,
   type Repositories,
@@ -28,12 +29,21 @@ async function summaries(repos: Repositories, books: StoredBook[]) {
 export function projectsRoutes(s: Services) {
   return new Hono<AppEnv>()
     .get("/", async (c) => {
-      const projects = await listProjects(c.var.repos);
-      return c.json(projects.map(({ project, books }) => projectSummary(project, books)));
+      const { repos } = c.var;
+      const result = [];
+      for (const { project, books } of await listProjects(repos)) {
+        result.push(projectSummary(project, books, await fullyTranslatedLanguage(repos, books)));
+      }
+      return c.json(result);
     })
     .get("/:id", async (c) => {
-      const { project, books } = await requireProject(c.var.repos, c.req.param("id"));
-      return c.json({ ...project, books: await summaries(c.var.repos, books) });
+      const { repos } = c.var;
+      const { project, books } = await requireProject(repos, c.req.param("id"));
+      return c.json({
+        ...project,
+        books: await summaries(repos, books),
+        fullyTranslatedLang: await fullyTranslatedLanguage(repos, books),
+      });
     })
     .patch("/:id", validate("json", RenameProjectBodySchema), async (c) => {
       const project = await renameProject(c.var.repos, c.req.param("id"), c.req.valid("json").name);

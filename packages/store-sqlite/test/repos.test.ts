@@ -172,6 +172,25 @@ describe("SqliteTranslationRepository", () => {
     expect([...(await repo.forJob("j1")).keys()]).toEqual(["s2"]);
   });
 
+  it("counts done and flagged segments of one job", async () => {
+    await new SqliteBookRepository(db).insert(book, parsed);
+    await new SqliteJobRepository(db).insert({
+      id: "j1",
+      bookId: "b1",
+      targetLang: "en",
+      sourceLang: "ja",
+      error: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: book.createdAt,
+    });
+    const repo = new SqliteTranslationRepository(db);
+    await repo.put("j1", "s1", { text: "a", status: "done" });
+    await repo.put("j1", "s2", { text: "b", status: "flagged" });
+    await repo.put("j1", "s3", { text: "", status: "failed" });
+    expect(await repo.translatedCount("j1")).toBe(2);
+    expect(await repo.translatedCount("other")).toBe(0);
+  });
+
   it("reads only the requested segments", async () => {
     await new SqliteBookRepository(db).insert(book, parsed);
     await new SqliteJobRepository(db).insert({
