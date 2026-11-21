@@ -83,8 +83,21 @@ export function volumeChunks(book: ParsedBook, chunkChars = CHUNK_CHARS): string
   return chunks;
 }
 
+// Both stores cache the parsed book, so one split serves every chunk request for a volume;
+// a re-parse swaps the object and so starts a fresh split.
+const chunksByBook = new WeakMap<ParsedBook, string[]>();
+
+function cachedVolumeChunks(book: ParsedBook): string[] {
+  let chunks = chunksByBook.get(book);
+  if (!chunks) {
+    chunks = volumeChunks(book);
+    chunksByBook.set(book, chunks);
+  }
+  return chunks;
+}
+
 function samples(book: ParsedBook, size: SampleSize): string[] {
-  return size === "volume" ? volumeChunks(book) : [buildSample(book, SAMPLE_CHARS[size])];
+  return size === "volume" ? cachedVolumeChunks(book) : [buildSample(book, SAMPLE_CHARS[size])];
 }
 
 export function sampleChunk(book: ParsedBook, size: SampleSize, chunk: number): SampleChunk {
