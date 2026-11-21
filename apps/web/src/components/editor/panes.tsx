@@ -59,7 +59,7 @@ function TargetCell({
         <button
           type="button"
           onClick={onSuggestion}
-          className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-900"
+          className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-flag/15 px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-flag/25"
         >
           <Sparkles className="size-3" />
           Suggested edit

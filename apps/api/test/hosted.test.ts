@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   BookSummarySchema,
+  GlossarySampleSchema,
   ImportPreviewSchema,
   ProjectDetailSchema,
   ProjectSummarySchema,
@@ -278,6 +279,30 @@ describe("signed upload and import", () => {
   it("requires authentication", async () => {
     const res = await app.request(`${HOST}/api/uploads`, { method: "POST" });
     expect(res.status).toBe(401);
+  });
+});
+
+describe("glossary sample", () => {
+  it("carries the project's custom prompt and glossary for suggestions in the browser", async () => {
+    const path = await upload("alice", ALICE);
+    const book = BookSummarySchema.parse(
+      await (await app.request(`${HOST}/api/books/import`, post("alice", { path }))).json(),
+    );
+    const glossary = [{ source: "魔王", target: "Demon King" }];
+    const put = await app.request(
+      `${HOST}/api/projects/${book.projectId}/settings`,
+      as("alice", {
+        method: "PUT",
+        body: JSON.stringify({ customPrompt: "Keep honorifics.", glossary }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(put.status).toBe(200);
+
+    const res = await app.request(`${HOST}/api/books/${book.id}/glossary/sample`, as("alice"));
+    const sample = GlossarySampleSchema.parse(await res.json());
+    expect(sample.customPrompt).toBe("Keep honorifics.");
+    expect(sample.existing).toEqual(glossary);
   });
 });
 

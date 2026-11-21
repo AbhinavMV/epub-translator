@@ -3,6 +3,7 @@ import type {
   ProofreadRequest,
   SegmentBatchRequest,
   SegmentBatchResult,
+  TermExtractionRequest,
   TranslationProvider,
 } from "@et/core";
 import type { BrowserProvider, createBrowserProvider } from "@et/providers/browser";
@@ -64,6 +65,7 @@ class EditingProofreader implements Proofreader {
 }
 
 const proofreader = new EditingProofreader();
+const termRequests: TermExtractionRequest[] = [];
 
 function bundleOf(provider: TranslationProvider): BrowserProvider {
   return {
@@ -71,7 +73,10 @@ function bundleOf(provider: TranslationProvider): BrowserProvider {
     provider,
     batch: {} as BrowserProvider["batch"],
     terms: {
-      extractTerms: async () => ({ kind: "ok", terms: [], usage }),
+      extractTerms: async (req: TermExtractionRequest) => {
+        termRequests.push(req);
+        return { kind: "ok", terms: [], usage };
+      },
     } as unknown as BrowserProvider["terms"],
   };
 }
@@ -197,6 +202,18 @@ describe("provider bundle cache", () => {
     await runtime.suggestGlossary("b1", { provider: "anthropic", model: "model-a" });
     const named = created.filter((c) => c.model === "model-a");
     expect(named.map((c) => c.key)).toEqual([KEY, `${KEY}-rotated`]);
+  });
+});
+
+describe("glossary suggestions in the browser", () => {
+  it("send the project's custom prompt and glossary to the extractor", async () => {
+    termRequests.length = 0;
+    await runtime.suggestGlossary("b1", { provider: "anthropic", model: "m" });
+    expect(termRequests).toHaveLength(1);
+    expect(termRequests[0]).toMatchObject({
+      instructions: "Keep honorifics.",
+      existing: [{ source: "魔王", target: "Demon King" }],
+    });
   });
 });
 

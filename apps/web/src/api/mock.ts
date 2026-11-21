@@ -142,7 +142,7 @@ const PROVIDERS: ProviderInfo[] = [
 
 function coverFor(title: string): string {
   const glyph = title.slice(0, 2);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9a37a"/><stop offset="1" stop-color="#b4532a"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="165" font-size="54" text-anchor="middle" fill="#fff8ee" font-family="serif">${glyph}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fb3f2"/><stop offset="1" stop-color="#2f6fde"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="165" font-size="54" text-anchor="middle" fill="#ffffff" font-family="serif">${glyph}</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
@@ -379,7 +379,10 @@ export function createMockApi(): Api {
 
   const booksOf = (projectId: string) =>
     [...books.values()]
-      .map((b) => b.summary)
+      .map((b) => ({
+        ...b.summary,
+        translatedTitle: jobs.get(`job-${b.summary.id}-en`)?.titles.book ?? null,
+      }))
       .filter((b) => b.projectId === projectId)
       .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
 

@@ -56,19 +56,19 @@ export function ChapterRail({
               {suggestions > 0 && (
                 <span
                   title={`${suggestions} proofreading suggestion${suggestions === 1 ? "" : "s"}`}
-                  className="rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-900 normal-case dark:bg-amber-950 dark:text-amber-100"
+                  className="rounded-full bg-flag/15 px-1.5 text-[10px] text-foreground normal-case"
                 >
                   {suggestions} to review
                 </span>
               )}
               <span className="ml-auto">{formatCount(chapter.charCount)} chars</span>
             </span>
-            <span className="line-clamp-2 text-sm leading-snug font-medium">{label}</span>
-            {original && (
-              <span className="line-clamp-1 text-xs leading-snug text-muted-foreground">
-                {original}
-              </span>
-            )}
+            <span
+              title={original ?? undefined}
+              className="line-clamp-2 text-sm leading-snug font-medium"
+            >
+              {label}
+            </span>
             {ratio > 0 && ratio < 1 && (
               <span className="mt-0.5 block h-0.5 overflow-hidden rounded-full bg-current/15">
                 <span
