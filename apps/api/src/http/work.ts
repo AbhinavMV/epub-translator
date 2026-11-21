@@ -148,12 +148,14 @@ export function glossarySampleRoutes() {
     async (c) => {
       const bookId = c.req.param("id");
       const { book, parsed } = await requireBook(c.var.repos.books, bookId);
+      const { customPrompt, glossary } = await projectTermsFor(c.var.repos, bookId);
       c.header("cache-control", "no-store");
       return c.json({
         sample: buildSample(parsed, DEFAULT_SAMPLE_CHARS),
         sourceLang: parsed.sourceLang ?? book.sourceLang,
         bookTitle: book.title,
-        existing: (await projectTermsFor(c.var.repos, bookId)).glossary,
+        existing: glossary,
+        customPrompt,
         targetLang: c.req.valid("query").targetLang,
       });
     },

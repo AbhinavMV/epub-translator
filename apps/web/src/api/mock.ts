@@ -379,7 +379,10 @@ export function createMockApi(): Api {
 
   const booksOf = (projectId: string) =>
     [...books.values()]
-      .map((b) => b.summary)
+      .map((b) => ({
+        ...b.summary,
+        translatedTitle: jobs.get(`job-${b.summary.id}-en`)?.titles.book ?? null,
+      }))
       .filter((b) => b.projectId === projectId)
       .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
 
