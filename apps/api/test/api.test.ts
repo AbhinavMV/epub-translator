@@ -3,6 +3,7 @@ import {
   BookSummarySchema,
   ChapterViewSchema,
   GlossaryEntrySchema,
+  GlossarySamplePlanSchema,
   JobSummarySchema,
   ProjectDetailSchema,
   ProjectSettingsSchema,
@@ -291,8 +292,10 @@ describe("glossary suggestion api", () => {
 
   class RecordingTermExtractor extends FakeTermExtractor {
     prompts: string[] = [];
+    samples: string[] = [];
     override extractTerms(req: TermExtractionRequest, signal: AbortSignal) {
       this.prompts.push(buildTermsPrompt(req).system);
+      this.samples.push(req.sample);
       return super.extractTerms(req, signal);
     }
   }
@@ -351,6 +354,37 @@ describe("glossary suggestion api", () => {
       await (await app.request(`/api/projects/${book.projectId}/settings`)).json(),
     );
     expect(project.glossary).toHaveLength(1);
+  });
+
+  it("samples the requested size and chunk, and rejects a chunk past the end", async () => {
+    const { app, book, extractor } = await setupLatin();
+
+    const ok = await post(app, book.id, {
+      provider: "fake",
+      model: "fake-echo",
+      sampleSize: "volume",
+      chunk: 0,
+    });
+    expect(ok.status).toBe(200);
+    expect(extractor.samples).toEqual(["第一章\nAlice met Bob."]);
+
+    const past = await post(app, book.id, {
+      provider: "fake",
+      model: "fake-echo",
+      sampleSize: "volume",
+      chunk: 1,
+    });
+    expect(past.status).toBe(400);
+    expect(
+      (await post(app, book.id, { provider: "fake", model: "m", sampleSize: "x" })).status,
+    ).toBe(400);
+  });
+
+  it("plans one request per chunk of an entire volume", async () => {
+    const { app, book } = await setupLatin();
+    const res = await app.request(`/api/books/${book.id}/glossary/plan?size=volume`);
+    expect(GlossarySamplePlanSchema.parse(await res.json())).toEqual({ requests: 1, chars: 18 });
+    expect((await app.request(`/api/books/nope/glossary/plan`)).status).toBe(404);
   });
 
   it("returns 400 for a provider that is not configured", async () => {

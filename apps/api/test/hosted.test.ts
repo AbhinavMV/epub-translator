@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   BookSummarySchema,
+  GlossarySamplePlanSchema,
   GlossarySampleSchema,
   ImportPreviewSchema,
   ProjectDetailSchema,
@@ -301,6 +302,31 @@ describe("glossary sample", () => {
     const sample = GlossarySampleSchema.parse(await res.json());
     expect(sample.customPrompt).toBe("Keep honorifics.");
     expect(sample.existing).toEqual(glossary);
+  });
+
+  it("serves a chosen chunk of an entire volume with the chunk count, and its plan", async () => {
+    const path = await upload("alice", ALICE);
+    const book = BookSummarySchema.parse(
+      await (await app.request(`${HOST}/api/books/import`, post("alice", { path }))).json(),
+    );
+    const plan = GlossarySamplePlanSchema.parse(
+      await (
+        await app.request(`${HOST}/api/books/${book.id}/glossary/plan?size=volume`, as("alice"))
+      ).json(),
+    );
+    expect(plan.requests).toBe(1);
+    const res = await app.request(
+      `${HOST}/api/books/${book.id}/glossary/sample?size=volume&chunk=0`,
+      as("alice"),
+    );
+    const sample = GlossarySampleSchema.parse(await res.json());
+    expect(sample.chunks).toBe(1);
+    expect(sample.sample.length).toBe(plan.chars);
+    const past = await app.request(
+      `${HOST}/api/books/${book.id}/glossary/sample?size=volume&chunk=1`,
+      as("alice"),
+    );
+    expect(past.status).toBe(400);
   });
 });
 
