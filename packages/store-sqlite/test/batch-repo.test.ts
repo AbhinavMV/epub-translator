@@ -16,6 +16,8 @@ const book: StoredBook = {
   sourceLang: "ja",
   coverHref: null,
   createdAt: "2026-10-23T00:00:00.000Z",
+  projectId: null,
+  volumeNumber: null,
 };
 const parsed: ParsedBook = {
   title: "本",
@@ -80,6 +82,6 @@ describe("SqliteBatchRepository", () => {
   it("appends the provider_batches migration after the first schema", async () => {
     const columns = db.prepare("PRAGMA table_info(provider_batches)").all() as { name: string }[];
     expect(columns.map((c) => c.name)).toContain("vendor_batch_id");
-    expect(db.pragma("user_version", { simple: true })).toBe(4);
+    expect(db.pragma("user_version", { simple: true })).toBe(5);
   });
 });

@@ -1,4 +1,10 @@
-import type { Job, ParsedBook, ProviderBatch, StoredBook } from "@et/core";
+import type { Job, ParsedBook, Project, ProviderBatch, StoredBook } from "@et/core";
+
+export const project: Project = {
+  id: "p1",
+  name: "本",
+  createdAt: "2026-10-23T00:00:00.000Z",
+};
 
 export const book: StoredBook = {
   id: "b1",
@@ -8,6 +14,8 @@ export const book: StoredBook = {
   sourceLang: "ja",
   coverHref: "image/cover.jpg",
   createdAt: "2026-10-23T00:00:00.000Z",
+  projectId: null,
+  volumeNumber: null,
 };
 
 export const parsed: ParsedBook = {

@@ -2,6 +2,7 @@ export * from "./domain/batch.ts";
 export * from "./domain/book.ts";
 export * from "./domain/errors.ts";
 export * from "./domain/job.ts";
+export * from "./domain/project.ts";
 export * from "./domain/segment.ts";
 export * from "./domain/volume-title.ts";
 export * from "./ports/auth.ts";

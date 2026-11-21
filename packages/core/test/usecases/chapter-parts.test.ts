@@ -82,6 +82,8 @@ describe("renderChapter parts", () => {
         sourceLang: "ja",
         coverHref: null,
         createdAt: "",
+        projectId: null,
+        volumeNumber: null,
       },
       sampleParsed,
     );

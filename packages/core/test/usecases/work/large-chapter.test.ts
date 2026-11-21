@@ -42,6 +42,8 @@ beforeEach(async () => {
       sha256: "x",
       coverHref: null,
       createdAt: "t",
+      projectId: null,
+      volumeNumber: null,
     } as never,
     book,
   );

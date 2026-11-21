@@ -15,10 +15,12 @@ import {
   MemoryBlobs,
   MemoryBooks,
   MemoryJobs,
+  MemoryProjects,
   MemoryTranslations,
   RecordingExporter,
   RecordingRenderer,
   StubParser,
+  sampleParsed,
 } from "./fakes.ts";
 
 const bytes = new Uint8Array([1, 2, 3]);
@@ -26,6 +28,7 @@ const bytes = new Uint8Array([1, 2, 3]);
 function libraryDeps(parser = new StubParser()) {
   return {
     books: new MemoryBooks(),
+    projects: new MemoryProjects(),
     blobs: new MemoryBlobs(),
     parser,
     hasher: fakeHasher,
@@ -49,6 +52,33 @@ describe("importBook", () => {
     expect((await deps.books.getParsed("b1"))?.segments).toHaveLength(3);
   });
 
+  it("places the book in a new one-volume project named after its series title", async () => {
+    const deps = libraryDeps(new StubParser({ ...sampleParsed, title: "魔女の旅々 3" }));
+    const book = await importBook(deps, bytes);
+    const projects = await deps.projects.list();
+    expect(projects).toEqual([
+      { id: book.projectId, name: "魔女の旅々", createdAt: "2026-10-23T00:00:00.000Z" },
+    ]);
+    expect(book.volumeNumber).toBe(3);
+    expect(await deps.books.listByProject(projects[0]?.id ?? "")).toEqual([book]);
+  });
+
+  it("makes an unnumbered book volume 1", async () => {
+    const book = await importBook(libraryDeps(), bytes);
+    expect(book.volumeNumber).toBe(1);
+  });
+
+  it("drops the new project when a concurrent import of the same file won", async () => {
+    const deps = libraryDeps();
+    const winner = await importBook(deps, bytes);
+    const lookup = deps.books.findBySha256.bind(deps.books);
+    let lookups = 0;
+    deps.books.findBySha256 = async (sha) => (lookups++ === 0 ? null : lookup(sha));
+    const again = await importBook(deps, bytes);
+    expect(again.id).toBe(winner.id);
+    expect((await deps.projects.list()).map((p) => p.id)).toEqual([winner.projectId]);
+  });
+
   it("is idempotent by sha256", async () => {
     const deps = libraryDeps();
     const a = await importBook(deps, bytes);
@@ -62,6 +92,7 @@ describe("importBook", () => {
     await expect(importBook(deps, bytes)).rejects.toBeInstanceOf(InvalidEpubError);
     expect(deps.blobs.rows.size).toBe(0);
     expect(await deps.books.list()).toHaveLength(0);
+    expect(await deps.projects.list()).toHaveLength(0);
   });
 });
 

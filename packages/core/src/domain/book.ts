@@ -14,6 +14,8 @@ export interface StoredBook {
   sourceLang: string | null;
   coverHref: string | null;
   createdAt: string;
+  projectId: string | null;
+  volumeNumber: number | null;
 }
 
 export interface ParsedSegment {

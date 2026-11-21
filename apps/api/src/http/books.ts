@@ -56,7 +56,7 @@ export function booksRoutes(s: Services) {
         const book = await importBook(
           {
             ...s,
-            books,
+            ...c.var.repos,
             blobs: {
               get: (key) => blobs.get(key),
               delete: (key) => blobs.delete(key),
@@ -84,7 +84,7 @@ export function booksRoutes(s: Services) {
         if (!(file instanceof File)) throw new InvalidEpubError("Missing file field");
         const { books } = c.var.repos;
         const book = await importBook(
-          { ...s, books, blobs: c.var.blobs },
+          { ...s, ...c.var.repos, blobs: c.var.blobs },
           new Uint8Array(await file.arrayBuffer()),
         );
         return c.json(bookSummary(book, (await requireBook(books, book.id)).parsed), 201);

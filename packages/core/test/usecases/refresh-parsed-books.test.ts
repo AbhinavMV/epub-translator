@@ -15,6 +15,8 @@ const stored = (id: string, sha256: string) => ({
   sourceLang: "ja",
   coverHref: null,
   createdAt: "",
+  projectId: null,
+  volumeNumber: null,
 });
 
 let books: MemoryBooks;

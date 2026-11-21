@@ -1,10 +1,12 @@
 import type { StoredBook } from "../domain/book.ts";
+import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { EpubParser } from "../ports/epub.ts";
-import type { BlobStore, BookRepository } from "../ports/stores.ts";
+import type { BlobStore, BookRepository, ProjectRepository } from "../ports/stores.ts";
 import type { Clock, Hasher, IdGenerator } from "../ports/system.ts";
 
 export interface ImportBookDeps {
   books: BookRepository;
+  projects: ProjectRepository;
   blobs: BlobStore;
   parser: EpubParser;
   hasher: Hasher;
@@ -22,15 +24,24 @@ export async function importBook(deps: ImportBookDeps, bytes: Uint8Array): Promi
   if (existing) return existing;
 
   const parsed = await deps.parser.parse(bytes);
+  const createdAt = deps.clock.now().toISOString();
+  const bookId = deps.ids.next();
+  const { seriesTitle, volumeNumber } = parseVolumeTitle(parsed.title);
+  const project = { id: deps.ids.next(), name: seriesTitle || parsed.title, createdAt };
   const book: StoredBook = {
-    id: deps.ids.next(),
+    id: bookId,
     sha256,
     title: parsed.title,
     author: parsed.author,
     sourceLang: parsed.sourceLang,
     coverHref: parsed.coverHref,
-    createdAt: deps.clock.now().toISOString(),
+    createdAt,
+    projectId: project.id,
+    volumeNumber: volumeNumber ?? 1,
   };
   await deps.blobs.put(bookBlobKey(sha256), bytes);
-  return deps.books.insertIfAbsent(book, parsed);
+  await deps.projects.create(project);
+  const stored = await deps.books.insertIfAbsent(book, parsed);
+  if (stored.id !== book.id) await deps.projects.delete(project.id);
+  return stored;
 }

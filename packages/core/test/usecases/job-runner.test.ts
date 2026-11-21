@@ -73,6 +73,8 @@ beforeEach(async () => {
       sourceLang: "ja",
       coverHref: null,
       createdAt: "",
+      projectId: null,
+      volumeNumber: null,
     },
     sampleParsed,
   );

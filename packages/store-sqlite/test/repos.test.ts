@@ -18,6 +18,8 @@ const book: StoredBook = {
   sourceLang: "ja",
   coverHref: "image/cover.jpg",
   createdAt: "2026-10-23T00:00:00.000Z",
+  projectId: null,
+  volumeNumber: null,
 };
 const parsed: ParsedBook = {
   title: "本",

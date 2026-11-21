@@ -227,6 +227,8 @@ async function seedBook(services: ReturnType<typeof multiOwnerServices>, ownerId
       sourceLang: "ja",
       coverHref: "cover.png",
       createdAt: "2026-10-28T00:00:00Z",
+      projectId: null,
+      volumeNumber: null,
     },
     {
       title: "本",

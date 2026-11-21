@@ -1,6 +1,7 @@
 import type { BookSettings, ChapterProofread, Usage } from "@et/contracts";
 import type { ParsedBook, StoredBook } from "../domain/book.ts";
 import type { Job } from "../domain/job.ts";
+import type { Project } from "../domain/project.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
 import type { BatchRepository } from "./batch-repository.ts";
 
@@ -12,6 +13,16 @@ export interface BookRepository {
   getParsed(id: string): Promise<ParsedBook | null>;
   updateParsed(id: string, parsed: ParsedBook): Promise<void>;
   list(): Promise<StoredBook[]>;
+  listByProject(projectId: string): Promise<StoredBook[]>;
+  place(id: string, projectId: string, volumeNumber: number): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+export interface ProjectRepository {
+  create(project: Project): Promise<void>;
+  get(id: string): Promise<Project | null>;
+  list(): Promise<Project[]>;
+  rename(id: string, name: string): Promise<void>;
   delete(id: string): Promise<void>;
 }
 
@@ -57,6 +68,7 @@ export interface BlobStore {
 }
 
 export interface Repositories {
+  projects: ProjectRepository;
   books: BookRepository;
   settings: BookSettingsRepository;
   jobs: JobRepository;

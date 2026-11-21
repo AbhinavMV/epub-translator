@@ -15,6 +15,8 @@ import type {
   Job,
   JobRepository,
   ParsedBook,
+  Project,
+  ProjectRepository,
   ProofreadRepository,
   ProviderBatch,
   ProviderBatchStatus,
@@ -24,6 +26,7 @@ import type {
   StoreFactory,
   TranslationRepository,
 } from "../../src/index.ts";
+import { compareVolumes } from "../../src/index.ts";
 
 export class MemoryBooks implements BookRepository {
   readonly rows = new Map<string, { book: StoredBook; parsed: ParsedBook }>();
@@ -51,6 +54,36 @@ export class MemoryBooks implements BookRepository {
   }
   async list() {
     return [...this.rows.values()].map((r) => r.book);
+  }
+  async listByProject(projectId: string) {
+    return (await this.list()).filter((b) => b.projectId === projectId).sort(compareVolumes);
+  }
+  async place(id: string, projectId: string, volumeNumber: number) {
+    const row = this.rows.get(id);
+    if (row) row.book = { ...row.book, projectId, volumeNumber };
+  }
+  async delete(id: string) {
+    this.rows.delete(id);
+  }
+}
+
+export class MemoryProjects implements ProjectRepository {
+  readonly rows = new Map<string, Project>();
+  async create(project: Project) {
+    this.rows.set(project.id, { ...project });
+  }
+  async get(id: string) {
+    const row = this.rows.get(id);
+    return row ? { ...row } : null;
+  }
+  async list() {
+    return [...this.rows.values()]
+      .map((p) => ({ ...p }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async rename(id: string, name: string) {
+    const row = this.rows.get(id);
+    if (row) row.name = name;
   }
   async delete(id: string) {
     this.rows.delete(id);
@@ -184,6 +217,7 @@ export class MemoryProofreads implements ProofreadRepository {
 }
 
 export interface MemoryRepos {
+  projects: MemoryProjects;
   books: MemoryBooks;
   settings: MemorySettings;
   jobs: MemoryJobs;
@@ -199,6 +233,7 @@ export class MemoryStoreFactory implements StoreFactory {
     let repos = this.owners.get(ownerId);
     if (!repos) {
       repos = {
+        projects: new MemoryProjects(),
         books: new MemoryBooks(),
         settings: new MemorySettings(),
         jobs: new MemoryJobs(),
