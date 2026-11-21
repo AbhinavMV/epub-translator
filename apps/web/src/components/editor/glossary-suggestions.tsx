@@ -1,6 +1,6 @@
 import type { GlossaryEntry, ProviderInfo, SampleSize } from "@et/contracts";
 import { Loader2, Sparkles, Square } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGlossaryPlan } from "@/api/queries";
 import { chunkSteps } from "@/api/suggestion-run";
 import { useSuggestionRun } from "@/api/use-suggestion-run";
@@ -36,12 +36,14 @@ export function GlossarySuggestions({
   providers,
   selection,
   onAdd,
+  onRunningChange,
 }: {
   bookId: string;
   targetLang: string;
   providers: ProviderInfo[] | undefined;
   selection: Selection | null;
   onAdd: (entries: GlossaryEntry[]) => void;
+  onRunningChange?: (running: boolean) => void;
 }) {
   const [size, setSize] = useState<SampleSize>("large");
   const plan = useGlossaryPlan(bookId, size);
@@ -51,6 +53,8 @@ export function GlossarySuggestions({
   );
   const [unchecked, setUnchecked] = useState<ReadonlySet<number>>(new Set());
   const suggestions = run.terms;
+
+  useEffect(() => onRunningChange?.(run.running), [run.running, onRunningChange]);
   const usage = run.usage;
 
   const provider = providers?.find((p) => p.id === selection?.provider);

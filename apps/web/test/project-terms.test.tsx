@@ -187,6 +187,17 @@ describe("project glossary and prompt", () => {
     });
   });
 
+  it("locks the volume picker while suggestions are running", async () => {
+    const api = { ...projectApi(), suggestGlossary: () => new Promise<never>(() => {}) };
+    renderAt("/projects/p1", api);
+    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
+    await screen.findByText(/1 request/);
+    const picker = screen.getByRole("combobox", { name: "Volume to sample" });
+    expect(picker).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await waitFor(() => expect(picker).toBeDisabled());
+  });
+
   it("suggests terms from the latest volume and adds accepted ones to the project", async () => {
     const suggestGlossary = vi.fn(async () => ({
       terms: [{ source: "サヤ", target: "Saya" }],
