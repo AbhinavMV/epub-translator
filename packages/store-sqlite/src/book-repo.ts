@@ -1,4 +1,4 @@
-import type { BookRepository, ParsedBook, StoredBook } from "@et/core";
+import { assertPlaced, type BookRepository, type ParsedBook, type StoredBook } from "@et/core";
 import type { Database } from "./db.ts";
 
 interface BookRow {
@@ -9,9 +9,12 @@ interface BookRow {
   source_lang: string | null;
   cover_href: string | null;
   created_at: string;
+  project_id: string | null;
+  volume_number: number | null;
 }
 
-const COLUMNS = "id, sha256, title, author, source_lang, cover_href, created_at";
+const COLUMNS =
+  "id, sha256, title, author, source_lang, cover_href, created_at, project_id, volume_number";
 
 function toBook(row: BookRow): StoredBook {
   return {
@@ -22,6 +25,8 @@ function toBook(row: BookRow): StoredBook {
     sourceLang: row.source_lang,
     coverHref: row.cover_href,
     createdAt: row.created_at,
+    projectId: row.project_id,
+    volumeNumber: row.volume_number,
   };
 }
 
@@ -31,8 +36,9 @@ export class SqliteBookRepository implements BookRepository {
   constructor(private readonly db: Database) {}
 
   async insert(book: StoredBook, parsed: ParsedBook): Promise<void> {
+    assertPlaced(book);
     this.db
-      .prepare(`INSERT INTO books (${COLUMNS}, parsed_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .prepare(`INSERT INTO books (${COLUMNS}, parsed_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(
         book.id,
         book.sha256,
@@ -41,11 +47,14 @@ export class SqliteBookRepository implements BookRepository {
         book.sourceLang,
         book.coverHref,
         book.createdAt,
+        book.projectId,
+        book.volumeNumber,
         JSON.stringify(parsed),
       );
   }
 
   async insertIfAbsent(book: StoredBook, parsed: ParsedBook): Promise<StoredBook> {
+    assertPlaced(book);
     const existing = await this.findBySha256(book.sha256);
     if (existing) return existing;
     await this.insert(book, parsed);
@@ -90,6 +99,22 @@ export class SqliteBookRepository implements BookRepository {
       .prepare(`SELECT ${COLUMNS} FROM books ORDER BY created_at DESC`)
       .all() as BookRow[];
     return rows.map(toBook);
+  }
+
+  async listByProject(projectId: string): Promise<StoredBook[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT ${COLUMNS} FROM books WHERE project_id = ?
+         ORDER BY volume_number IS NULL, volume_number, created_at, id`,
+      )
+      .all(projectId) as BookRow[];
+    return rows.map(toBook);
+  }
+
+  async place(id: string, projectId: string, volumeNumber: number): Promise<void> {
+    this.db
+      .prepare("UPDATE books SET project_id = ?, volume_number = ? WHERE id = ?")
+      .run(projectId, volumeNumber, id);
   }
 
   async delete(id: string): Promise<void> {

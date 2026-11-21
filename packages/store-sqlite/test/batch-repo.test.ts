@@ -6,6 +6,7 @@ import {
   SqliteBatchRepository,
   SqliteBookRepository,
   SqliteJobRepository,
+  SqliteProjectRepository,
 } from "../src/index.ts";
 
 const book: StoredBook = {
@@ -16,6 +17,8 @@ const book: StoredBook = {
   sourceLang: "ja",
   coverHref: null,
   createdAt: "2026-10-23T00:00:00.000Z",
+  projectId: "p1",
+  volumeNumber: 1,
 };
 const parsed: ParsedBook = {
   title: "本",
@@ -43,6 +46,7 @@ let db: Database;
 let repo: SqliteBatchRepository;
 beforeEach(async () => {
   db = openDatabase(":memory:");
+  await new SqliteProjectRepository(db).create({ id: "p1", name: "本", createdAt: book.createdAt });
   await new SqliteBookRepository(db).insert(book, parsed);
   await new SqliteJobRepository(db).insert({
     id: "j1",
@@ -80,6 +84,6 @@ describe("SqliteBatchRepository", () => {
   it("appends the provider_batches migration after the first schema", async () => {
     const columns = db.prepare("PRAGMA table_info(provider_batches)").all() as { name: string }[];
     expect(columns.map((c) => c.name)).toContain("vendor_batch_id");
-    expect(db.pragma("user_version", { simple: true })).toBe(4);
+    expect(db.pragma("user_version", { simple: true })).toBe(7);
   });
 });

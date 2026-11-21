@@ -132,9 +132,10 @@ export class FakeWorkApi implements WorkApi {
     return this.progress();
   }
 
-  plan: BatchPlan = { shared: SHARED, units: [], nextOffset: null };
+  plan: BatchPlan = { shared: SHARED, units: [], nextOffset: null, termsVersion: "v1" };
   planPageSize = Number.POSITIVE_INFINITY;
   readonly planOffsets: number[] = [];
+  termsVersions: string[] = [];
   async batchPlan(_jobId: string, _chapterId: string, offset = 0): Promise<BatchPlan> {
     this.planOffsets.push(offset);
     const units = this.plan.units.slice(offset, offset + this.planPageSize);
@@ -143,6 +144,7 @@ export class FakeWorkApi implements WorkApi {
       shared: this.plan.shared,
       units,
       nextOffset: end < this.plan.units.length ? end : null,
+      termsVersion: this.termsVersions.shift() ?? this.plan.termsVersion,
     };
   }
 

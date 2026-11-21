@@ -42,18 +42,20 @@ export function pgliteSql(db: PGlite): Sql {
   };
 }
 
-export async function createTestDatabase(): Promise<{ db: PGlite; sql: Sql }> {
+export async function createTestDatabase(
+  options: { before?: string } = {},
+): Promise<{ db: PGlite; sql: Sql }> {
   const db = new PGlite();
   const sql = pgliteSql(db);
   await db.exec(SUPABASE_STUBS);
   await applyMigrations(
     sql,
-    loadMigrations().filter((m) => !m.supabaseOnly),
+    loadMigrations().filter((m) => !m.supabaseOnly && (!options.before || m.name < options.before)),
   );
   await db.query("insert into auth.users (id) values ($1), ($2)", [ALICE, BOB]);
   return { db, sql };
 }
 
 export async function resetData(db: PGlite): Promise<void> {
-  await db.exec("truncate public.books, public.app_users, public.invites cascade");
+  await db.exec("truncate public.projects, public.books, public.app_users, public.invites cascade");
 }

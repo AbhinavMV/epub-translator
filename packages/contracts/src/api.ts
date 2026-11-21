@@ -74,8 +74,62 @@ export const BookSummarySchema = z.object({
   chapterCount: z.number(),
   segmentCount: z.number(),
   createdAt: z.string(),
+  projectId: z.string().nullable().optional(),
+  volumeNumber: z.number().nullable().optional(),
 });
 export type BookSummary = z.infer<typeof BookSummarySchema>;
+
+export const ProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.string(),
+});
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const ProjectSummarySchema = ProjectSchema.extend({
+  volumeCount: z.number(),
+  coverUrl: z.string().nullable(),
+});
+export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
+
+export const ProjectDetailSchema = ProjectSchema.extend({
+  books: z.array(BookSummarySchema),
+});
+export type ProjectDetail = z.infer<typeof ProjectDetailSchema>;
+
+export const RenameProjectBodySchema = z.object({
+  name: z.string().trim().min(1).max(200),
+});
+export type RenameProjectBody = z.infer<typeof RenameProjectBodySchema>;
+
+export const VolumeNumberSchema = z.number().min(0).max(9999);
+
+export const ImportPlacementSchema = z.union([
+  z.strictObject({ projectId: z.string().min(1), volumeNumber: VolumeNumberSchema.nullable() }),
+  z.strictObject({
+    projectName: z.string().trim().min(1).max(200),
+    volumeNumber: VolumeNumberSchema.nullable(),
+  }),
+]);
+export type ImportPlacement = z.infer<typeof ImportPlacementSchema>;
+
+export const ImportPreviewSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("duplicate"), book: BookSummarySchema }),
+  z.object({
+    kind: z.literal("new"),
+    title: z.string(),
+    seriesTitle: z.string(),
+    volumeNumber: z.number().nullable(),
+    project: ProjectSchema.nullable(),
+  }),
+]);
+export type ImportPreview = z.infer<typeof ImportPreviewSchema>;
+
+export const SetVolumeNumberBodySchema = z.object({ volumeNumber: VolumeNumberSchema });
+export type SetVolumeNumberBody = z.infer<typeof SetVolumeNumberBodySchema>;
+
+export const MoveBookBodySchema = z.object({ projectId: z.string().min(1) });
+export type MoveBookBody = z.infer<typeof MoveBookBodySchema>;
 
 export const GlossaryEntrySchema = z.object({
   source: z.string().min(1),
@@ -85,12 +139,51 @@ export const GlossaryEntrySchema = z.object({
 export type GlossaryEntry = z.infer<typeof GlossaryEntrySchema>;
 
 export const BookSettingsSchema = z.object({
-  customPrompt: z.string().max(4000),
-  glossary: z.array(GlossaryEntrySchema).max(500),
   provider: ProviderIdSchema.nullable(),
   model: z.string().nullable(),
 });
 export type BookSettings = z.infer<typeof BookSettingsSchema>;
+
+export const LegacyBookTermsSchema = z.object({
+  customPrompt: z.string().default(""),
+  glossary: z.array(GlossaryEntrySchema).default([]),
+});
+export type LegacyBookTerms = z.infer<typeof LegacyBookTermsSchema>;
+
+export const MAX_GLOSSARY_ENTRIES = 2000;
+export const MAX_CUSTOM_PROMPT = 4000;
+
+export const ProjectTermsSchema = z.object({
+  customPrompt: z.string().max(MAX_CUSTOM_PROMPT),
+  glossary: z.array(GlossaryEntrySchema).max(MAX_GLOSSARY_ENTRIES),
+});
+export type ProjectTerms = z.infer<typeof ProjectTermsSchema>;
+
+export const GlossaryRenderingSchema = z.object({
+  target: z.string().min(1),
+  note: z.string().optional(),
+  bookId: z.string(),
+  volumeNumber: z.number().nullable(),
+});
+export type GlossaryRendering = z.infer<typeof GlossaryRenderingSchema>;
+
+export const GlossaryConflictSchema = z.object({
+  source: z.string().min(1),
+  inForce: GlossaryRenderingSchema,
+  alternatives: z.array(GlossaryRenderingSchema).min(1),
+});
+export type GlossaryConflict = z.infer<typeof GlossaryConflictSchema>;
+
+export const ResolveGlossaryConflictSchema = z.object({
+  source: z.string().min(1),
+  target: z.string().min(1),
+});
+export type ResolveGlossaryConflict = z.infer<typeof ResolveGlossaryConflictSchema>;
+
+export const ProjectSettingsSchema = ProjectTermsSchema.extend({
+  glossaryConflicts: z.array(GlossaryConflictSchema),
+});
+export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
 
 export const BookDetailSchema = BookSummarySchema.extend({
   chapters: z.array(ChapterSummarySchema),

@@ -21,6 +21,7 @@ import {
   type MemoryRepos,
   MemoryStoreFactory,
   sampleParsed,
+  seedProjectTerms,
 } from "../fakes.ts";
 
 const limits = { maxChars: 4000, maxCount: 40, contextSize: 8 };
@@ -44,6 +45,8 @@ beforeEach(async () => {
       sha256: "x",
       coverHref: null,
       createdAt: "t",
+      projectId: "p1",
+      volumeNumber: 1,
     } as never,
     sampleParsed,
   );
@@ -62,11 +65,9 @@ const done = (text: string): SegmentTranslation => ({ text, status: "done" });
 
 describe("planWorkUnit", () => {
   it("leases the pending segments with prompt extras and context", async () => {
-    await repos.settings.put("b1", {
+    await seedProjectTerms(repos, "b1", {
       customPrompt: "be terse",
       glossary: [{ source: "一", target: "one" }],
-      provider: null,
-      model: null,
     });
     await repos.translations.put("j1", "a.xhtml#0", done("one"));
     const unit = await planWorkUnit(repos, leases, { jobId: "j1", chapterId: "ch-0", ...limits });
@@ -129,6 +130,8 @@ describe("planWorkUnit", () => {
         sha256: "y",
         coverHref: null,
         createdAt: "t",
+        projectId: "p1",
+        volumeNumber: 1,
       } as never,
       {
         ...sampleParsed,

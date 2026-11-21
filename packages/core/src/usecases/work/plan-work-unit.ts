@@ -7,6 +7,7 @@ import type { WorkLeaseRepository } from "../../ports/work-lease.ts";
 import { batchSegments } from "../../translation/batcher.ts";
 import { chapterWork } from "../chapter-work.ts";
 import { requireBook } from "../load-book.ts";
+import { projectTermsFor } from "../project-terms.ts";
 import { segmentRequest } from "./request.ts";
 
 export const LEASE_TTL_MS = 10 * 60 * 1000;
@@ -51,6 +52,7 @@ export async function planWorkUnit(
 ): Promise<WorkUnit | null> {
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
   const settings = await repos.settings.get(job.bookId);
+  const terms = await projectTermsFor(repos, job.bookId);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
   const translations = await repos.translations.forSegments(
     job.id,
@@ -81,7 +83,7 @@ export async function planWorkUnit(
         : [];
     });
     const { model: _model, ...request } = segmentRequest(
-      { job, parsed, settings, contextSize: input.contextSize },
+      { job, parsed, terms, contextSize: input.contextSize },
       settings.model ?? "",
       leased,
       context,

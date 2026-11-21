@@ -14,6 +14,8 @@ describe("exportText", () => {
         sourceLang: "ja",
         coverHref: null,
         createdAt: "",
+        projectId: "p1",
+        volumeNumber: 1,
       },
       sampleParsed,
     );
@@ -48,6 +50,8 @@ describe("exportText", () => {
         sourceLang: "ja",
         coverHref: null,
         createdAt: "",
+        projectId: "p1",
+        volumeNumber: 1,
       },
       sampleParsed,
     );

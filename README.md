@@ -23,15 +23,19 @@ pnpm dev                                 # api on 127.0.0.1:8787, web on http://
 
 Keys stay in `apps/api/.env` on your machine. The browser only sees whether a provider is configured. Data (the SQLite database and uploaded books) lives in `apps/api/data/`.
 
+**Upgrading a library from before projects:** stop the API, then run `pnpm --filter @et/api backfill:projects --sqlite data/translator.db` and then `pnpm --filter @et/api merge:project-settings --sqlite data/translator.db`, in that order. Each prints what it would do; add `--apply` to write. The SQLite schema upgrades itself when the API, or either script with `--apply`, opens the file. Run the backfill again after upgrading from an earlier projects build: it records each project's series title, which import uses to find a project whose books were all deleted. The second moves each book's glossary and prompt onto its project (translations use no glossary until it runs), keeping the higher volume's rendering when volumes disagree and recording the others as glossary conflicts.
+
 **Without a key:** set `ENABLE_FAKE_PROVIDER=1` in `apps/api/.env` to get "Offline test (no translation)", which echoes the source with a `[en]` prefix so you can try the whole flow for free.
 
 ## Using it
 
-1. **Library:** drop an `.epub` file.
-2. **Editor:**
+1. **Library:** drop an `.epub` file. Each book is a volume of a project.
+2. **Project:** the glossary and custom prompt belong to the project, so every volume uses the same terms.
+   - **Glossary → Suggest from book** samples a volume and proposes names and terms the glossary lacks, using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
+   - Edits apply from the next chapter or work unit; running chapters and submitted batches keep what they started with.
+3. **Editor:**
    - **Choosing how to translate:**
-     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h.
-     - **Glossary → Suggest from book** proposes names and terms using a cheap model. Review the suggestions, then save. **Edit prompt** adds style notes.
+     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. **Project** opens the book's project to edit its glossary and prompt.
    - **Translating:**
      - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail), so translated titles appear early. **Translate title & contents** does just that part.
      - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
@@ -42,11 +46,11 @@ Keys stay in `apps/api/.env` on your machine. The browser only sees whether a pr
      - **Proofread** checks this chapter, the chapters not yet proofread, or the whole book. Chapters run one at a time and carry names forward so they stay consistent. Multi-chapter runs ask first, because each sends the chapter text again.
      - Suggestions are tagged accuracy, consistency, terminology or fluency, and show as word diffs with a reason. Accept or reject them one by one or all at once.
      - Edits are vetted before they are shown (inline placeholders must still match the source). A suggestion whose paragraph changed since proofreading is marked outdated rather than applied.
-3. **Reader:**
+4. **Reader:**
    - Views: Translation, Interleaved or Side-by-side.
    - Layouts: **Scroll** or **Paged** (←/→, Space, tap or swipe).
    - Settings: font, size, width and theme.
-4. **Export:**
+5. **Export:**
    - **Export EPUB** (translation only or **Bilingual**) downloads the book with translated metadata. The originals are kept as `alternate-script` entries.
    - **Export TXT** gives plain text.
    - Untranslated chapters stay in the source language.

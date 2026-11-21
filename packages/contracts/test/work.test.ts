@@ -92,6 +92,7 @@ describe("large-chapter protocol", () => {
       },
       units: [{ customId: "0", segments: [{ id: "a#0", text: "x" }] }],
       nextOffset: null,
+      termsVersion: "0123456789abcdef",
     };
     expect(BatchPlanSchema.safeParse(plan).success).toBe(true);
     expect(BatchPlanQuerySchema.parse({}).offset).toBe(0);

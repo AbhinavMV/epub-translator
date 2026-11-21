@@ -6,7 +6,13 @@ import {
   recordClientBatch,
   type SegmentTranslation,
 } from "../../../src/index.ts";
-import { counterIds, fixedClock, type MemoryRepos, MemoryStoreFactory } from "../fakes.ts";
+import {
+  counterIds,
+  fixedClock,
+  type MemoryRepos,
+  MemoryStoreFactory,
+  seedProjectTerms,
+} from "../fakes.ts";
 
 const limits = { maxChars: 100, maxCount: 2, contextSize: 8 };
 const usage = { inputTokens: 3, outputTokens: 4 };
@@ -42,6 +48,8 @@ beforeEach(async () => {
       sha256: "x",
       coverHref: null,
       createdAt: "t",
+      projectId: "p1",
+      volumeNumber: 1,
     } as never,
     book,
   );
@@ -54,11 +62,9 @@ beforeEach(async () => {
     usage: zero,
     createdAt: "t",
   });
-  await repos.settings.put("b1", {
+  await seedProjectTerms(repos, "b1", {
     customPrompt: "be terse",
-    glossary: [{ source: "一", target: "one" }],
-    provider: null,
-    model: null,
+    glossary: [{ source: "文0", target: "text zero" }],
   });
 });
 
@@ -81,15 +87,17 @@ describe("planBatchUnits pages", () => {
   const plan = (offset: number, pageChars: number) =>
     planBatchUnits(repos, { jobId: "j1", chapterId: "ch-0", offset, pageChars, ...limits });
 
-  it("sends the prompt fields once and keeps them out of the units", async () => {
+  it("sends the prompt fields once and gives only the unit that uses a term its entry", async () => {
     const page = await plan(0, 1_000_000);
     expect(page.shared).toMatchObject({
       sourceLang: "ja",
       bookTitle: "本",
       instructions: "be terse",
-      glossary: [{ source: "一", target: "one" }],
     });
-    for (const unit of page.units) {
+    expect(page.shared).not.toHaveProperty("glossary");
+    const [first, ...rest] = page.units;
+    expect(first?.glossary).toEqual([{ source: "文0", target: "text zero" }]);
+    for (const unit of rest) {
       expect(Object.keys(unit).sort()).toEqual(["customId", "segments"]);
     }
   });
@@ -111,6 +119,13 @@ describe("planBatchUnits pages", () => {
     expect(pages).toBeGreaterThan(1);
     expect(seen).toEqual(ids);
     expect(customIds).toEqual(Array.from({ length: customIds.length }, (_, i) => String(i)));
+  });
+
+  it("stamps every page with the terms it was planned from, so an edit between pages shows", async () => {
+    const first = await plan(0, 6);
+    expect((await plan(first.nextOffset ?? 0, 6)).termsVersion).toBe(first.termsVersion);
+    await seedProjectTerms(repos, "b1", { customPrompt: "be terse", glossary: [] });
+    expect((await plan(first.nextOffset ?? 0, 6)).termsVersion).not.toBe(first.termsVersion);
   });
 
   it("returns an empty final page while a batch is in flight", async () => {

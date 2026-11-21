@@ -1,8 +1,11 @@
 import type {
   BookSettings,
   ChapterView,
+  ImportPlacement,
   JobSummary,
+  ProjectTerms,
   ProofreadDecisionBody,
+  ResolveGlossaryConflict,
   SuggestGlossaryBody,
   TranslateBody,
 } from "@et/contracts";
@@ -15,7 +18,90 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useApi } from "./api-context";
+import type { PendingImport } from "./client";
 import { keys } from "./keys";
+
+export function useProjects() {
+  const api = useApi();
+  return useQuery({ queryKey: keys.projects, queryFn: () => api.listProjects() });
+}
+
+export function useProject(id: string) {
+  const api = useApi();
+  return useQuery({ queryKey: keys.project(id), queryFn: () => api.getProject(id) });
+}
+
+export function useRenameProject(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.renameProject(id, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.projects }),
+  });
+}
+
+export function useDeleteProject(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.deleteProject(id),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: keys.project(id) });
+      queryClient.removeQueries({ queryKey: keys.projectSettings(id) });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.books }),
+        queryClient.invalidateQueries({ queryKey: keys.projects, exact: true }),
+      ]);
+    },
+  });
+}
+
+export function useMoveBook(bookId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string) => api.moveBook(bookId, projectId),
+    onSuccess: () =>
+      Promise.all([
+        invalidateLibrary(queryClient),
+        queryClient.invalidateQueries({ queryKey: keys.book(bookId) }),
+      ]),
+  });
+}
+
+export function useProjectSettings(id: string | undefined) {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.projectSettings(id ?? ""),
+    queryFn: () => api.getProjectSettings(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveProjectTerms(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (terms: ProjectTerms) => api.saveProjectTerms(id, terms),
+    onSuccess: (settings) => queryClient.setQueryData(keys.projectSettings(id), settings),
+  });
+}
+
+export function useResolveGlossaryConflict(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (choice: ResolveGlossaryConflict) => api.resolveGlossaryConflict(id, choice),
+    onSuccess: (settings) => queryClient.setQueryData(keys.projectSettings(id), settings),
+  });
+}
+
+function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: keys.books }),
+    queryClient.invalidateQueries({ queryKey: keys.projects }),
+  ]);
+}
 
 export function useBooks() {
   const api = useApi();
@@ -96,12 +182,30 @@ export function useChapter(
   };
 }
 
-export function useUploadBook() {
+export function usePrepareImport() {
+  const api = useApi();
+  return useMutation({ mutationFn: (file: File) => api.prepareImport(file) });
+}
+
+export function useCommitImport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pending, placement }: { pending: PendingImport; placement: ImportPlacement }) =>
+      pending.commit(placement),
+    onSuccess: () => invalidateLibrary(queryClient),
+  });
+}
+
+export function useSetVolumeNumber(bookId: string) {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => api.uploadBook(file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.books }),
+    mutationFn: (volumeNumber: number) => api.setVolumeNumber(bookId, volumeNumber),
+    onSuccess: () =>
+      Promise.all([
+        invalidateLibrary(queryClient),
+        queryClient.invalidateQueries({ queryKey: keys.book(bookId) }),
+      ]),
   });
 }
 
@@ -110,7 +214,7 @@ export function useDeleteBook() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deleteBook(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.books }),
+    onSuccess: () => invalidateLibrary(queryClient),
   });
 }
 

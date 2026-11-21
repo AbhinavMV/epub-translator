@@ -1,7 +1,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql, withOwner } from "../src/index.ts";
-import { batch, book, job, parsed } from "./fixtures.ts";
+import { batch, book, insertBook, job, parsed, project } from "./fixtures.ts";
 import { ALICE, BOB, createTestDatabase, resetData } from "./harness.ts";
 
 let db: PGlite;
@@ -14,11 +14,17 @@ afterAll(() => db.close());
 beforeEach(async () => {
   await resetData(db);
   const bob = new PostgresStoreFactory(sql).forOwner(BOB);
-  await bob.books.insert(book, parsed);
+  await bob.projects.create(project);
+  await bob.books.insert({ ...book, projectId: project.id, volumeNumber: 1 }, parsed);
   await bob.jobs.insert(job);
   await bob.translations.put("j1", "s1", { text: "secret", status: "done" });
   await bob.batches.insert(batch());
-  await bob.settings.put("b1", { customPrompt: "p", glossary: [], provider: null, model: null });
+  await bob.settings.put("b1", { provider: null, model: null });
+  await bob.projectSettings.put(project.id, {
+    customPrompt: "p",
+    glossary: [],
+    glossaryConflicts: [],
+  });
   await sql.query(
     "insert into work_leases (owner_id, id, job_id, chapter_id, segment_ids, leased_until) values ($1, 'l1', 'j1', 'ch-0', '[]', now() + interval '1 hour')",
     [BOB],
@@ -34,6 +40,8 @@ beforeEach(async () => {
 });
 
 const OWNER_TABLES = [
+  "projects",
+  "project_settings",
   "books",
   "book_settings",
   "jobs",
@@ -85,7 +93,7 @@ describe("row level security", () => {
 
   it("cannot move a row to another owner", async () => {
     const alice = new PostgresStoreFactory(sql).forOwner(ALICE);
-    await alice.books.insert({ ...book, id: "a1", sha256: "a" }, parsed);
+    await insertBook(alice, { ...book, id: "a1", sha256: "a" });
     await expect(
       withOwner(sql, ALICE, (tx) =>
         tx.query("update books set owner_id = $1 where id = 'a1'", [BOB]),
@@ -100,6 +108,12 @@ describe("row level security", () => {
           "insert into jobs (owner_id, id, book_id, target_lang, created_at) values ($1, 'jx', 'b1', 'fr', now())",
           [ALICE],
         ),
+      ),
+    ).rejects.toThrow(/foreign key/);
+    await expect(
+      sql.query(
+        "insert into books (owner_id, id, sha256, title, created_at, parsed_json, project_id) values ($1, 'bx', 'x', 't', now(), '{}', $2)",
+        [ALICE, project.id],
       ),
     ).rejects.toThrow(/foreign key/);
     await expect(

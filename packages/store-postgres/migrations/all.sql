@@ -307,3 +307,69 @@ create policy proofreads_owner on public.proofreads
   for all to et_owner
   using ((select auth.uid()) = owner_id)
   with check ((select auth.uid()) = owner_id);
+
+-- 0009_projects.sql
+-- books.project_id stays nullable here: existing books are placed in projects by the
+-- backfill script after this runs, and a later migration can make it NOT NULL.
+
+create table if not exists public.projects (
+  owner_id uuid not null references auth.users (id) on delete cascade,
+  id text not null,
+  name text not null,
+  created_at timestamptz not null,
+  primary key (owner_id, id)
+);
+
+alter table public.projects enable row level security;
+revoke all on public.projects from anon, authenticated;
+grant select, insert, update, delete on public.projects to et_owner;
+
+drop policy if exists projects_owner on public.projects;
+create policy projects_owner on public.projects
+  for all to et_owner
+  using ((select auth.uid()) = owner_id)
+  with check ((select auth.uid()) = owner_id);
+
+alter table public.books add column if not exists project_id text;
+alter table public.books add column if not exists volume_number double precision;
+
+do $$ begin
+  if not exists (select from pg_constraint where conname = 'books_project_fkey') then
+    alter table public.books add constraint books_project_fkey
+      foreign key (owner_id, project_id) references public.projects (owner_id, id);
+  end if;
+end $$;
+
+create index if not exists books_project
+  on public.books (owner_id, project_id, volume_number, created_at);
+
+-- 0010_project_settings.sql
+create table if not exists public.project_settings (
+  owner_id uuid not null references auth.users (id) on delete cascade,
+  project_id text not null,
+  json jsonb not null,
+  primary key (owner_id, project_id),
+  foreign key (owner_id, project_id) references public.projects (owner_id, id) on delete cascade
+);
+
+alter table public.project_settings enable row level security;
+revoke all on public.project_settings from anon, authenticated;
+grant select, insert, update, delete on public.project_settings to et_owner;
+
+drop policy if exists project_settings_owner on public.project_settings;
+create policy project_settings_owner on public.project_settings
+  for all to et_owner
+  using ((select auth.uid()) = owner_id)
+  with check ((select auth.uid()) = owner_id);
+
+-- 0011_project_series_title.sql
+-- Import suggests an emptied project by the series it was made from, not by its name,
+-- so a renamed project is still found. backfill:projects fills it for existing projects.
+alter table public.projects add column if not exists series_title text;
+
+create index if not exists projects_series_title on public.projects (owner_id, series_title);
+
+-- 0012_books_project_required.sql
+-- Run only after backfill:projects --apply has placed every book in a project (and
+-- merge:project-settings --apply has moved the glossaries); it fails while any book has none.
+alter table public.books alter column project_id set not null;

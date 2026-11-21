@@ -18,6 +18,7 @@ import { type BatchDeps, BatchRunner } from "./batch-runner.ts";
 import { chapterSegmentIds, chapterWork } from "./chapter-work.ts";
 import { type ChapterRuntime, chapterProgress, jobSummary } from "./job-progress.ts";
 import { requireBook } from "./load-book.ts";
+import { projectTermsFor } from "./project-terms.ts";
 import { titleSegmentIds, translatedTitles } from "./translated-titles.ts";
 import { recordResults } from "./work/record-results.ts";
 import { segmentRequest } from "./work/request.ts";
@@ -388,8 +389,8 @@ export class JobRunner {
     await this.publishChapter(repos, task.jobId, parsed, task.chapterId);
     await this.publishJob(repos, task.jobId);
 
-    const settings = await repos.settings.get(job.bookId);
-    const requestContext = { job, parsed, settings, contextSize: this.options.contextSize };
+    const terms = await projectTermsFor(repos, job.bookId);
+    const requestContext = { job, parsed, terms, contextSize: this.options.contextSize };
     const translator = new SegmentTranslator(task.provider, this.deps.sleep);
     const segments = parsed.segments.filter((s) => s.chapterId === task.chapterId);
     const { pending, context } = chapterWork(

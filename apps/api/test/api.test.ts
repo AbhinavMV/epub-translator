@@ -4,6 +4,9 @@ import {
   ChapterViewSchema,
   GlossaryEntrySchema,
   JobSummarySchema,
+  ProjectDetailSchema,
+  ProjectSettingsSchema,
+  ProjectSummarySchema,
   ProviderInfoSchema,
 } from "@et/contracts";
 import {
@@ -142,18 +145,13 @@ describe("books api", () => {
       await (await app.request(`/api/books/${book.id}`)).json(),
     );
     expect(detail.chapters[0]).toMatchObject({ id: "ch-0", segmentCount: 2, charCount: 5 });
-    expect(detail.settings.customPrompt).toBe("");
+    expect(detail.settings).toEqual({ provider: null, model: null });
   });
 
   it("settings round-trip and reject invalid bodies", async () => {
     const { app } = setup();
     const book = BookSummarySchema.parse(await (await upload(app)).json());
-    const settings = {
-      customPrompt: "Be terse",
-      glossary: [{ source: "シャル", target: "Charlotte" }],
-      provider: "fake",
-      model: "fake-echo",
-    };
+    const settings = { provider: "fake", model: "fake-echo" };
     const put = await app.request(`/api/books/${book.id}/settings`, {
       method: "PUT",
       body: JSON.stringify(settings),
@@ -162,7 +160,7 @@ describe("books api", () => {
     expect(put.status).toBe(200);
     const bad = await app.request(`/api/books/${book.id}/settings`, {
       method: "PUT",
-      body: JSON.stringify({ customPrompt: 1 }),
+      body: JSON.stringify({ provider: "nope" }),
       headers: { "content-type": "application/json" },
     });
     expect(bad.status).toBe(400);
@@ -199,6 +197,80 @@ describe("books api", () => {
   });
 });
 
+describe("projects api", () => {
+  it("an upload appears in the library as a one-volume project", async () => {
+    const { app } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    expect(book.volumeNumber).toBe(1);
+    const list = z
+      .array(ProjectSummarySchema)
+      .parse(await (await app.request("/api/projects")).json());
+    expect(list).toEqual([
+      {
+        id: book.projectId,
+        name: "本",
+        createdAt: book.createdAt,
+        volumeCount: 1,
+        coverUrl: `/api/books/${book.id}/cover`,
+      },
+    ]);
+  });
+
+  it("project page lists books in volume order and shows volume 1's cover in the library", async () => {
+    const { app, services } = setup();
+    const first = BookSummarySchema.parse(await (await upload(app)).json());
+    const second = BookSummarySchema.parse(
+      await (await upload(app, new Uint8Array([...EPUB_MAGIC, 2]))).json(),
+    );
+    const projectId = first.projectId ?? "";
+    expect(second.projectId).toBe(projectId);
+    await services.repos.books.place(first.id, projectId, 2);
+    await services.repos.books.place(second.id, projectId, 1);
+
+    const detail = ProjectDetailSchema.parse(
+      await (await app.request(`/api/projects/${projectId}`)).json(),
+    );
+    expect(detail.books.map((b) => [b.id, b.volumeNumber])).toEqual([
+      [second.id, 1],
+      [first.id, 2],
+    ]);
+    const [summary] = z
+      .array(ProjectSummarySchema)
+      .parse(await (await app.request("/api/projects")).json());
+    expect(summary).toMatchObject({ volumeCount: 2, coverUrl: `/api/books/${second.id}/cover` });
+  });
+
+  it("renames a project and rejects blank names", async () => {
+    const { app } = setup();
+    const book = BookSummarySchema.parse(await (await upload(app)).json());
+    const rename = (name: unknown) =>
+      app.request(`/api/projects/${book.projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+        headers: { "content-type": "application/json" },
+      });
+    const res = await rename("  Spice and Wolf ");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: book.projectId, name: "Spice and Wolf" });
+    expect((await rename("   ")).status).toBe(400);
+    const detail = ProjectDetailSchema.parse(
+      await (await app.request(`/api/projects/${book.projectId}`)).json(),
+    );
+    expect(detail.name).toBe("Spice and Wolf");
+  });
+
+  it("404s an unknown project", async () => {
+    const { app } = setup();
+    expect((await app.request("/api/projects/nope")).status).toBe(404);
+    const res = await app.request("/api/projects/nope", {
+      method: "PATCH",
+      body: JSON.stringify({ name: "x" }),
+      headers: { "content-type": "application/json" },
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("glossary suggestion api", () => {
   const latin: ParsedBook = {
     ...parsed,
@@ -225,14 +297,9 @@ describe("glossary suggestion api", () => {
 
   it("returns unsaved suggestions that skip existing glossary sources, with usage headers", async () => {
     const { app, book } = await setupLatin();
-    await app.request(`/api/books/${book.id}/settings`, {
+    await app.request(`/api/projects/${book.projectId}/settings`, {
       method: "PUT",
-      body: JSON.stringify({
-        customPrompt: "",
-        glossary: [{ source: "Alice", target: "Alicia" }],
-        provider: null,
-        model: null,
-      }),
+      body: JSON.stringify({ customPrompt: "", glossary: [{ source: "Alice", target: "Alicia" }] }),
       headers: { "content-type": "application/json" },
     });
 
@@ -246,10 +313,10 @@ describe("glossary suggestion api", () => {
         .map((t) => t.source),
     ).toEqual(["Bob"]);
     expect(Number(res.headers.get("x-usage-input-tokens"))).toBeGreaterThan(0);
-    const detail = BookDetailSchema.parse(
-      await (await app.request(`/api/books/${book.id}`)).json(),
+    const project = ProjectSettingsSchema.parse(
+      await (await app.request(`/api/projects/${book.projectId}/settings`)).json(),
     );
-    expect(detail.settings.glossary).toHaveLength(1);
+    expect(project.glossary).toHaveLength(1);
   });
 
   it("returns 400 for a provider that is not configured", async () => {

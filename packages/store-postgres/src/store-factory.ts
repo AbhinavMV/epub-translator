@@ -6,6 +6,8 @@ import { PostgresBookSettingsRepository } from "./book-settings-repo.ts";
 import { PostgresInviteRepository } from "./invite-repo.ts";
 import { PostgresJobRepository } from "./job-repo.ts";
 import { ParsedBookCache } from "./parsed-cache.ts";
+import { PostgresProjectRepository } from "./project-repo.ts";
+import { PostgresProjectSettingsRepository } from "./project-settings-repo.ts";
 import { PostgresProofreadRepository } from "./proofread-repo.ts";
 import type { Sql } from "./sql.ts";
 import { PostgresTranslationRepository } from "./translation-repo.ts";
@@ -41,6 +43,8 @@ export class PostgresStoreFactory implements StoreFactory {
   forOwner(ownerId: string): Repositories & { books: PostgresBookRepository } {
     assertOwner(ownerId);
     return {
+      projects: new PostgresProjectRepository(this.sql, ownerId),
+      projectSettings: new PostgresProjectSettingsRepository(this.sql, ownerId),
       books: new PostgresBookRepository(this.sql, ownerId, this.cache),
       settings: new PostgresBookSettingsRepository(this.sql, ownerId),
       jobs: new PostgresJobRepository(this.sql, ownerId),
@@ -48,6 +52,13 @@ export class PostgresStoreFactory implements StoreFactory {
       batches: new PostgresBatchRepository(this.sql, ownerId),
       proofreads: new PostgresProofreadRepository(this.sql, ownerId),
     };
+  }
+
+  async bookOwners(): Promise<string[]> {
+    const rows = await this.sql.query<{ owner_id: string }>(
+      "select distinct owner_id::text as owner_id from public.books order by 1",
+    );
+    return rows.map((r) => r.owner_id);
   }
 
   leasesForOwner(ownerId: string): PostgresWorkLeaseRepository {

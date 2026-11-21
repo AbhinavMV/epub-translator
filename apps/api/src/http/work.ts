@@ -17,6 +17,7 @@ import {
   type ProviderBatch,
   planBatchUnits,
   planWorkUnit,
+  projectTermsFor,
   recordClientBatch,
   releaseWorkLease,
   requireBook,
@@ -152,7 +153,7 @@ export function glossarySampleRoutes() {
         sample: buildSample(parsed, DEFAULT_SAMPLE_CHARS),
         sourceLang: parsed.sourceLang ?? book.sourceLang,
         bookTitle: book.title,
-        existing: (await c.var.repos.settings.get(bookId)).glossary,
+        existing: (await projectTermsFor(c.var.repos, bookId)).glossary,
         targetLang: c.req.valid("query").targetLang,
       });
     },

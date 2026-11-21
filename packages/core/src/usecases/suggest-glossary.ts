@@ -1,17 +1,18 @@
 import { type GlossaryEntry, getTargetLanguage, type Usage } from "@et/contracts";
 import type { ParsedBook } from "../domain/book.ts";
 import { FatalProviderError } from "../domain/errors.ts";
-import type { BookRepository, BookSettingsRepository, JobRepository } from "../ports/stores.ts";
+import type { BookRepository, JobRepository, ProjectSettingsRepository } from "../ports/stores.ts";
 import type { TermExtractor } from "../ports/term-extractor.ts";
 import { stripTokens } from "../translation/placeholders.ts";
 import { requireBook } from "./load-book.ts";
+import { projectTermsFor } from "./project-terms.ts";
 
 export const DEFAULT_SAMPLE_CHARS = 12_000;
 export const MAX_SUGGESTED_TERMS = 60;
 
 export interface SuggestGlossaryDeps {
   books: BookRepository;
-  settings: BookSettingsRepository;
+  projectSettings: ProjectSettingsRepository;
   jobs: JobRepository;
   extractor: TermExtractor;
 }
@@ -93,7 +94,7 @@ export async function suggestGlossary(
 ): Promise<GlossarySuggestions> {
   const { book, parsed } = await requireBook(deps.books, input.bookId);
   const target = getTargetLanguage(input.targetLang);
-  const existing = (await deps.settings.get(input.bookId)).glossary;
+  const { glossary: existing } = await projectTermsFor(deps, input.bookId);
 
   const result = await deps.extractor.extractTerms(
     {

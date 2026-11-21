@@ -6,7 +6,9 @@
     "test": "vitest run --testTimeout 20000 --hookTimeout 60000 --fsModuleCachePath .vitest-cache --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json",
     "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
-    "start": "tsx --env-file-if-exists=.env src/main.ts"
+    "start": "tsx --env-file-if-exists=.env src/main.ts",
+    "backfill:projects": "tsx --env-file-if-exists=.env scripts/backfill-projects.ts",
+    "merge:project-settings": "tsx --env-file-if-exists=.env scripts/merge-project-settings.ts"
   },
   "dependencies": {
     "@et/contracts": "workspace:*",

@@ -205,9 +205,9 @@ describe("PostgresWorkLeaseFactory", () => {
   it("gives disjoint, owner-scoped leases with the core port's semantics", async () => {
     const { db, sql } = await createTestDatabase();
     const factory = new PostgresStoreFactory(sql);
-    const { book, job, parsed } = await import("@et/store-postgres/fixtures");
+    const { job, insertBook } = await import("@et/store-postgres/fixtures");
     const repos = factory.forOwner(ALICE);
-    await repos.books.insert(book, parsed);
+    await insertBook(repos);
     await repos.jobs.insert(job);
     const leases = new PostgresWorkLeaseFactory(factory).forOwner(ALICE);
     const first = await leases.lease(job.id, "ch-0", ["s0", "s1"], 60_000);

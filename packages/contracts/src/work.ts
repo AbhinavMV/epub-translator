@@ -18,9 +18,12 @@ const sharedFields = {
   bookTitle: z.string(),
   context: ContextSchema,
   instructions: z.string().optional(),
+};
+const unitFields = {
+  segments: z.array(SegmentSourceSchema),
   glossary: z.array(GlossaryEntrySchema).optional(),
 };
-const requestFields = { ...sharedFields, segments: z.array(SegmentSourceSchema) };
+const requestFields = { ...sharedFields, ...unitFields };
 
 export const WorkUnitSchema = z.object({
   leaseId: z.string(),
@@ -33,12 +36,13 @@ export type WorkUnitDto = z.infer<typeof WorkUnitSchema>;
 
 export const BatchUnitSchema = z.object({
   customId: z.string(),
-  segments: z.array(SegmentSourceSchema),
+  ...unitFields,
 });
 export const BatchPlanSchema = z.object({
   shared: z.object(sharedFields),
   units: z.array(BatchUnitSchema),
   nextOffset: z.number().int().min(0).nullable(),
+  termsVersion: z.string(),
 });
 export type BatchPlan = z.infer<typeof BatchPlanSchema>;
 

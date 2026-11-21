@@ -1,7 +1,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql } from "../src/index.ts";
-import { book, job, parsed } from "./fixtures.ts";
+import { insertBook, job } from "./fixtures.ts";
 import { ALICE, BOB, createTestDatabase, resetData } from "./harness.ts";
 
 let db: PGlite;
@@ -28,7 +28,7 @@ beforeEach(async () => {
   clock = new Date("2026-10-28T12:00:00.000Z");
   n = 0;
   const repos = new PostgresStoreFactory(sql).forOwner(ALICE);
-  await repos.books.insert(book, parsed);
+  await insertBook(repos);
   await repos.jobs.insert(job);
 });
 

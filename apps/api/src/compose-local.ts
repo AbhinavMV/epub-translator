@@ -1,7 +1,12 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { LOCAL_OWNER_ID } from "@et/contracts";
-import type { BatchTranslationProvider, BlobStore, TranslationProvider } from "@et/core";
+import type {
+  BatchTranslationProvider,
+  BlobStore,
+  Proofreader,
+  TranslationProvider,
+} from "@et/core";
 import { JobRunner, MemoryWorkLeaseFactory } from "@et/core";
 import { XmlChapterRenderer, YauzlEpubAssets, YauzlEpubParser, YazlEpubExporter } from "@et/epub";
 import {
@@ -26,6 +31,7 @@ export interface LocalServiceOptions {
   epub: EpubAdapters;
   fakeProvider?: TranslationProvider;
   fakeBatchProvider?: BatchTranslationProvider;
+  fakeProofreader?: Proofreader;
   discoverModels?: boolean;
 }
 
@@ -42,7 +48,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
       defaultModel: "fake-echo",
       terms: new FakeTermExtractor(),
       termsModel: "fake-echo",
-      proofreader: new FakeProofreader(),
+      proofreader: options.fakeProofreader ?? new FakeProofreader(),
     });
   }
   const providers = new ProviderCatalog(registry, options.discoverModels ?? false);

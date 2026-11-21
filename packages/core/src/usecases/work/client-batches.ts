@@ -6,7 +6,9 @@ import type { JobEventSink } from "../../ports/events.ts";
 import type { Repositories } from "../../ports/stores.ts";
 import type { Clock, IdGenerator } from "../../ports/system.ts";
 import { batchSegments } from "../../translation/batcher.ts";
+import { termsVersion } from "../../translation/terms-version.ts";
 import { chapterWork } from "../chapter-work.ts";
+import { projectTermsFor } from "../project-terms.ts";
 import { chapterProgressOf } from "./apply-work-result.ts";
 import { loadChapterJob, type WorkLimits, type WorkUnit } from "./plan-work-unit.ts";
 import { recordResults } from "./record-results.ts";
@@ -15,18 +17,18 @@ import { vetClientResults } from "./vet-results.ts";
 
 export type BatchSharedRequest = Omit<
   WorkUnit,
-  "leaseId" | "jobId" | "chapterId" | "model" | "segments"
+  "leaseId" | "jobId" | "chapterId" | "model" | "segments" | "glossary"
 >;
 
-export interface BatchUnit {
+export interface BatchUnit extends Pick<WorkUnit, "segments" | "glossary"> {
   customId: string;
-  segments: { id: string; text: string }[];
 }
 
 export interface BatchPlanPage {
   shared: BatchSharedRequest;
   units: BatchUnit[];
   nextOffset: number | null;
+  termsVersion: string;
 }
 
 export const BATCH_PLAN_PAGE_CHARS = 800_000;
@@ -41,7 +43,8 @@ export async function planBatchUnits(
   } & WorkLimits,
 ): Promise<BatchPlanPage> {
   const { job, parsed } = await loadChapterJob(repos, input.jobId, input.chapterId);
-  const settings = await repos.settings.get(job.bookId);
+  const terms = await projectTermsFor(repos, job.bookId);
+  const version = termsVersion(terms);
   const segments = parsed.segments.filter((s) => s.chapterId === input.chapterId);
   const { pending, context } = chapterWork(
     segments,
@@ -50,13 +53,15 @@ export async function planBatchUnits(
       segments.map((s) => s.id),
     ),
   );
+  const requestContext = { job, parsed, terms, contextSize: input.contextSize };
   const {
     model: _model,
     segments: _segments,
+    glossary: _glossary,
     ...shared
-  } = segmentRequest({ job, parsed, settings, contextSize: input.contextSize }, "", [], context);
+  } = segmentRequest(requestContext, "", [], context);
   if (await repos.batches.openForChapter(job.id, input.chapterId)) {
-    return { shared, units: [], nextOffset: null };
+    return { shared, units: [], nextOffset: null, termsVersion: version };
   }
 
   const splits = batchSegments(pending, input.maxChars, input.maxCount);
@@ -69,13 +74,16 @@ export async function planBatchUnits(
     const split = splits[next] ?? [];
     const size = split.reduce((n, s) => n + s.sourceText.length, 0);
     if (units.length > 0 && used + size > budget) break;
-    units.push({
-      customId: String(next),
-      segments: split.map((s) => ({ id: s.id, text: s.sourceText })),
-    });
+    const { segments, glossary } = segmentRequest(requestContext, "", split, context);
+    units.push({ customId: String(next), segments, ...(glossary ? { glossary } : {}) });
     used += size;
   }
-  return { shared, units, nextOffset: next < splits.length ? next : null };
+  return {
+    shared,
+    units,
+    nextOffset: next < splits.length ? next : null,
+    termsVersion: version,
+  };
 }
 
 export interface RecordBatchInput {

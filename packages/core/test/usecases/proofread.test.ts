@@ -13,7 +13,7 @@ import {
   type SegmentTranslation,
   splitProofreadParts,
 } from "../../src/index.ts";
-import { fixedClock, type MemoryRepos, MemoryStoreFactory } from "./fakes.ts";
+import { fixedClock, type MemoryRepos, MemoryStoreFactory, seedProjectTerms } from "./fakes.ts";
 
 const done = (text: string): SegmentTranslation => ({ text, status: "done" });
 const noSleep = async () => {};
@@ -45,6 +45,8 @@ beforeEach(async () => {
       sha256: "x",
       coverHref: null,
       createdAt: "t",
+      projectId: "p1",
+      volumeNumber: 1,
     } as never,
     {
       title: "本",
@@ -63,11 +65,9 @@ beforeEach(async () => {
       ],
     },
   );
-  await repos.settings.put("b1", {
+  await seedProjectTerms(repos, "b1", {
     customPrompt: "keep honorifics",
     glossary: [{ source: "シャル", target: "Shal" }],
-    provider: null,
-    model: null,
   });
   await repos.jobs.insert({
     id: "j1",

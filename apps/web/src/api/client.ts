@@ -13,8 +13,20 @@ import {
   type ExportLayout,
   type GlossaryEntry,
   GlossaryEntrySchema,
+  type ImportPlacement,
+  type ImportPreview,
+  ImportPreviewSchema,
   type JobSummary,
   JobSummarySchema,
+  type Project,
+  type ProjectDetail,
+  ProjectDetailSchema,
+  ProjectSchema,
+  type ProjectSettings,
+  ProjectSettingsSchema,
+  type ProjectSummary,
+  ProjectSummarySchema,
+  type ProjectTerms,
   type ProofreadBody,
   type ProofreadDecisionBody,
   type ProofreadRun,
@@ -23,6 +35,7 @@ import {
   ProofreadSummarySchema,
   type ProviderInfo,
   ProviderInfoSchema,
+  type ResolveGlossaryConflict,
   type SuggestGlossaryBody,
   type TranslateBody,
   type Usage,
@@ -54,9 +67,23 @@ export interface GlossarySuggestion {
   usage: Usage | null;
 }
 
+export interface PendingImport {
+  preview: ImportPreview;
+  commit(placement: ImportPlacement): Promise<BookSummary>;
+}
+
 export interface Api {
+  listProjects(): Promise<ProjectSummary[]>;
+  getProject(id: string): Promise<ProjectDetail>;
+  renameProject(id: string, name: string): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
+  getProjectSettings(id: string): Promise<ProjectSettings>;
+  saveProjectTerms(id: string, terms: ProjectTerms): Promise<ProjectSettings>;
+  resolveGlossaryConflict(id: string, choice: ResolveGlossaryConflict): Promise<ProjectSettings>;
   listBooks(): Promise<BookSummary[]>;
-  uploadBook(file: File): Promise<BookSummary>;
+  prepareImport(file: File): Promise<PendingImport>;
+  setVolumeNumber(bookId: string, volumeNumber: number): Promise<BookSummary>;
+  moveBook(bookId: string, projectId: string): Promise<BookSummary>;
   getBook(id: string): Promise<BookDetail>;
   deleteBook(id: string): Promise<void>;
   saveSettings(id: string, settings: BookSettings): Promise<BookSettings>;
@@ -176,8 +203,32 @@ export function createHttpApi(
   const enc = encodeURIComponent;
 
   return {
+    listProjects: () => json("/projects", list(ProjectSummarySchema)),
+    getProject: (id) => json(`/projects/${enc(id)}`, ProjectDetailSchema),
+    renameProject: (id, name) =>
+      json(`/projects/${enc(id)}`, ProjectSchema, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      }),
+    async deleteProject(id) {
+      await raw(`/projects/${enc(id)}`, { method: "DELETE" });
+    },
+    getProjectSettings: (id) => json(`/projects/${enc(id)}/settings`, ProjectSettingsSchema),
+    saveProjectTerms: (id, terms) =>
+      json(`/projects/${enc(id)}/settings`, ProjectSettingsSchema, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(terms),
+      }),
+    resolveGlossaryConflict: (id, choice) =>
+      json(`/projects/${enc(id)}/glossary-conflicts/resolve`, ProjectSettingsSchema, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(choice),
+      }),
     listBooks: () => json("/books", list(BookSummarySchema)),
-    async uploadBook(file) {
+    async prepareImport(file) {
       if (signed) {
         const uploader = options.uploader;
         if (!uploader) throw new ApiRequestError("Uploads are not configured", 0);
@@ -188,16 +239,44 @@ export function createHttpApi(
         } catch {
           throw new ApiRequestError("Upload to storage failed", 0);
         }
-        return json("/books/import", BookSummarySchema, {
+        const post = (body: unknown): RequestInit => ({
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path }),
+          body: JSON.stringify(body),
         });
+        return {
+          preview: await json("/books/import/preview", ImportPreviewSchema, post({ path })),
+          commit: (placement) =>
+            json("/books/import", BookSummarySchema, post({ path, placement })),
+        };
       }
-      const form = new FormData();
-      form.append("file", file);
-      return json("/books", BookSummarySchema, { method: "POST", body: form });
+      const form = (placement?: ImportPlacement) => {
+        const body = new FormData();
+        body.append("file", file);
+        if (placement) body.append("placement", JSON.stringify(placement));
+        return body;
+      };
+      return {
+        preview: await json("/books/preview", ImportPreviewSchema, {
+          method: "POST",
+          body: form(),
+        }),
+        commit: (placement) =>
+          json("/books", BookSummarySchema, { method: "POST", body: form(placement) }),
+      };
     },
+    setVolumeNumber: (bookId, volumeNumber) =>
+      json(`/books/${enc(bookId)}/volume`, BookSummarySchema, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ volumeNumber }),
+      }),
+    moveBook: (bookId, projectId) =>
+      json(`/books/${enc(bookId)}/project`, BookSummarySchema, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      }),
     getBook: (id) => json(`/books/${enc(id)}`, BookDetailSchema),
     async deleteBook(id) {
       await raw(`/books/${enc(id)}`, { method: "DELETE" });

@@ -1,6 +1,6 @@
-import type { BookSettings, GlossaryEntry, ProviderInfo } from "@et/contracts";
+import { type GlossaryEntry, MAX_GLOSSARY_ENTRIES } from "@et/contracts";
 import { BookA, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GlossarySuggestions } from "./glossary-suggestions";
-import type { Selection } from "./model-selection";
+import { GlossaryConflictList, type GlossaryConflictsProps } from "./glossary-conflicts";
 
 interface Row {
   key: number;
@@ -23,32 +22,43 @@ interface Row {
   note: string;
 }
 
-const MAX_ENTRIES = 500;
+const MAX_ENTRIES = MAX_GLOSSARY_ENTRIES;
 let rowKey = 0;
 const toRows = (entries: GlossaryEntry[]): Row[] =>
   entries.map((e) => ({ key: rowKey++, source: e.source, target: e.target, note: e.note ?? "" }));
 
 export function GlossaryDialog({
-  bookId,
-  targetLang,
-  providers,
-  selection,
-  settings,
+  glossary,
   saving,
   onSave,
+  suggestions,
+  conflicts,
 }: {
-  bookId: string;
-  targetLang: string;
-  providers: ProviderInfo[] | undefined;
-  selection: Selection | null;
-  settings: BookSettings | undefined;
+  glossary: GlossaryEntry[] | undefined;
   saving: boolean;
   onSave: (glossary: GlossaryEntry[]) => Promise<unknown>;
+  suggestions: (add: (entries: GlossaryEntry[]) => void) => ReactNode;
+  conflicts?: Omit<GlossaryConflictsProps, "onResolve"> & {
+    onResolve: (source: string, target: string) => Promise<GlossaryEntry | undefined>;
+  };
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const [conflictsOnly, setConflictsOnly] = useState(false);
+  const conflictCount = conflicts?.conflicts.length ?? 0;
+  const showConflicts = conflictsOnly && conflictCount > 0;
 
-  const count = settings?.glossary.length ?? 0;
+  const resolve = async (source: string, target: string) => {
+    const entry = await conflicts?.onResolve(source, target);
+    if (!entry) return;
+    setRows((rs) =>
+      rs.map((r) =>
+        r.source.trim() === source ? { ...r, target: entry.target, note: entry.note ?? "" } : r,
+      ),
+    );
+  };
+
+  const count = glossary?.length ?? 0;
   const update = (key: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
@@ -60,14 +70,14 @@ export function GlossaryDialog({
     });
 
   const submit = async () => {
-    const glossary = rows
+    const next = rows
       .filter((r) => r.source.trim() && r.target.trim())
       .map((r) => ({
         source: r.source.trim(),
         target: r.target.trim(),
         ...(r.note.trim() ? { note: r.note.trim() } : {}),
       }));
-    await onSave(glossary);
+    await onSave(next);
     setOpen(false);
   };
 
@@ -75,12 +85,15 @@ export function GlossaryDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setRows(toRows(settings?.glossary ?? []));
+        if (next) {
+          setRows(toRows(glossary ?? []));
+          setConflictsOnly(false);
+        }
         setOpen(next);
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={!settings}>
+        <Button variant="outline" size="sm" disabled={!glossary}>
           <BookA />
           <span className="hidden sm:inline">Glossary</span>
           {count > 0 && (
@@ -94,63 +107,92 @@ export function GlossaryDialog({
         <DialogHeader>
           <DialogTitle>Glossary</DialogTitle>
           <DialogDescription>
-            Terms the model must translate consistently. Applied only when the source term appears.
+            Terms every book in this project must translate the same way. Applied only when the
+            source term appears.
           </DialogDescription>
         </DialogHeader>
-        <GlossarySuggestions
-          bookId={bookId}
-          targetLang={targetLang}
-          providers={providers}
-          selection={selection}
-          onAdd={addSuggestions}
-        />
-        <ScrollArea className="max-h-[50vh] pr-3">
-          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-            <span>Source</span>
-            <span>Target</span>
-            <span>Note</span>
-            <span className="w-8" />
+        {suggestions(addSuggestions)}
+        {conflictCount > 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant={showConflicts ? "outline" : "secondary"}
+              size="sm"
+              aria-pressed={!showConflicts}
+              onClick={() => setConflictsOnly(false)}
+            >
+              All terms
+            </Button>
+            <Button
+              variant={showConflicts ? "secondary" : "outline"}
+              size="sm"
+              aria-pressed={showConflicts}
+              onClick={() => setConflictsOnly(true)}
+            >
+              {conflictCount} {conflictCount === 1 ? "conflict" : "conflicts"}
+            </Button>
           </div>
-          <div className="flex flex-col gap-2">
-            {rows.map((r) => (
-              <div key={r.key} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
-                <Input
-                  aria-label="Source term"
-                  value={r.source}
-                  onChange={(e) => update(r.key, { source: e.target.value })}
-                />
-                <Input
-                  aria-label="Target term"
-                  value={r.target}
-                  onChange={(e) => update(r.key, { target: e.target.value })}
-                />
-                <Input
-                  aria-label="Note"
-                  value={r.note}
-                  onChange={(e) => update(r.key, { note: e.target.value })}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Remove entry"
-                  onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-            {rows.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No terms yet. Add character names and recurring terms.
-              </p>
-            )}
-          </div>
-        </ScrollArea>
+        )}
+        {showConflicts && conflicts ? (
+          <ScrollArea className="max-h-[50vh] pr-3">
+            <p className="pb-3 text-sm text-muted-foreground">
+              Merged volumes rendered these terms differently. Translation uses the rendering in
+              force until you pick one.
+            </p>
+            <GlossaryConflictList
+              conflicts={conflicts.conflicts}
+              volumeLabel={conflicts.volumeLabel}
+              onResolve={resolve}
+            />
+          </ScrollArea>
+        ) : (
+          <ScrollArea className="max-h-[50vh] pr-3">
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+              <span>Source</span>
+              <span>Target</span>
+              <span>Note</span>
+              <span className="w-8" />
+            </div>
+            <div className="flex flex-col gap-2">
+              {rows.map((r) => (
+                <div key={r.key} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                  <Input
+                    aria-label="Source term"
+                    value={r.source}
+                    onChange={(e) => update(r.key, { source: e.target.value })}
+                  />
+                  <Input
+                    aria-label="Target term"
+                    value={r.target}
+                    onChange={(e) => update(r.key, { target: e.target.value })}
+                  />
+                  <Input
+                    aria-label="Note"
+                    value={r.note}
+                    onChange={(e) => update(r.key, { note: e.target.value })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Remove entry"
+                    onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+              {rows.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No terms yet. Add character names and recurring terms.
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        )}
         <Button
           variant="outline"
           size="sm"
           className="self-start"
-          disabled={rows.length >= MAX_ENTRIES}
+          disabled={showConflicts || rows.length >= MAX_ENTRIES}
           onClick={() =>
             setRows((rs) => [...rs, { key: rowKey++, source: "", target: "", note: "" }])
           }

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { BookSummarySchema } from "@et/contracts";
+import { BookSummarySchema, ImportPreviewSchema, ProjectDetailSchema } from "@et/contracts";
 import { ALICE, BOB, createTestDatabase } from "@et/store-postgres/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
@@ -49,7 +49,7 @@ beforeAll(async () => {
 afterAll(() => db.close());
 beforeEach(async () => {
   await db.exec(
-    "truncate public.books, public.app_users, public.invites, public.rate_limits cascade",
+    "truncate public.projects, public.books, public.app_users, public.invites, public.rate_limits cascade",
   );
   await db.exec(
     `insert into public.app_users (id, role) values ('${BOB}', 'user') on conflict do nothing`,
@@ -175,6 +175,41 @@ describe("signed upload and import", () => {
     expect(res.status).toBe(201);
     expect([...storage.objects("books").keys()]).toEqual([`${ALICE}/books/${sha}.epub`]);
     expect(storage.objects("books").get(`${ALICE}/books/${sha}.epub`)?.bytes).toEqual(EPUB);
+  });
+
+  it("previews a staged upload without consuming it, then imports into the chosen project", async () => {
+    const path = await upload("alice", ALICE);
+    const res = await app.request(`${HOST}/api/books/import/preview`, post("alice", { path }));
+    expect(res.status).toBe(200);
+    expect(ImportPreviewSchema.parse(await res.json())).toEqual({
+      kind: "new",
+      title: "本",
+      seriesTitle: "本",
+      volumeNumber: null,
+      project: null,
+    });
+    expect(storage.objects("books").has(path)).toBe(true);
+
+    const imported = await app.request(
+      `${HOST}/api/books/import`,
+      post("alice", { path, placement: { projectName: "My project", volumeNumber: 4 } }),
+    );
+    expect(imported.status).toBe(201);
+    const book = BookSummarySchema.parse(await imported.json());
+    expect(book.volumeNumber).toBe(4);
+    const project = ProjectDetailSchema.parse(
+      await (await app.request(`${HOST}/api/projects/${book.projectId}`, as("alice"))).json(),
+    );
+    expect(project.name).toBe("My project");
+  });
+
+  it("does not preview another owner's upload", async () => {
+    const theirs = await upload("bob", BOB);
+    const res = await app.request(
+      `${HOST}/api/books/import/preview`,
+      post("alice", { path: theirs }),
+    );
+    expect(res.status).toBe(400);
   });
 
   it("sweeps incoming uploads older than two hours on import", async () => {

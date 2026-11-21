@@ -60,11 +60,36 @@ const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (job_id, chapter_id)
   );
   `,
+  `
+  CREATE TABLE projects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  ALTER TABLE books ADD COLUMN project_id TEXT REFERENCES projects(id);
+  ALTER TABLE books ADD COLUMN volume_number REAL;
+  CREATE INDEX books_project ON books (project_id, volume_number, created_at);
+  `,
+  `
+  CREATE TABLE project_settings (
+    project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+    json TEXT NOT NULL
+  );
+  `,
+  `
+  ALTER TABLE projects ADD COLUMN series_title TEXT;
+  CREATE INDEX projects_series_title ON projects (series_title);
+  `,
 ];
 
-export function migrate(db: BetterSqlite3.Database): void {
-  const current = db.pragma("user_version", { simple: true }) as number;
-  for (let v = current; v < MIGRATIONS.length; v++) {
+export const SCHEMA_VERSION = MIGRATIONS.length;
+
+export function schemaVersion(db: BetterSqlite3.Database): number {
+  return db.pragma("user_version", { simple: true }) as number;
+}
+
+export function migrate(db: BetterSqlite3.Database, target = SCHEMA_VERSION): void {
+  for (let v = schemaVersion(db); v < target; v++) {
     db.transaction(() => {
       db.exec(MIGRATIONS[v] as string);
       db.pragma(`user_version = ${v + 1}`);

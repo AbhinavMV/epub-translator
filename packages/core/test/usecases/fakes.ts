@@ -1,7 +1,10 @@
 import {
   type BookSettings,
   type ChapterProofread,
+  type LegacyBookTerms,
   LOCAL_OWNER_ID,
+  type ProjectSettings,
+  type ProjectTerms,
   type Usage,
 } from "@et/contracts";
 import type {
@@ -15,6 +18,9 @@ import type {
   Job,
   JobRepository,
   ParsedBook,
+  Project,
+  ProjectRepository,
+  ProjectSettingsRepository,
   ProofreadRepository,
   ProviderBatch,
   ProviderBatchStatus,
@@ -24,11 +30,16 @@ import type {
   StoreFactory,
   TranslationRepository,
 } from "../../src/index.ts";
+import { assertPlaced, compareVolumes } from "../../src/index.ts";
 
 export class MemoryBooks implements BookRepository {
   readonly rows = new Map<string, { book: StoredBook; parsed: ParsedBook }>();
   async insert(book: StoredBook, parsed: ParsedBook) {
+    assertPlaced(book);
     this.rows.set(book.id, { book, parsed });
+  }
+  seedUnplaced(book: StoredBook, parsed: ParsedBook) {
+    this.rows.set(book.id, { book: { ...book, projectId: null, volumeNumber: null }, parsed });
   }
   async insertIfAbsent(book: StoredBook, parsed: ParsedBook) {
     const existing = await this.findBySha256(book.sha256);
@@ -52,18 +63,94 @@ export class MemoryBooks implements BookRepository {
   async list() {
     return [...this.rows.values()].map((r) => r.book);
   }
+  async listByProject(projectId: string) {
+    return (await this.list()).filter((b) => b.projectId === projectId).sort(compareVolumes);
+  }
+  async place(id: string, projectId: string, volumeNumber: number) {
+    const row = this.rows.get(id);
+    if (row) row.book = { ...row.book, projectId, volumeNumber };
+  }
   async delete(id: string) {
     this.rows.delete(id);
   }
 }
 
+export class MemoryProjects implements ProjectRepository {
+  readonly rows = new Map<string, Project>();
+  readonly series = new Map<string, string>();
+  readonly settings = new Map<string, ProjectSettings>();
+  async create(project: Project) {
+    this.rows.set(project.id, { ...project });
+  }
+  async get(id: string) {
+    const row = this.rows.get(id);
+    return row ? { ...row } : null;
+  }
+  async list() {
+    return [...this.rows.values()]
+      .map((p) => ({ ...p }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async rename(id: string, name: string) {
+    const row = this.rows.get(id);
+    if (row) row.name = name;
+  }
+  async delete(id: string) {
+    this.rows.delete(id);
+    this.series.delete(id);
+    this.settings.delete(id);
+  }
+  async seriesTitle(id: string) {
+    return this.series.get(id) ?? null;
+  }
+  async adoptSeriesTitle(id: string, seriesTitle: string) {
+    if (this.rows.has(id) && !this.series.has(id)) this.series.set(id, seriesTitle);
+  }
+  async findBySeriesTitle(seriesTitle: string) {
+    return (await this.list()).find((p) => this.series.get(p.id) === seriesTitle) ?? null;
+  }
+}
+
+export class MemoryProjectSettings implements ProjectSettingsRepository {
+  constructor(readonly rows: Map<string, ProjectSettings> = new Map()) {}
+  async get(projectId: string) {
+    const row = this.rows.get(projectId);
+    return row ? structuredClone(row) : null;
+  }
+  async put(projectId: string, settings: ProjectSettings) {
+    this.rows.set(projectId, structuredClone(settings));
+  }
+}
+
+export async function seedProjectTerms(
+  deps: {
+    books: BookRepository;
+    projects: ProjectRepository;
+    projectSettings: ProjectSettingsRepository;
+  },
+  bookId: string,
+  terms: ProjectTerms,
+  projectId = "p1",
+) {
+  if (!(await deps.projects.get(projectId))) {
+    await deps.projects.create({ id: projectId, name: projectId, createdAt: "t" });
+  }
+  await deps.books.place(bookId, projectId, 1);
+  await deps.projectSettings.put(projectId, { ...terms, glossaryConflicts: [] });
+}
+
 export class MemorySettings implements BookSettingsRepository {
   readonly rows = new Map<string, BookSettings>();
+  readonly legacy = new Map<string, LegacyBookTerms>();
   async get(bookId: string): Promise<BookSettings> {
-    return this.rows.get(bookId) ?? { customPrompt: "", glossary: [], provider: null, model: null };
+    const row = this.rows.get(bookId);
+    return row ? { provider: row.provider, model: row.model } : { provider: null, model: null };
   }
   async put(bookId: string, s: BookSettings) {
     this.rows.set(bookId, s);
+  }
+  async getLegacyTerms(bookId: string) {
+    return this.legacy.get(bookId) ?? null;
   }
 }
 
@@ -184,6 +271,8 @@ export class MemoryProofreads implements ProofreadRepository {
 }
 
 export interface MemoryRepos {
+  projects: MemoryProjects;
+  projectSettings: MemoryProjectSettings;
   books: MemoryBooks;
   settings: MemorySettings;
   jobs: MemoryJobs;
@@ -198,7 +287,10 @@ export class MemoryStoreFactory implements StoreFactory {
   forOwner(ownerId: string): MemoryRepos {
     let repos = this.owners.get(ownerId);
     if (!repos) {
+      const projects = new MemoryProjects();
       repos = {
+        projects,
+        projectSettings: new MemoryProjectSettings(projects.settings),
         books: new MemoryBooks(),
         settings: new MemorySettings(),
         jobs: new MemoryJobs(),

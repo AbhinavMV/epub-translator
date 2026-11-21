@@ -1,6 +1,13 @@
-import type { BookSettings, ChapterProofread, Usage } from "@et/contracts";
+import type {
+  BookSettings,
+  ChapterProofread,
+  LegacyBookTerms,
+  ProjectSettings,
+  Usage,
+} from "@et/contracts";
 import type { ParsedBook, StoredBook } from "../domain/book.ts";
 import type { Job } from "../domain/job.ts";
+import type { Project } from "../domain/project.ts";
 import type { SegmentTranslation } from "../domain/segment.ts";
 import type { BatchRepository } from "./batch-repository.ts";
 
@@ -12,12 +19,33 @@ export interface BookRepository {
   getParsed(id: string): Promise<ParsedBook | null>;
   updateParsed(id: string, parsed: ParsedBook): Promise<void>;
   list(): Promise<StoredBook[]>;
+  listByProject(projectId: string): Promise<StoredBook[]>;
+  place(id: string, projectId: string, volumeNumber: number): Promise<void>;
   delete(id: string): Promise<void>;
+}
+
+export interface ProjectRepository {
+  create(project: Project): Promise<void>;
+  get(id: string): Promise<Project | null>;
+  list(): Promise<Project[]>;
+  rename(id: string, name: string): Promise<void>;
+  delete(id: string): Promise<void>;
+  seriesTitle(id: string): Promise<string | null>;
+  /** Records the series only on a project that has none yet; renames never touch it. */
+  adoptSeriesTitle(id: string, seriesTitle: string): Promise<void>;
+  findBySeriesTitle(seriesTitle: string): Promise<Project | null>;
+}
+
+export interface ProjectSettingsRepository {
+  get(projectId: string): Promise<ProjectSettings | null>;
+  put(projectId: string, settings: ProjectSettings): Promise<void>;
 }
 
 export interface BookSettingsRepository {
   get(bookId: string): Promise<BookSettings>;
+  /** Keeps any other keys already stored for the book, such as its pre-project terms. */
   put(bookId: string, settings: BookSettings): Promise<void>;
+  getLegacyTerms(bookId: string): Promise<LegacyBookTerms | null>;
 }
 
 export interface JobRepository {
@@ -57,6 +85,8 @@ export interface BlobStore {
 }
 
 export interface Repositories {
+  projects: ProjectRepository;
+  projectSettings: ProjectSettingsRepository;
   books: BookRepository;
   settings: BookSettingsRepository;
   jobs: JobRepository;

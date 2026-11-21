@@ -7,9 +7,22 @@ import type {
   SegmentBatchResult,
   TranslationProvider,
 } from "../ports/translation-provider.ts";
+import { glossaryUsedIn } from "./glossary.ts";
 import { checkReturned, failureNote, feedbackFor, settleRejected } from "./settle.ts";
 
 const MAX_BACKOFF_MS = 30_000;
+
+function narrowTo(
+  req: SegmentBatchRequest,
+  segments: SegmentBatchRequest["segments"],
+): SegmentBatchRequest {
+  const { glossary: all, ...rest } = req;
+  const glossary = glossaryUsedIn(all ?? [], [
+    ...segments.map((s) => s.text),
+    ...req.context.map((c) => c.source),
+  ]);
+  return { ...rest, segments, ...(glossary.length > 0 ? { glossary } : {}) };
+}
 
 export interface BatchOutcome {
   results: Map<string, SegmentTranslation>;
@@ -60,8 +73,10 @@ export class SegmentTranslator {
     }
 
     const retryReq: SegmentBatchRequest = {
-      ...req,
-      segments: rejected.map((r) => ({ id: r.id, text: r.text })),
+      ...narrowTo(
+        req,
+        rejected.map((r) => ({ id: r.id, text: r.text })),
+      ),
       feedback: feedbackFor(rejected),
     };
     await this.run(retryReq, signal, outcome, true);
@@ -83,7 +98,7 @@ export class SegmentTranslator {
     }
     const mid = Math.ceil(req.segments.length / 2);
     for (const half of [req.segments.slice(0, mid), req.segments.slice(mid)]) {
-      await this.run({ ...req, segments: half }, signal, outcome, isRetry);
+      await this.run(narrowTo(req, half), signal, outcome, isRetry);
     }
   }
 

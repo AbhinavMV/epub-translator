@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
 import { applyMigrations, concatMigrations, loadMigrations, MIGRATIONS_DIR } from "../src/index.ts";
-import { createTestDatabase, pgliteSql } from "./harness.ts";
+import { ALICE, createTestDatabase, pgliteSql } from "./harness.ts";
 
 describe("migrations", () => {
   it("loads files in order and flags the storage migration as supabase-only", () => {
@@ -17,6 +17,10 @@ describe("migrations", () => {
       "0006_exports_text_supabase.sql",
       "0007_private_owner_role.sql",
       "0008_proofreads.sql",
+      "0009_projects.sql",
+      "0010_project_settings.sql",
+      "0011_project_series_title.sql",
+      "0012_books_project_required.sql",
     ]);
     expect(all.filter((m) => m.supabaseOnly).map((m) => m.name)).toEqual([
       "0004_storage_supabase.sql",
@@ -63,6 +67,106 @@ describe("migrations", () => {
     const storage = readFileSync(join(MIGRATIONS_DIR, "0004_storage_supabase.sql"), "utf8");
     expect(storage).toContain("(storage.foldername(name))[1] = (select auth.uid()::text)");
     expect(storage).toContain("on conflict (id) do nothing");
+  });
+});
+
+describe("0009_projects", () => {
+  it("adds unplaced project columns to existing books and re-runs by hand", async () => {
+    const db = new PGlite();
+    const sql = pgliteSql(db);
+    await db.exec(`
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create function auth.uid() returns uuid language sql as 'select null::uuid';
+      create role anon nologin;
+      create role authenticated nologin;
+    `);
+    const all = loadMigrations().filter((m) => !m.supabaseOnly);
+    await applyMigrations(
+      sql,
+      all.filter((m) => m.name < "0009"),
+    );
+    await db.query("insert into auth.users (id) values ($1)", [ALICE]);
+    await db.query(
+      "insert into books (owner_id, id, sha256, title, created_at, parsed_json) values ($1, 'b1', 's', '本 2', now(), '{}')",
+      [ALICE],
+    );
+    await applyMigrations(
+      sql,
+      all.filter((m) => m.name < "0012"),
+    );
+    const m = all.find((x) => x.name === "0009_projects.sql");
+    await db.exec(m?.sql ?? "");
+    const rows = await sql.query<{ title: string; project_id: null; volume_number: null }>(
+      "select title, project_id, volume_number from books",
+    );
+    expect(rows).toEqual([{ title: "本 2", project_id: null, volume_number: null }]);
+    await db.close();
+  });
+
+  it("ships apply-0009.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0009.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0009_projects.sql"), "utf8");
+    expect(apply).toBe(m);
+  });
+});
+
+describe("0010_project_settings", () => {
+  it("re-runs by hand", async () => {
+    const { db } = await createTestDatabase();
+    const m = loadMigrations().find((x) => x.name === "0010_project_settings.sql");
+    await db.exec(m?.sql ?? "");
+    await db.close();
+  });
+
+  it("ships apply-0010.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0010.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0010_project_settings.sql"), "utf8");
+    expect(apply).toBe(m);
+  });
+});
+
+describe("0011_project_series_title", () => {
+  it("re-runs by hand", async () => {
+    const { db } = await createTestDatabase();
+    const m = loadMigrations().find((x) => x.name === "0011_project_series_title.sql");
+    await db.exec(m?.sql ?? "");
+    await db.close();
+  });
+
+  it("ships apply-0011.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0011.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0011_project_series_title.sql"), "utf8");
+    expect(apply).toBe(m);
+  });
+});
+
+describe("0012_books_project_required", () => {
+  it("refuses while a book has no project and applies once every book is placed", async () => {
+    const { db, sql } = await createTestDatabase({ before: "0012" });
+    const insert = (id: string, projectId: string | null) =>
+      db.query(
+        "insert into books (owner_id, id, sha256, title, created_at, parsed_json, project_id) values ($1, $2, $2, '本', now(), '{}', $3)",
+        [ALICE, id, projectId],
+      );
+    await db.query(
+      "insert into projects (owner_id, id, name, created_at) values ($1, 'p1', '本', now())",
+      [ALICE],
+    );
+    await insert("b1", null);
+    const m = loadMigrations().filter((x) => x.name.startsWith("0012"));
+    await expect(applyMigrations(sql, m)).rejects.toThrow();
+
+    await db.query("update books set project_id = 'p1'");
+    expect(await applyMigrations(sql, m)).toEqual(["0012_books_project_required.sql"]);
+    await expect(insert("b2", null)).rejects.toThrow(/null/);
+    await db.close();
+  });
+
+  it("ships apply-0012.sql identical to the migration", () => {
+    const apply = readFileSync(join(MIGRATIONS_DIR, "apply-0012.sql"), "utf8");
+    const m = readFileSync(join(MIGRATIONS_DIR, "0012_books_project_required.sql"), "utf8");
+    expect(apply).toBe(m);
   });
 });
 

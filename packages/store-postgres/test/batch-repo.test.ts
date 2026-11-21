@@ -2,7 +2,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import type { Repositories } from "@et/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStoreFactory, type Sql } from "../src/index.ts";
-import { batch, book, job, parsed } from "./fixtures.ts";
+import { batch, insertBook, job } from "./fixtures.ts";
 import { ALICE, BOB, createTestDatabase, resetData } from "./harness.ts";
 
 let db: PGlite;
@@ -16,7 +16,7 @@ afterAll(() => db.close());
 beforeEach(async () => {
   await resetData(db);
   repos = new PostgresStoreFactory(sql).forOwner(ALICE);
-  await repos.books.insert(book, parsed);
+  await insertBook(repos);
   await repos.jobs.insert(job);
 });
 

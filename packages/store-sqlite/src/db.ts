@@ -10,3 +10,19 @@ export function openDatabase(path: string): Database {
   migrate(db);
   return db;
 }
+
+export function openDatabaseSnapshot(path: string): Database {
+  const source = new BetterSqlite3(path, { fileMustExist: true });
+  try {
+    const bytes = source.serialize();
+    // Header bytes 18-19 mark WAL mode, which an in-memory database cannot open.
+    bytes[18] = 1;
+    bytes[19] = 1;
+    const db = new BetterSqlite3(bytes);
+    db.pragma("foreign_keys = ON");
+    migrate(db);
+    return db;
+  } finally {
+    source.close();
+  }
+}
