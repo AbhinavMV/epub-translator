@@ -2,8 +2,8 @@ import { TARGET_LANGUAGES } from "@et/contracts";
 import { Badge } from "@/components/ui/badge";
 
 function label(lang: string): string {
-  if (lang === "en") return "Translated";
-  return `Translated · ${TARGET_LANGUAGES.find((l) => l.code === lang)?.name ?? lang}`;
+  if (lang === "en") return "Fully translated";
+  return `Fully translated · ${TARGET_LANGUAGES.find((l) => l.code === lang)?.name ?? lang}`;
 }
 
 export function FullyTranslatedBadge({ lang }: { lang: string | null | undefined }) {

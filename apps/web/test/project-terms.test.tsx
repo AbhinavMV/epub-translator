@@ -118,21 +118,21 @@ function projectApi(
   };
 }
 
-describe("project glossary and prompt", () => {
+describe("project glossary and custom prompt", () => {
   it("shows the glossary size and its unresolved conflicts", async () => {
     renderAt("/projects/p1", projectApi());
-    const section = await screen.findByRole("region", { name: /glossary and prompt/i });
-    expect(await within(section).findByText(/1 term/)).toBeInTheDocument();
-    expect(within(section).getByText(/1 conflict/)).toBeInTheDocument();
+    const section = await screen.findByRole("region", { name: "Glossary and custom prompt" });
+    expect(await within(section).findByText(/1 glossary entry,/)).toBeInTheDocument();
+    expect(within(section).getByText(/1 glossary conflict/)).toBeInTheDocument();
   });
 
   it("saves glossary edits to the project, keeping its prompt", async () => {
     const api = projectApi();
     renderAt("/projects/p1", api);
     await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await userEvent.click(screen.getByRole("button", { name: /add term/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Add entry" }));
     const sources = screen.getAllByRole("textbox", { name: "Source term" });
-    const targets = screen.getAllByRole("textbox", { name: "Target term" });
+    const targets = screen.getAllByRole("textbox", { name: "Rendering" });
     await userEvent.type(sources.at(-1) as HTMLElement, "サヤ");
     await userEvent.type(targets.at(-1) as HTMLElement, "Saya");
     await userEvent.click(screen.getByRole("button", { name: "Save glossary" }));
@@ -148,11 +148,11 @@ describe("project glossary and prompt", () => {
   it("saves the custom prompt to the project, keeping its glossary", async () => {
     const api = projectApi();
     renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: /edit prompt/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     const box = screen.getByRole("textbox", { name: "Custom prompt" });
     await userEvent.clear(box);
     await userEvent.type(box, "Use a light tone.");
-    await userEvent.click(screen.getByRole("button", { name: "Save prompt" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
       customPrompt: "Use a light tone.",
       glossary: stored.glossary,
@@ -161,7 +161,7 @@ describe("project glossary and prompt", () => {
 
   it("shows the fixed rules read-only above the project's custom prompt", async () => {
     renderAt("/projects/p1", projectApi());
-    await userEvent.click(await screen.findByRole("button", { name: /edit prompt/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     const dialog = screen.getByRole("dialog");
     const rules = within(dialog).getByRole("region", { name: /fixed rules/i });
     expect(rules).toHaveTextContent(/FIDELITY RULES/);
@@ -179,11 +179,11 @@ describe("project glossary and prompt", () => {
     const getProjectSettings = vi.fn(async () => ({ ...stored, customPrompt: "" }));
     const api = { ...projectApi(), getProjectSettings };
     renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: /edit prompt/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     expect(screen.getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
       "Use natural, readable prose in the target language while preserving the source meaning.",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Save prompt" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
       customPrompt: "",
       glossary: stored.glossary,
@@ -197,7 +197,7 @@ describe("project glossary and prompt", () => {
     await screen.findByText(/1 request/);
     const picker = screen.getByRole("combobox", { name: "Volume to sample" });
     expect(picker).toBeEnabled();
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
     await waitFor(() => expect(picker).toBeDisabled());
   });
 
@@ -210,7 +210,7 @@ describe("project glossary and prompt", () => {
     renderAt("/projects/p1", api);
     await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
     await screen.findByText(/1 request/);
-    await userEvent.click(await screen.findByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Suggest from volume" }));
     expect(suggestGlossary).toHaveBeenCalledWith(
       "v2",
       expect.objectContaining({ targetLang: "en", sampleSize: "large", chunk: 0 }),
@@ -283,7 +283,7 @@ describe("suggesting from all volumes", () => {
     renderAt("/projects/p1", api);
     await chooseAllVolumes();
     await screen.findByText(/3 volumes/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
     expect(api.suggestGlossary.mock.calls.map(([id, body]) => [id, body.chunk])).toEqual([
@@ -307,12 +307,12 @@ describe("suggesting from all volumes", () => {
     renderAt("/projects/p1", api);
     await chooseAllVolumes();
     await screen.findByText(/3 volumes/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
-    expect(await screen.findByText(/Vol 2 of 3/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
+    expect(await screen.findByText("Suggesting… volume 2 of 3")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /suggest from book/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Suggest from all volumes" })).toBeEnabled(),
     );
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -326,7 +326,7 @@ describe("suggesting from all volumes", () => {
     renderAt("/projects/p1", api);
     await chooseAllVolumes();
     await screen.findByText(/3 volumes/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Rate limited");
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
@@ -357,7 +357,7 @@ describe("book editor header", () => {
     ));
     const link = await screen.findByRole("link", { name: /project/i });
     expect(screen.queryByRole("button", { name: /^glossary/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /edit prompt/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /custom prompt/i })).toBeNull();
     await userEvent.click(link);
     await waitFor(() => expect(router.state.location.pathname).toBe("/projects/p1"));
   });

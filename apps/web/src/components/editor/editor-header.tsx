@@ -94,7 +94,7 @@ export function EditorHeader({
             <Link
               to="/projects/$projectId"
               params={{ projectId }}
-              aria-label="Project glossary and prompt"
+              aria-label="Project glossary and custom prompt"
             >
               <Library />
               <span className="hidden sm:inline">Project</span>

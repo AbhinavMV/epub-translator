@@ -52,7 +52,7 @@ describe("GlossarySuggestions", () => {
     renderIt({ suggestGlossary });
 
     await screen.findByText(/request/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
 
     const boxes = await screen.findAllByRole("checkbox");
     expect(boxes).toHaveLength(2);
@@ -75,7 +75,7 @@ describe("GlossarySuggestions", () => {
     const { onAdd } = renderIt({ suggestGlossary: async () => ({ terms, usage: null }) });
 
     await screen.findByText(/request/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
     const boxes = await screen.findAllByRole("checkbox");
     await userEvent.click(boxes[0] as HTMLElement);
     await userEvent.click(screen.getByRole("button", { name: /add selected/i }));
@@ -87,7 +87,7 @@ describe("GlossarySuggestions", () => {
   it("shows a loading state while the request is pending", async () => {
     renderIt({ suggestGlossary: () => new Promise(() => {}) });
     await screen.findByText(/request/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
     expect(await screen.findByRole("button", { name: /suggesting/i })).toBeDisabled();
   });
 
@@ -123,7 +123,7 @@ describe("GlossarySuggestions", () => {
     renderIt({ suggestGlossary });
     await userEvent.click(await screen.findByRole("radio", { name: "Entire volume" }));
     await screen.findByText(/3 requests/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
 
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(5));
     expect(screen.getByText(/300 in · 30 out/)).toBeInTheDocument();
@@ -147,12 +147,12 @@ describe("GlossarySuggestions", () => {
     renderIt({ suggestGlossary });
     await userEvent.click(await screen.findByRole("radio", { name: "Entire volume" }));
     await screen.findByText(/3 requests/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
     expect(await screen.findByText(/2 of 3/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /suggest from book/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Suggest from volume" })).toBeEnabled(),
     );
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -167,7 +167,7 @@ describe("GlossarySuggestions", () => {
     renderIt({ suggestGlossary });
     await userEvent.click(await screen.findByRole("radio", { name: "Entire volume" }));
     await screen.findByText(/3 requests/);
-    await userEvent.click(screen.getByRole("button", { name: /suggest from book/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Rate limited");
     expect(screen.getAllByRole("checkbox")).toHaveLength(2);

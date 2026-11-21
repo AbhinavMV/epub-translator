@@ -85,7 +85,7 @@ const summaries: ProjectSummary[] = [
 ];
 
 describe("Delete a project", () => {
-  it("names the book count, deletes the project and returns to the library", async () => {
+  it("names the volume count, deletes the project and returns to the library", async () => {
     const deleteProject = vi.fn(async () => {});
     const { router } = renderAt("/projects/p1", {
       getProject: vi.fn(async () => threeBooks),
@@ -93,7 +93,7 @@ describe("Delete a project", () => {
     });
     await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent("3 books");
+    expect(dialog).toHaveTextContent("3 volumes");
     expect(deleteProject).not.toHaveBeenCalled();
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
@@ -101,16 +101,16 @@ describe("Delete a project", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 
-  it("says when there is a single book or none", async () => {
+  it("says when there is a single volume or none", async () => {
     renderAt("/projects/p1", { getProject: vi.fn(async () => detail([book("v1", "本", 1)])) });
     await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("1 book will");
+    expect(screen.getByRole("dialog")).toHaveTextContent("1 volume will");
   });
 
-  it("offers an empty project for deletion without mentioning books to lose", async () => {
+  it("offers an empty project for deletion without mentioning volumes to lose", async () => {
     renderAt("/projects/p1", { getProject: vi.fn(async () => detail([])) });
     await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("has no books");
+    expect(screen.getByRole("dialog")).toHaveTextContent("It has no volumes.");
   });
 
   it("cancelling keeps the project", async () => {
