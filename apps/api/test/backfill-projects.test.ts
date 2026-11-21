@@ -7,7 +7,8 @@ import { applyMigrations, loadMigrations, PostgresStoreFactory } from "@et/store
 import { ALICE, BOB, createTestDatabase } from "@et/store-postgres/testing";
 import { openDatabase, SqliteStoreFactory } from "@et/store-sqlite";
 import { afterEach, describe, expect, it } from "vitest";
-import { postgresBackfill, runProjectBackfill, sqliteBackfill } from "../src/backfill-projects.ts";
+import { runProjectBackfill } from "../src/backfill-projects.ts";
+import { postgresTarget, sqliteTarget } from "../src/compose-scripts.ts";
 
 const parsed: ParsedBook = {
   title: "本",
@@ -53,7 +54,7 @@ describe("project backfill on SQLite", () => {
   it("dry run prints the proposal and leaves the file untouched", async () => {
     const path = await seededFile();
     const lines: string[] = [];
-    await runProjectBackfill(sqliteBackfill(path, { apply: false }), {
+    await runProjectBackfill(sqliteTarget(path, { apply: false }), {
       apply: false,
       ids,
       log: (l) => lines.push(l),
@@ -67,7 +68,7 @@ describe("project backfill on SQLite", () => {
   it("apply writes once and a second apply changes nothing", async () => {
     const path = await seededFile();
     const run = () =>
-      runProjectBackfill(sqliteBackfill(path, { apply: true }), {
+      runProjectBackfill(sqliteTarget(path, { apply: true }), {
         apply: true,
         ids,
         log: () => {},
@@ -75,7 +76,7 @@ describe("project backfill on SQLite", () => {
     await run();
     expect(await projectsIn(path)).toEqual({ projects: ["魔女の旅々"], unplaced: [] });
     const lines: string[] = [];
-    await runProjectBackfill(sqliteBackfill(path, { apply: true }), {
+    await runProjectBackfill(sqliteTarget(path, { apply: true }), {
       apply: true,
       ids,
       log: (l) => lines.push(l),
@@ -95,7 +96,7 @@ describe("project backfill on Postgres", () => {
     await expect(applyMigrations(sql, required)).rejects.toThrow();
 
     const dry: string[] = [];
-    await runProjectBackfill(await postgresBackfill(sql), {
+    await runProjectBackfill(postgresTarget(sql), {
       apply: false,
       ids,
       log: (l) => dry.push(l),
@@ -104,7 +105,7 @@ describe("project backfill on Postgres", () => {
     expect(dry).toContain(`Owner ${BOB}`);
     expect(await factory.forOwner(ALICE).projects.list()).toEqual([]);
 
-    await runProjectBackfill(await postgresBackfill(sql), { apply: true, ids, log: () => {} });
+    await runProjectBackfill(postgresTarget(sql), { apply: true, ids, log: () => {} });
     const [bobProject] = await factory.forOwner(BOB).projects.list();
     expect(bobProject?.name).toBe("Index");
     expect(await factory.forOwner(BOB).books.listByProject(bobProject?.id ?? "")).toMatchObject([
@@ -112,7 +113,7 @@ describe("project backfill on Postgres", () => {
     ]);
 
     const again: string[] = [];
-    await runProjectBackfill(await postgresBackfill(sql), {
+    await runProjectBackfill(postgresTarget(sql), {
       apply: true,
       ids,
       log: (l) => again.push(l),

@@ -1,50 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { parseArgs } from "node:util";
-import { createPostgresSql } from "@et/store-postgres";
-import {
-  type BackfillTarget,
-  postgresBackfill,
-  runProjectBackfill,
-  sqliteBackfill,
-} from "../src/backfill-projects.ts";
+import { runProjectBackfill } from "../src/backfill-projects.ts";
+import { runProjectScript } from "./project-script.ts";
 
-const { values } = parseArgs({
-  options: {
-    sqlite: { type: "string" },
-    postgres: { type: "boolean", default: false },
-    owner: { type: "string" },
-    apply: { type: "boolean", default: false },
-  },
-});
-
-const usage =
-  "usage: backfill-projects (--sqlite <path> | --postgres [--owner <uuid>]) [--apply]\n" +
-  "  --postgres reads DATABASE_URL";
-
-let target: BackfillTarget;
-let end = async () => {};
-if (values.sqlite && !values.postgres) {
-  target = sqliteBackfill(values.sqlite, { apply: values.apply });
-} else if (values.postgres && !values.sqlite) {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    console.error(`DATABASE_URL is not set\n${usage}`);
-    process.exit(1);
-  }
-  const sql = createPostgresSql(url);
-  end = () => sql.end();
-  target = postgresBackfill(sql, values.owner);
-} else {
-  console.error(usage);
-  process.exit(1);
-}
-
-try {
-  await runProjectBackfill(target, {
-    apply: values.apply,
-    ids: { next: () => randomUUID() },
-    log: (line) => console.log(line),
-  });
-} finally {
-  await end();
-}
+await runProjectScript("backfill-projects", "--postgres reads DATABASE_URL", (target, options) =>
+  runProjectBackfill(target, { ...options, ids: { next: () => randomUUID() } }),
+);

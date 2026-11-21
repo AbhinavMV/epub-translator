@@ -7,7 +7,7 @@ import { PostgresStoreFactory } from "@et/store-postgres";
 import { ALICE, BOB, createTestDatabase } from "@et/store-postgres/testing";
 import { openDatabase, SqliteStoreFactory } from "@et/store-sqlite";
 import { afterEach, describe, expect, it } from "vitest";
-import { postgresBackfill, sqliteBackfill } from "../src/backfill-projects.ts";
+import { postgresTarget, sqliteTarget } from "../src/compose-scripts.ts";
 import { runProjectSettingsMerge } from "../src/merge-project-settings.ts";
 
 const parsed: ParsedBook = {
@@ -93,7 +93,7 @@ describe("project settings merge on SQLite", () => {
   it("dry run lists the merged glossary and conflicts and writes nothing", async () => {
     const path = await seededFile();
     const lines: string[] = [];
-    await runProjectSettingsMerge(sqliteBackfill(path, { apply: false }), {
+    await runProjectSettingsMerge(sqliteTarget(path, { apply: false }), {
       apply: false,
       log: (l) => lines.push(l),
     });
@@ -107,7 +107,7 @@ describe("project settings merge on SQLite", () => {
   it("apply writes the project settings, keeps the books' terms, and a re-run keeps edits", async () => {
     const path = await seededFile();
     const apply = (log: (l: string) => void = () => {}) =>
-      runProjectSettingsMerge(sqliteBackfill(path, { apply: true }), { apply: true, log });
+      runProjectSettingsMerge(sqliteTarget(path, { apply: true }), { apply: true, log });
     await apply();
     expect(await read(path)).toEqual({
       project: merged,
@@ -143,10 +143,10 @@ describe("project settings merge on Postgres", () => {
       });
     }
 
-    await runProjectSettingsMerge(postgresBackfill(sql), { apply: false, log: () => {} });
+    await runProjectSettingsMerge(postgresTarget(sql), { apply: false, log: () => {} });
     expect(await factory.forOwner(ALICE).projectSettings.get("p1")).toBeNull();
 
-    await runProjectSettingsMerge(postgresBackfill(sql), { apply: true, log: () => {} });
+    await runProjectSettingsMerge(postgresTarget(sql), { apply: true, log: () => {} });
     expect(await factory.forOwner(BOB).projectSettings.get("p1")).toEqual(merged);
     expect(await factory.forOwner(ALICE).settings.getLegacyTerms("v2")).toEqual({
       customPrompt: "",
@@ -154,7 +154,7 @@ describe("project settings merge on Postgres", () => {
     });
 
     const again: string[] = [];
-    await runProjectSettingsMerge(postgresBackfill(sql), {
+    await runProjectSettingsMerge(postgresTarget(sql), {
       apply: true,
       log: (l) => again.push(l),
     });

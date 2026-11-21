@@ -1,22 +1,11 @@
 import { describeMergePlan, mergeProjectSettings } from "@et/core";
-import type { BackfillTarget } from "./backfill-projects.ts";
+import { runPerOwner, type ScriptOptions, type ScriptTarget } from "./owner-script.ts";
 
-export async function runProjectSettingsMerge(
-  target: BackfillTarget,
-  options: { apply: boolean; log: (line: string) => void },
+export function runProjectSettingsMerge(
+  target: ScriptTarget,
+  options: ScriptOptions,
 ): Promise<void> {
-  try {
-    for (const ownerId of await target.ownerIds()) {
-      options.log(`Owner ${ownerId}`);
-      const plan = await mergeProjectSettings(target.factory.forOwner(ownerId), {
-        apply: options.apply,
-      });
-      for (const line of describeMergePlan(plan)) options.log(line);
-    }
-    options.log(
-      options.apply ? "Applied." : "Dry run: nothing was written. Re-run with --apply to write.",
-    );
-  } finally {
-    target.close();
-  }
+  return runPerOwner(target, options, async (repos) =>
+    describeMergePlan(await mergeProjectSettings(repos, { apply: options.apply })),
+  );
 }
