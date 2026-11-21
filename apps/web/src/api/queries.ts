@@ -40,6 +40,35 @@ export function useRenameProject(id: string) {
   });
 }
 
+export function useDeleteProject(id: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.deleteProject(id),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: keys.project(id) });
+      queryClient.removeQueries({ queryKey: keys.projectSettings(id) });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.books }),
+        queryClient.invalidateQueries({ queryKey: keys.projects, exact: true }),
+      ]);
+    },
+  });
+}
+
+export function useMoveBook(bookId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string) => api.moveBook(bookId, projectId),
+    onSuccess: () =>
+      Promise.all([
+        invalidateLibrary(queryClient),
+        queryClient.invalidateQueries({ queryKey: keys.book(bookId) }),
+      ]),
+  });
+}
+
 export function useProjectSettings(id: string | undefined) {
   const api = useApi();
   return useQuery({

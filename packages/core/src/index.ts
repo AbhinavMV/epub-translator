@@ -27,6 +27,7 @@ export * from "./usecases/backfill-projects.ts";
 export * from "./usecases/batch-runner.ts";
 export * from "./usecases/chapter-parts.ts";
 export * from "./usecases/delete-book.ts";
+export * from "./usecases/delete-project.ts";
 export * from "./usecases/export-epub.ts";
 export * from "./usecases/export-text.ts";
 export * from "./usecases/import-book.ts";

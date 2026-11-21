@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { useSetVolumeNumber } from "@/api/queries";
 import { BookCard } from "@/components/book-card";
+import { MoveBookButton } from "@/components/move-book-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -19,7 +20,10 @@ export function ProjectVolume({
   return (
     <div className="flex flex-col gap-1">
       <BookCard book={book} deleting={deleting} onDelete={onDelete} />
-      <VolumeNumberEditor book={book} />
+      <div className="flex flex-wrap items-center gap-1">
+        <VolumeNumberEditor book={book} />
+        <MoveBookButton book={book} />
+      </div>
     </div>
   );
 }

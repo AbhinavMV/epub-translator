@@ -52,6 +52,17 @@ describe("previewImport", () => {
     expect(preview).toMatchObject({ kind: "new", seriesTitle: "Spice and Wolf", project: null });
   });
 
+  it("suggests an empty project named after the series title", async () => {
+    const deps = library();
+    const first = await importBook(titled(deps, "魔女の旅々 1"), new Uint8Array([1]));
+    await deps.books.delete(first.id);
+
+    const preview = await previewImport(titled(deps, "魔女の旅々 2"), new Uint8Array([2]));
+    expect(preview).toMatchObject({ kind: "new", project: { id: first.projectId } });
+    const next = await importBook(titled(deps, "魔女の旅々 2"), new Uint8Array([2]));
+    expect(next).toMatchObject({ projectId: first.projectId, volumeNumber: 2 });
+  });
+
   it("reports a file already in the library without parsing it", async () => {
     const deps = library();
     const book = await importBook(titled(deps, "本"), new Uint8Array([1]));

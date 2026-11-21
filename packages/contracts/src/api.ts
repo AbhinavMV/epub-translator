@@ -128,6 +128,9 @@ export type ImportPreview = z.infer<typeof ImportPreviewSchema>;
 export const SetVolumeNumberBodySchema = z.object({ volumeNumber: VolumeNumberSchema });
 export type SetVolumeNumberBody = z.infer<typeof SetVolumeNumberBodySchema>;
 
+export const MoveBookBodySchema = z.object({ projectId: z.string().min(1) });
+export type MoveBookBody = z.infer<typeof MoveBookBodySchema>;
+
 export const GlossaryEntrySchema = z.object({
   source: z.string().min(1),
   target: z.string().min(1),

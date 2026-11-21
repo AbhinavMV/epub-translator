@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useDeleteBook, useProject, useRenameProject } from "@/api/queries";
 import { UserMenu } from "@/auth/user-menu";
 import { AppMark } from "@/components/app-mark";
+import { DeleteProjectButton } from "@/components/delete-project-dialog";
 import { ProjectTermsSection } from "@/components/project/project-terms";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ export function ProjectPage() {
             <Skeleton className="h-7 w-48" />
           )}
         </div>
+        <DeleteProjectButton project={project.data} />
         <ThemeToggle />
         <UserMenu />
       </header>

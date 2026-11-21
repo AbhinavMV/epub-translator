@@ -3,6 +3,7 @@ import {
   ChapterPartQuerySchema,
   type ImportPlacement,
   ImportPlacementSchema,
+  MoveBookBodySchema,
   SetVolumeNumberBodySchema,
   SuggestGlossaryBodySchema,
 } from "@et/contracts";
@@ -16,6 +17,7 @@ import {
   importBook,
   libraryBookTitle,
   loadBookBytes,
+  moveBook,
   NotFoundError,
   ProviderNotConfiguredError,
   previewImport,
@@ -150,6 +152,12 @@ export function booksRoutes(s: Services) {
         c.req.param("id"),
         c.req.valid("json").volumeNumber,
       );
+      const { parsed } = await requireBook(repos.books, book.id);
+      return c.json(bookSummary(book, parsed, await libraryBookTitle(repos, book.id, parsed)));
+    })
+    .patch("/:id/project", validate("json", MoveBookBodySchema), async (c) => {
+      const { repos } = c.var;
+      const book = await moveBook(repos, c.req.param("id"), c.req.valid("json").projectId);
       const { parsed } = await requireBook(repos.books, book.id);
       return c.json(bookSummary(book, parsed, await libraryBookTitle(repos, book.id, parsed)));
     })
