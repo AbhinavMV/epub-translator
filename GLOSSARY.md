@@ -39,5 +39,11 @@ _Avoid_: Term
 A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader picks one.
 
 **Custom prompt**:
-The project's free-text style instructions, applied when translating any of its books.
+The project's free-text style instructions, which take the place of the default style guidance when translating any of its books. The fidelity and format rules always apply and cannot be edited.
 _Avoid_: Instructions, style guide
+
+**Translated title**:
+The rendering of a book's own title, taken from its English translation. With its volume marker removed, it can become the project's name, but only when the reader chooses to rename the project.
+
+**Fully translated**:
+A project in which every volume has a complete translation into the same target language. Flagged segments count as translated; proofreading is not required.
