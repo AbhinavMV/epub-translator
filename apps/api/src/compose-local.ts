@@ -5,6 +5,7 @@ import type {
   BatchTranslationProvider,
   BlobStore,
   Proofreader,
+  TermExtractor,
   TranslationProvider,
 } from "@et/core";
 import { JobRunner, MemoryWorkLeaseFactory } from "@et/core";
@@ -32,6 +33,7 @@ export interface LocalServiceOptions {
   fakeProvider?: TranslationProvider;
   fakeBatchProvider?: BatchTranslationProvider;
   fakeProofreader?: Proofreader;
+  fakeTermExtractor?: TermExtractor;
   discoverModels?: boolean;
 }
 
@@ -46,7 +48,7 @@ export function createLocalServices(options: LocalServiceOptions): LocalServices
       batch: options.fakeBatchProvider ?? registry.get("fake")?.batch ?? new FakeBatchProvider(),
       configured: true,
       defaultModel: "fake-echo",
-      terms: new FakeTermExtractor(),
+      terms: options.fakeTermExtractor ?? new FakeTermExtractor(),
       termsModel: "fake-echo",
       proofreader: options.fakeProofreader ?? new FakeProofreader(),
     });

@@ -94,7 +94,7 @@ export async function suggestGlossary(
 ): Promise<GlossarySuggestions> {
   const { book, parsed } = await requireBook(deps.books, input.bookId);
   const target = getTargetLanguage(input.targetLang);
-  const { glossary: existing } = await projectTermsFor(deps, input.bookId);
+  const { customPrompt, glossary: existing } = await projectTermsFor(deps, input.bookId);
 
   const result = await deps.extractor.extractTerms(
     {
@@ -104,6 +104,7 @@ export async function suggestGlossary(
       bookTitle: book.title,
       sample: buildSample(parsed, input.sampleChars ?? DEFAULT_SAMPLE_CHARS),
       existing,
+      instructions: customPrompt,
     },
     signal,
   );

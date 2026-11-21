@@ -91,6 +91,16 @@ describe("suggestGlossary", () => {
     expect(extractor.last?.existing).toEqual([{ source: "A", target: "x" }]);
   });
 
+  it("passes the project's custom prompt to the extractor", async () => {
+    const extractor = new StubExtractor({ kind: "ok", usage, terms: [] });
+    const { deps } = await setup(extractor);
+    await seedProjectTerms(deps, "b1", { customPrompt: "Keep honorifics.", glossary: [] });
+
+    await suggestGlossary(deps, input, signal);
+
+    expect(extractor.last?.instructions).toBe("Keep honorifics.");
+  });
+
   it("caps suggestions at the maximum", async () => {
     const terms = Array.from({ length: 100 }, (_, i) => ({ source: `s${i}`, target: "t" }));
     const { deps } = await setup(new StubExtractor({ kind: "ok", usage, terms }));
