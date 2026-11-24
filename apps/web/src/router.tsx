@@ -6,7 +6,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { RequireAuth } from "@/auth/require-auth";
-import { Toaster } from "@/components/ui/sonner";
+import { ToastLayer } from "@/components/toast-layer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useApplyTheme } from "@/lib/theme";
 import { AdminPage } from "@/routes/admin";
@@ -25,14 +25,15 @@ function Root() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <TooltipProvider delayDuration={300}>
-      {PUBLIC_PATHS.has(pathname) ? (
-        <Outlet />
-      ) : (
-        <RequireAuth>
+      <ToastLayer theme={theme === "dark" ? "dark" : "light"}>
+        {PUBLIC_PATHS.has(pathname) ? (
           <Outlet />
-        </RequireAuth>
-      )}
-      <Toaster theme={theme === "dark" ? "dark" : "light"} position="bottom-right" />
+        ) : (
+          <RequireAuth>
+            <Outlet />
+          </RequireAuth>
+        )}
+      </ToastLayer>
     </TooltipProvider>
   );
 }

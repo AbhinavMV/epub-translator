@@ -5,8 +5,9 @@ import {
   MAX_GLOSSARY_ENTRIES,
 } from "@et/contracts";
 import { Plus, Search, Sparkles, Trash2, X } from "lucide-react";
-import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useToastClearance } from "@/components/toast-layer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,8 @@ export function GlossaryEditor({
 
   const baseline = useMemo(() => snapshot(saved), [saved]);
   const dirty = settled.length > 0 || snapshot(rows) !== baseline;
+  const saveBar = useRef<HTMLElement>(null);
+  useToastClearance(saveBar, dirty);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   useEffect(() => {
@@ -306,6 +309,7 @@ export function GlossaryEditor({
 
       {dirty ? (
         <section
+          ref={saveBar}
           aria-label="Unsaved glossary changes"
           className="sticky bottom-3 z-10 flex min-w-0 flex-wrap items-center gap-2 rounded-xl bg-foreground py-2 pr-2 pl-4 text-background shadow-lg"
         >
