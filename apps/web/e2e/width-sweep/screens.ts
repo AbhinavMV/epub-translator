@@ -284,6 +284,26 @@ export const SCREENS: readonly Screen[] = [
     scope: OVERLAY.sheet,
   },
   {
+    name: "proofread sheet reviewed",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => {
+      await page
+        .getByRole("button", { name: /^(Review|Show)$/ })
+        .first()
+        .click();
+      const sheet = page.locator(OVERLAY.sheet);
+      await sheet
+        .getByText(/suggestions? (left|reviewed)/)
+        .first()
+        .waitFor();
+      const acceptAll = sheet.getByRole("button", { name: /^Accept( all)? \d+$/ });
+      if (await acceptAll.isVisible()) await acceptAll.click();
+    },
+    opened: (page) => page.locator(OVERLAY.sheet).filter({ hasText: /suggestions? reviewed/ }),
+    scope: OVERLAY.sheet,
+  },
+  {
     name: "proofread menu",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,

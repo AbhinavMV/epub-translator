@@ -1,4 +1,4 @@
-import type { ChapterProofread, ProofreadBody } from "@et/contracts";
+import type { ChapterProofread, ProofreadBody, ProofreadSuggestion } from "@et/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -139,10 +139,98 @@ describe("proofreading review", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
     expect(onDecide).toHaveBeenLastCalledWith({ accept: ["s1"] });
-    await userEvent.click(screen.getByRole("button", { name: "Accept all (1)" }));
-    expect(onDecide).toHaveBeenLastCalledWith({ accept: ["s1"] });
     await userEvent.click(screen.getByRole("button", { name: "¶ 4" }));
     expect(onJump).toHaveBeenCalledWith("s1");
+  });
+});
+
+function suggestion(segmentId: string, state: ProofreadSuggestion["state"]): ProofreadSuggestion {
+  return { segmentId, kind: "fluency", before: "Old.", after: "New.", reason: "", state };
+}
+
+function sheet(suggestions: ProofreadSuggestion[]) {
+  const onDecide = vi.fn();
+  const onOpenChange = vi.fn();
+  const onDiscard = vi.fn();
+  render(
+    <ProofreadSheet
+      open
+      onOpenChange={onOpenChange}
+      proofread={{ ...proofread, suggestions }}
+      chapterTitle="Chapter 1"
+      positions={new Map()}
+      busy={false}
+      onDecide={onDecide}
+      onDiscard={onDiscard}
+      onJump={() => {}}
+    />,
+  );
+  return { onDecide, onOpenChange, onDiscard };
+}
+
+describe("proofread sheet review states", () => {
+  it("counts the open suggestions on the bulk buttons", async () => {
+    const { onDecide } = sheet([
+      suggestion("s1", "pending"),
+      suggestion("s2", "pending"),
+      suggestion("s3", "accepted"),
+    ]);
+    expect(
+      screen.getByText("2 of 3 suggestions left. Nothing changes until you accept."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Accept all 2" }));
+    expect(onDecide).toHaveBeenLastCalledWith({ accept: ["s1", "s2"] });
+    await userEvent.click(screen.getByRole("button", { name: "Reject all 2" }));
+    expect(onDecide).toHaveBeenLastCalledWith({ reject: ["s1", "s2"] });
+    expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
+    expect(screen.queryByText(/reviewed/)).toBeNull();
+  });
+
+  it("names a single open suggestion without 'all'", async () => {
+    const { onDecide } = sheet([suggestion("s1", "rejected"), suggestion("s2", "pending")]);
+    expect(
+      screen.getByText("1 of 2 suggestions left. Nothing changes until you accept."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Accept 1" }));
+    expect(onDecide).toHaveBeenLastCalledWith({ accept: ["s2"] });
+    await userEvent.click(screen.getByRole("button", { name: "Reject 1" }));
+    expect(onDecide).toHaveBeenLastCalledWith({ reject: ["s2"] });
+    expect(screen.queryByRole("button", { name: /all/i })).toBeNull();
+  });
+
+  it("replaces the bulk buttons with a summary and Done once everything is reviewed", async () => {
+    const { onOpenChange } = sheet([suggestion("s1", "accepted"), suggestion("s2", "rejected")]);
+    expect(
+      screen.getByText("All 2 suggestions reviewed: 1 accepted, 1 rejected"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^(Accept|Reject)/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("counts suggestions that could not be applied in the summary", () => {
+    sheet([
+      suggestion("s1", "accepted"),
+      suggestion("s2", "outdated"),
+      suggestion("s3", "accepted"),
+    ]);
+    expect(
+      screen.getByText("All 3 suggestions reviewed: 2 accepted, 0 rejected, 1 not applied"),
+    ).toBeInTheDocument();
+  });
+
+  it("offers only Done when nothing was suggested", async () => {
+    const { onOpenChange } = sheet([]);
+    expect(screen.getByText("No changes were suggested.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^(Accept|Reject)/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps clearing the results available", async () => {
+    const { onDiscard } = sheet([suggestion("s1", "pending")]);
+    await userEvent.click(screen.getByRole("button", { name: "Clear proofreading results" }));
+    expect(onDiscard).toHaveBeenCalled();
   });
 });
 

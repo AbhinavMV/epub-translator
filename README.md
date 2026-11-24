@@ -58,7 +58,7 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
      - Errors that stop a chapter (bad key, rate limits) appear in a banner with a fix hint. A fatal error also stops the rest of that job's queue.
    - **Proofreading:**
      - **Proofread** shows how many of this chapter's suggestions are waiting. It checks this chapter, the chapters not yet proofread, or the whole book. Chapters run one at a time and carry names forward so they stay consistent. Multi-chapter runs ask first, because each sends the chapter text again.
-     - Suggestions are tagged accuracy, consistency, terminology or fluency, and show as word diffs with a reason. Accept or reject them one by one or all at once.
+     - Suggestions are tagged accuracy, consistency, terminology or fluency, and show as word diffs with a reason. Accept or reject them one by one or all at once; the bulk buttons count the suggestions still open ("Accept all 2", then "Accept 1"), and so does the count on **Proofread**. Once every suggestion is reviewed, the panel shows a summary ("All 2 suggestions reviewed: 1 accepted, 1 rejected") and **Done**.
      - Edits are vetted before they are shown (inline placeholders must still match the source). A suggestion whose paragraph changed since proofreading is marked outdated rather than applied.
 4. **Reader:**
    - The header is one row: the breadcrumb (Library / Project / chapter) leads back, then **Contents**, **Aa** and, from 640 px, **Edit**.
