@@ -45,6 +45,15 @@ const iconButton = (page: Page, icon: string) =>
 
 const scoped = (selector: string) => (page: Page) => page.locator(selector).first();
 
+const glossaryLoaded = (page: Page) =>
+  page
+    .locator(OVERLAY.dialog)
+    .filter({ hasText: /\d+ requests? ·/ })
+    .filter({ hasText: "Anthropic" })
+    .filter({ hasText: "claude-haiku-5-5" });
+
+const adminReady = (page: Page) => page.getByText("kenji@example.com").first();
+
 const ANGEL = "お隣の天使様にいつの間にか駄目人間にされていた件";
 const LONG_SERIES = /^片田舎で静かに暮らしたかった/;
 
@@ -107,7 +116,7 @@ export const SCREENS: readonly Screen[] = [
     path: "/projects/project-angel",
     ready: heading(ANGEL),
     open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
-    opened: scoped(OVERLAY.dialog),
+    opened: glossaryLoaded,
     scope: OVERLAY.dialog,
   },
   {
@@ -115,7 +124,7 @@ export const SCREENS: readonly Screen[] = [
     path: "/projects/project-long",
     ready: heading(LONG_SERIES),
     open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
-    opened: scoped(OVERLAY.dialog),
+    opened: glossaryLoaded,
     scope: OVERLAY.dialog,
   },
   {
@@ -155,6 +164,14 @@ export const SCREENS: readonly Screen[] = [
   { name: "editor failed passages", path: "/books/angel-2-5?chapter=c2", ready: editorReady },
   { name: "editor untranslated", path: "/books/angel-3?chapter=c1", ready: editorReady },
   { name: "editor long title", path: "/books/long-2?chapter=c1", ready: editorReady },
+  {
+    name: "editor source shown",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: "Show", exact: true })),
+    opened: (page) => page.getByRole("button", { name: "Hide", exact: true }),
+    reachable: (width) => width < 1024,
+  },
   {
     name: "editor chapters sheet",
     path: "/books/angel-1?chapter=c1",
@@ -274,11 +291,33 @@ export const SCREENS: readonly Screen[] = [
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
   },
+  { name: "admin", path: "/admin", hosted: "1", ready: adminReady },
   {
-    name: "admin",
+    name: "admin invite link dialog",
     path: "/admin",
     hosted: "1",
-    ready: (page) => page.getByText("kenji@example.com").first(),
+    ready: adminReady,
+    open: click((page) => page.getByRole("button", { name: "Create invite" })),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "admin reset link dialog",
+    path: "/admin",
+    hosted: "1",
+    ready: adminReady,
+    open: click((page) => page.getByRole("button", { name: /^Reset link for / }).first()),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "admin delete user dialog",
+    path: "/admin",
+    hosted: "1",
+    ready: adminReady,
+    open: click((page) => page.getByRole("button", { name: /^Delete / }).first()),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
   },
   { name: "hosted editor", path: "/books/angel-1?chapter=c1", hosted: "1", ready: editorReady },
   {

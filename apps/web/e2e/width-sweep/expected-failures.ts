@@ -128,6 +128,32 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
     review: "E1",
   },
   {
+    screen: "editor source shown",
+    offender:
+      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
+    widths: [280, 639],
+    review: "E6",
+  },
+  {
+    screen: "editor source shown",
+    offender:
+      'overflows: header > div > div > h1[data-slot="tooltip-trigger"] "The Angel Next Door Spoils Me Rotten, Vo…"',
+    widths: [280, 639],
+    review: "E3",
+  },
+  {
+    screen: "editor source shown",
+    offender: "page-scroll: html",
+    widths: [280, 639],
+    review: "E1",
+  },
+  {
+    screen: "editor source shown",
+    offender: 'past-viewport: div > div > header > div "Anthropicclaude-sonnet-5-5LiveBatch−50%E…"',
+    widths: [280, 639],
+    review: "E1",
+  },
+  {
     screen: "editor untranslated",
     offender:
       'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',

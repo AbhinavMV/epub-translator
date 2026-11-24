@@ -7,6 +7,13 @@ import { prepare, settle, sweepScreen, urlFor } from "./width-sweep/sweep";
 const THEMES: readonly Theme[] = ["light", "dark"];
 const ignoreExpected = process.env.SWEEP_IGNORE_EXPECTED === "1";
 
+test("every expected failure names a screen the sweep visits", () => {
+  const names = new Set(SCREENS.map((s) => s.name));
+  expect(SCREENS.length, "screen names must be unique").toBe(names.size);
+  const orphans = EXPECTED_FAILURES.filter((e) => !names.has(e.screen));
+  expect(orphans, "remove these entries from expected-failures.ts").toEqual([]);
+});
+
 for (const screen of SCREENS) {
   for (const theme of THEMES) {
     test(`${screen.name} (${theme})`, async ({ page }) => {
