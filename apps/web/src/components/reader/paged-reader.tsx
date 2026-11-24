@@ -242,12 +242,14 @@ export function PagedReader({
         }}
       >
         <div
+          data-overflow="clip"
           className="absolute overflow-clip"
           style={{ top: PAD_Y, left, width: pageWidth, height: pageHeight }}
         >
           <div
             ref={columnsRef}
             data-testid="paged-columns"
+            data-overflow="clip"
             className="reader-prose reader-columns"
             style={{
               ...style,
