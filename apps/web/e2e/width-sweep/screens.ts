@@ -1,0 +1,319 @@
+import type { Locator, Page } from "@playwright/test";
+
+export const WIDTHS = [
+  280, 320, 360, 375, 390, 412, 414, 430, 600, 639, 640, 767, 768, 820, 1023, 1024, 1280, 1440,
+  1920,
+] as const;
+
+export const HEIGHT = 800;
+
+export const OVERLAY = {
+  dialog: '[data-slot="dialog-content"]',
+  sheet: '[data-slot="sheet-content"]',
+  menu: '[data-slot="dropdown-menu-content"]',
+  select: '[data-slot="select-content"]',
+  popover: '[data-slot="popover-content"]',
+} as const;
+
+export interface Screen {
+  name: string;
+  path: string;
+  hash?: string;
+  /** Mock hosted mode, passed as `?hosted=`. */
+  hosted?: "1" | "signed-out";
+  /** Reader preferences stored before the app boots (theme is set by the sweep). */
+  prefs?: Record<string, unknown>;
+  /** Visible once the page has its data. */
+  ready: (page: Page) => Locator;
+  /** Opens the overlay or state under test; the sweep calls it again whenever it has closed. */
+  open?: (page: Page) => Promise<void>;
+  /** Visible while the state under test is open. */
+  opened?: (page: Page) => Locator;
+  /** Overlay to measure instead of the whole page. */
+  scope?: string;
+  /** Widths at which the state can be reached. */
+  reachable?: (width: number) => boolean;
+}
+
+const heading = (text: string | RegExp) => (page: Page) =>
+  page.getByRole("heading", { name: text }).first();
+
+const text = (value: string) => (page: Page) => page.getByText(value, { exact: true }).first();
+
+const iconButton = (page: Page, icon: string) =>
+  page.locator(`button:has(svg.lucide-${icon}):visible`).first();
+
+const scoped = (selector: string) => (page: Page) => page.locator(selector).first();
+
+const ANGEL = "お隣の天使様にいつの間にか駄目人間にされていた件";
+const LONG_SERIES = /^片田舎で静かに暮らしたかった/;
+
+const upload = (fileName: string) => async (page: Page) => {
+  await page.locator('input[type="file"]').setInputFiles({
+    name: fileName,
+    mimeType: "application/epub+zip",
+    buffer: Buffer.from("not really an epub; the mock only reads the name"),
+  });
+};
+
+const editorReady = (page: Page) => page.getByRole("progressbar", { name: "Chapters translated" });
+const readerReady = (page: Page) => page.locator(".reader-prose").first();
+
+const click = (target: (page: Page) => Locator) => async (page: Page) => {
+  await target(page).click();
+};
+
+export const SCREENS: readonly Screen[] = [
+  { name: "library", path: "/", ready: heading("EPUB Translator") },
+  {
+    name: "upload into an existing project",
+    path: "/",
+    ready: heading("EPUB Translator"),
+    open: upload(`${ANGEL} 4.epub`),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "upload as a new project",
+    path: "/",
+    ready: heading("EPUB Translator"),
+    open: upload(
+      "A completely new series whose title keeps going well past any reasonable length 1.epub",
+    ),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+
+  { name: "project angel", path: "/projects/project-angel", ready: heading(ANGEL) },
+  { name: "project long title", path: "/projects/project-long", ready: heading(LONG_SERIES) },
+  { name: "project witch", path: "/projects/project-witch", ready: heading("魔女の旅々") },
+  { name: "project wolf", path: "/projects/project-wolf", ready: heading("狼と香辛料") },
+  {
+    name: "project rename",
+    path: "/projects/project-long",
+    ready: heading(LONG_SERIES),
+    open: click((page) => page.getByRole("button", { name: "Rename project" })),
+    opened: (page) => page.getByRole("textbox", { name: "Project name" }),
+  },
+  {
+    name: "project volume number",
+    path: "/projects/project-long",
+    ready: heading(LONG_SERIES),
+    open: click((page) => page.getByRole("button", { name: /^Edit volume number of/ }).first()),
+    opened: (page) => page.getByRole("spinbutton").first(),
+  },
+  {
+    name: "glossary dialog",
+    path: "/projects/project-angel",
+    ready: heading(ANGEL),
+    open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "glossary dialog empty",
+    path: "/projects/project-long",
+    ready: heading(LONG_SERIES),
+    open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "custom prompt dialog",
+    path: "/projects/project-angel",
+    ready: heading(ANGEL),
+    open: click((page) => page.getByRole("button", { name: /^Custom prompt/ })),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "delete project dialog",
+    path: "/projects/project-long",
+    ready: heading(LONG_SERIES),
+    open: click((page) => page.getByRole("button", { name: "Delete project" })),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "move volume dialog",
+    path: "/projects/project-long",
+    ready: heading(LONG_SERIES),
+    open: click((page) => page.getByRole("button", { name: /^Move / }).first()),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "delete volume dialog",
+    path: "/projects/project-long",
+    ready: heading(LONG_SERIES),
+    open: click((page) => page.getByRole("button", { name: /^Delete (?!project)/ }).first()),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+
+  { name: "editor proofread chapter", path: "/books/angel-1?chapter=c1", ready: editorReady },
+  { name: "editor failed passages", path: "/books/angel-2-5?chapter=c2", ready: editorReady },
+  { name: "editor untranslated", path: "/books/angel-3?chapter=c1", ready: editorReady },
+  { name: "editor long title", path: "/books/long-2?chapter=c1", ready: editorReady },
+  {
+    name: "editor chapters sheet",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: "Open chapters" })),
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
+    reachable: (width) => width < 768,
+  },
+  {
+    name: "proofread sheet",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: /^(Review|Show)$/ }).first()),
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
+  },
+  {
+    name: "proofread menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => iconButton(page, "spell-check").click(),
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+  },
+  {
+    name: "proofread confirm dialog",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => {
+      await iconButton(page, "spell-check").click();
+      await page.getByRole("menuitem", { name: /^Whole book/ }).click();
+    },
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "export menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: "Export options" }).last()),
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+  },
+  {
+    name: "provider select",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("combobox", { name: "Provider" })),
+    opened: scoped(OVERLAY.select),
+    scope: OVERLAY.select,
+  },
+  {
+    name: "model select",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("combobox", { name: "Model" })),
+    opened: scoped(OVERLAY.select),
+    scope: OVERLAY.select,
+  },
+  {
+    name: "target language select",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("combobox", { name: "Target language" })),
+    opened: scoped(OVERLAY.select),
+    scope: OVERLAY.select,
+  },
+
+  { name: "reader", path: "/books/angel-1/read/c1", ready: readerReady },
+  {
+    name: "reader interleaved",
+    path: "/books/angel-1/read/c1",
+    prefs: { viewMode: "interleaved" },
+    ready: readerReady,
+  },
+  {
+    name: "reader side by side",
+    path: "/books/angel-1/read/c1",
+    prefs: { viewMode: "side-by-side" },
+    ready: readerReady,
+  },
+  {
+    name: "reader paged",
+    path: "/books/angel-1/read/c1",
+    prefs: { layout: "paged" },
+    ready: (page) => page.getByTestId("paged-columns"),
+  },
+  { name: "reader failed passages", path: "/books/angel-2-5/read/c2", ready: readerReady },
+  { name: "reader untranslated", path: "/books/angel-3/read/c1", ready: readerReady },
+  { name: "reader long title", path: "/books/long-2/read/c1", ready: readerReady },
+  {
+    name: "reader settings",
+    path: "/books/angel-1/read/c1",
+    ready: readerReady,
+    open: click((page) => page.getByRole("button", { name: "Reader settings" })),
+    opened: scoped(OVERLAY.popover),
+    scope: OVERLAY.popover,
+  },
+
+  { name: "hosted library", path: "/", hosted: "1", ready: heading("EPUB Translator") },
+  {
+    name: "account menu",
+    path: "/",
+    hosted: "1",
+    ready: heading("EPUB Translator"),
+    open: click((page) => page.getByRole("button", { name: "Account menu" })),
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+  },
+  {
+    name: "hosted upload",
+    path: "/",
+    hosted: "1",
+    ready: heading("EPUB Translator"),
+    open: upload(`${ANGEL} 4.epub`),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "admin",
+    path: "/admin",
+    hosted: "1",
+    ready: (page) => page.getByText("kenji@example.com").first(),
+  },
+  { name: "hosted editor", path: "/books/angel-1?chapter=c1", hosted: "1", ready: editorReady },
+  {
+    name: "api keys dialog",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => iconButton(page, "key-round").click(),
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "sign in",
+    path: "/signin",
+    hosted: "signed-out",
+    ready: text("Access is by invitation only."),
+  },
+  {
+    name: "invite",
+    path: "/invite",
+    hash: "t=mock-invite",
+    hosted: "signed-out",
+    ready: text("Create your account"),
+  },
+  {
+    name: "invite incomplete",
+    path: "/invite",
+    hosted: "signed-out",
+    ready: text("Invite link incomplete"),
+  },
+  { name: "reset password", path: "/reset", hosted: "1", ready: text("Choose a new password") },
+  {
+    name: "reset link expired",
+    path: "/reset",
+    hosted: "signed-out",
+    ready: text("This reset link is no longer valid."),
+  },
+];
