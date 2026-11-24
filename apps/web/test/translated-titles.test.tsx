@@ -31,12 +31,11 @@ describe("ChapterRail titles", () => {
     expect(screen.getByText("第一章")).not.toHaveAttribute("title");
   });
 
-  it("lists the generated title and navigation item first, without a chapter number", () => {
+  it("lists the generated title and navigation item first", () => {
     rail({ book: null, chapters: {} });
     const items = screen.getAllByRole("button");
     expect(items[0]).toHaveTextContent("Book title & navigation");
-    expect(items[0]).not.toHaveTextContent("00");
-    expect(items[1]).toHaveTextContent("01");
+    expect(items[1]).toHaveTextContent("第一章");
     expect(screen.queryByText("Contents")).toBeNull();
   });
 });

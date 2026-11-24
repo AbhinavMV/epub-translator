@@ -29,16 +29,6 @@ export const STATUS_LABEL: Record<ChapterStatus, string> = {
   failed: "Failed",
 };
 
-export const STATUS_DOT: Record<ChapterStatus, string> = {
-  idle: "bg-transparent ring-1 ring-inset ring-muted-foreground/50",
-  queued: "bg-flag/70",
-  running: "bg-primary animate-pulse",
-  submitted: "bg-primary/50 animate-pulse",
-  done: "bg-emerald-600 dark:bg-emerald-400",
-  partial: "bg-flag",
-  failed: "bg-destructive",
-};
-
 export type ChapterState = "not-started" | "busy" | "partial" | "failed" | "done";
 
 export interface ChapterStatusInfo {

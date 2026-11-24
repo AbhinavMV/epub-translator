@@ -21,13 +21,6 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
     review: "H1",
   },
   {
-    screen: "editor chapters sheet",
-    offender:
-      'past-viewport: div[data-slot="sheet-content"][role="dialog"] "ChaptersChoose a chapter013 to review198…"',
-    widths: [280, 639],
-    review: "sweep: the sheet is wider than a 280 px screen",
-  },
-  {
     screen: "editor failed passages",
     offender:
       'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
