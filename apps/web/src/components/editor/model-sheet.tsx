@@ -33,6 +33,8 @@ export function ModelSheet({
   onMode,
   targetLang,
   onTargetLang,
+  open: openProp,
+  onOpenChange,
 }: {
   providers: ProviderInfo[] | undefined;
   selection: Selection | null;
@@ -42,8 +44,16 @@ export function ModelSheet({
   onMode: (mode: TranslateMode) => void;
   targetLang: string;
   onTargetLang: (code: string) => void;
+  /** Controls the sheet from outside, e.g. from the phone editor's More sheet. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    onOpenChange?.(next);
+  };
   const model = selection ? modelName(selection.model) : "Choose a model";
   const modeName = mode === "batch" ? "Batch" : "Live";
   const language = TARGET_LANGUAGES.find((l) => l.code === targetLang)?.name ?? targetLang;
