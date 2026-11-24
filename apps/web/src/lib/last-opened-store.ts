@@ -36,9 +36,7 @@ export function createLastOpenedStore(storage: StorageLike | null, now: () => nu
     state = next;
     try {
       storage?.setItem(STORAGE_KEY, next ? JSON.stringify(next) : "");
-    } catch {
-      // storage unavailable: keep in-memory value
-    }
+    } catch {}
     for (const l of listeners) l();
   };
   return {
@@ -71,7 +69,6 @@ export function useLastOpened(store: LastOpenedStore = lastOpenedStore): LastOpe
   return useSyncExternalStore(store.subscribe, store.get);
 }
 
-/** Records the chapter once both ids are known; pass undefined while the book is loading. */
 export function useRecordLastOpened(
   bookId: string | undefined,
   chapterId: string | undefined,

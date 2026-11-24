@@ -50,7 +50,6 @@ const toEntries = (rows: readonly Row[]): GlossaryEntry[] =>
 const matches = (row: Row, query: string) =>
   [row.source, row.target, row.note].some((v) => v.toLowerCase().includes(query));
 
-/** The grid that lays out a glossary row: stacked on phones, one line from 640 px. */
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_auto] sm:items-center";
 
@@ -59,7 +58,6 @@ export interface GlossaryEditorProps {
   conflicts: readonly GlossaryConflict[];
   volumeLabel: (rendering: GlossaryRendering) => string;
   saving: boolean;
-  /** `settled` names the conflicts the reader settled since the last save. */
   onSave: (glossary: GlossaryEntry[], settled: string[]) => Promise<unknown>;
   onDirtyChange?: (dirty: boolean) => void;
   initialSuggesting?: boolean;

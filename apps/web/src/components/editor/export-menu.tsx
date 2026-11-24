@@ -26,7 +26,6 @@ export function ExportMenu({
   onExport?: ((href: string) => void) | undefined;
   disabled: boolean;
   hint: string;
-  /** Always show the label, not only on wide screens. */
   labelled?: boolean;
   className?: string;
 }) {

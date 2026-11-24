@@ -6,7 +6,6 @@ import { AppMark } from "@/components/app-mark";
 import { SettingsMenu } from "@/components/settings-menu";
 import { cn } from "@/lib/utils";
 
-/** One breadcrumb level. The last crumb is always shown as the current page, whatever its kind. */
 export type Crumb =
   | { kind: "library" }
   | { kind: "project"; projectId: string; name: string }
@@ -20,10 +19,6 @@ export function volumeLabel(
   return book.translatedTitle || book.title;
 }
 
-/**
- * Library / Project / Vol. N for a volume's editor and reader. The project level appears once the
- * book's project has loaded; the volume level hints at the full title.
- */
 export function useVolumeCrumbs(
   book:
     | Pick<BookSummary, "projectId" | "volumeNumber" | "title" | "translatedTitle" | "sourceLang">
@@ -95,7 +90,6 @@ export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   const above = crumbs.slice(0, -1);
   if (!current) return <nav aria-label="Breadcrumb" className="min-w-0 flex-1" />;
   const label = labelOf(current);
-  // On a phone the Library level gives way when there are deeper levels to show.
   const libraryHidden = above[0]?.kind === "library" && above.length > 1;
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">

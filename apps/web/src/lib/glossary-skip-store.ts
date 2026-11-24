@@ -13,7 +13,6 @@ function parse(text: string | null | undefined): Set<string> {
   }
 }
 
-/** Projects whose reader chose to translate without a glossary, on this device. */
 export function createGlossarySkipStore(storage: StorageLike | null) {
   let skipped: Set<string>;
   try {

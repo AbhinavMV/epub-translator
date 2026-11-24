@@ -48,7 +48,6 @@ export interface ProjectOverview extends ProjectWithBooks {
   volumeLangs: Map<string, string | null>;
   mainLang: string | null;
   translatedVolumeCount: number;
-  /** Per volume id, the percentage translated into the main language. */
   volumePercents: Map<string, number | null>;
 }
 

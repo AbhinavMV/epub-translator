@@ -19,7 +19,6 @@ export function ProviderSelect({
   providers: ProviderInfo[] | undefined;
   selection: Selection | null;
   onChange: (next: Selection) => void;
-  /** Full-width labelled fields showing model names, for the editor's model sheet. */
   stacked?: boolean;
 }) {
   const hosted = useHosted();

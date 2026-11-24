@@ -42,7 +42,6 @@ export function parseProjectTab(value: unknown): Exclude<ProjectTab, "volumes"> 
 
 export interface ProjectSearch {
   tab?: Exclude<ProjectTab, "volumes">;
-  /** Opens the Glossary tab's Suggest terms panel. */
   suggest?: true;
 }
 

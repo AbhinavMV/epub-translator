@@ -11,7 +11,6 @@ function read(): Record<string, string> {
   }
 }
 
-/** "Not now" on the rename offer, per project and offered title, on this device. */
 export function useRenameOfferDismissal(projectId: string, title: string | null) {
   const [dismissed, setDismissed] = useState(read);
   return {

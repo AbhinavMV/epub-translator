@@ -41,7 +41,6 @@ export function projectProgress(
   };
 }
 
-/** `mainLang` is the project's main language; the percentage is measured in it. */
 export function volumeProgress(
   book: Pick<BookSummary, "translatedPercent">,
   mainLang: string | null,

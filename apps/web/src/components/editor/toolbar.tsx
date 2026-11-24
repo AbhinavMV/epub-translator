@@ -20,7 +20,6 @@ export interface TranslateAction {
   label: string;
 }
 
-/** What the chapter's Translate button offers next; the bottom bar on phones reads it too. */
 export function translateAction(p: ChapterProgress | undefined): TranslateAction {
   if (!p) return { kind: "translate", label: "Translate chapter" };
   if (isBusy(p.status)) {
@@ -53,7 +52,6 @@ const ICON: Record<TranslateActionKind, ReactNode> = {
   busy: <Loader2 className="animate-spin" />,
 };
 
-/** The chapter's Translate button, labelled by `translateAction`; `wrap` lets the label wrap. */
 export function TranslateButton({
   chapterProgress,
   canTranslate,

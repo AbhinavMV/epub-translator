@@ -89,7 +89,6 @@ export function BookPage() {
   const saveSettings = useSaveSettings(bookId);
   const action = useJobAction(jobId);
   const glossaryFirst = useGlossaryFirst(book.data?.projectId);
-  /** Every translation the editor starts goes through here; `null` means all chapters. */
   const startTranslation = (target: string | null | undefined) => {
     if (!body || target === undefined) return;
     void glossaryFirst.guard(() =>
