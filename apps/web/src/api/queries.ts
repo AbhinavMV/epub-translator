@@ -108,9 +108,9 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   ]);
 }
 
-export function useBooks() {
+export function useBooks({ enabled = true }: { enabled?: boolean } = {}) {
   const api = useApi();
-  return useQuery({ queryKey: keys.books, queryFn: () => api.listBooks() });
+  return useQuery({ queryKey: keys.books, queryFn: () => api.listBooks(), enabled });
 }
 
 export function useBook(id: string) {

@@ -20,7 +20,7 @@ import type {
 } from "@et/contracts";
 import { compareTargetLanguages } from "@et/contracts";
 import { compareVolumes, parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
-import type { Api, EventSourceLike } from "./client";
+import { type Api, ApiRequestError, type EventSourceLike } from "./client";
 import { FAILED_PASSAGE_NOTE, MOCK_SEED, type ProjectSeed, type SegmentSeed } from "./mock-seed";
 
 const MOCK_SAMPLE_PLANS: Record<SampleSize, GlossarySamplePlan> = {
@@ -705,7 +705,7 @@ export function createMockApi(seed: readonly ProjectSeed[] = MOCK_SEED): Api {
     },
     async getBook(id): Promise<BookDetail> {
       const book = books.get(id);
-      if (!book) throw new Error("Book not found");
+      if (!book) throw new ApiRequestError("Book not found", 404);
       return delay({
         ...book.summary,
         settings: book.settings,

@@ -7,13 +7,6 @@ import type { ExpectedFailure } from "./expectations";
  */
 export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
   {
-    screen: "editor chapters sheet",
-    offender:
-      'past-viewport: div[data-slot="sheet-content"][role="dialog"] "ChaptersChoose a chapter013 to review198…"',
-    widths: [280, 639],
-    review: "sweep: the sheet is wider than a 280 px screen",
-  },
-  {
     screen: "editor failed passages",
     offender:
       'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
@@ -110,30 +103,6 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
       'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Provider"] > span[data-slot="select-value"] "Fake (offline test)"',
     widths: [280, 1920],
     review: "E6",
-  },
-  {
-    screen: "hosted library",
-    offender: 'overflows: section > div > a > div "狼と香辛料1 volumeFully translated"',
-    widths: [280, 639],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "hosted library",
-    offender: 'overflows: section > div > a > div "魔女の旅々2 volumesFully translated · French"',
-    widths: [280, 1023],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "library",
-    offender: 'overflows: section > div > a > div "狼と香辛料1 volumeFully translated"',
-    widths: [280, 639],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "library",
-    offender: 'overflows: section > div > a > div "魔女の旅々2 volumesFully translated · French"',
-    widths: [280, 1023],
-    review: "sweep: project card labels overflow the card",
   },
   {
     screen: "project long title",

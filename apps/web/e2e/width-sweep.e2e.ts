@@ -17,7 +17,7 @@ test("every expected failure names a screen the sweep visits", () => {
 for (const screen of SCREENS) {
   for (const theme of THEMES) {
     test(`${screen.name} (${theme})`, async ({ page }) => {
-      await prepare(page, theme, screen.prefs);
+      await prepare(page, theme, screen.prefs, screen.storage);
       await page.setViewportSize({ width: WIDTHS[0], height: 800 });
       await page.goto(urlFor(screen));
       await expect(screen.ready(page)).toBeVisible();

@@ -11,7 +11,7 @@ One work published as a sequence of volumes, such as a single light novel series
 _Avoid_: Series, collection, group
 
 **Book**:
-One imported EPUB file, which is one volume of a project.
+One uploaded EPUB file, which is one volume of a project.
 _Avoid_: Epub, file
 
 **Volume number**:
@@ -51,3 +51,7 @@ A project in which every volume has a complete translation into the same target 
 **Main language**:
 The target language a project's progress is counted in: the one the most volumes are completely translated into; on a tie, the one the most volumes have any translated passage in; on a further tie, the language listed first among the target languages. A project with no translated passage in any language has none. A volume counts as translated, and its percentage is measured, only in the main language, so a project is fully translated exactly when it has volumes and every one is translated.
 _Avoid_: Primary language, default language
+
+**Chapter status**:
+Where a chapter's translation stands, read from its passage counts: Translated (every passage, flagged ones included), Partly translated, Has failed passages, Not started, or Translating while work is queued or running. The editor's chapter list and the reader's contents both show it.
+_Avoid_: Character count, progress dot
