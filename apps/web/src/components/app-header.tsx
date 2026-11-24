@@ -100,9 +100,14 @@ export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
       {above.length > 0 && (
-        // Starts from zero width and grows only into space the current page leaves, so the
-        // levels above clip first and the current page clips only when it alone is too wide.
-        <span className="flex max-w-fit min-w-8 grow basis-0 items-center">
+        // Starts from its minimum and grows only into space the current page leaves, so the
+        // project level clips first and the current page clips only when it alone is too wide.
+        <span
+          className={cn(
+            "flex max-w-fit grow basis-0 items-center",
+            above.length === 1 && above[0]?.kind === "library" ? "min-w-min" : "min-w-8",
+          )}
+        >
           {above.map((crumb, i) => {
             const phoneHidden = libraryHidden && i <= 1;
             return (
@@ -114,7 +119,11 @@ export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
                 )}
                 <CrumbLink
                   crumb={crumb}
-                  className={cn(LINK, i === 0 && phoneHidden && "max-sm:hidden")}
+                  className={cn(
+                    LINK,
+                    crumb.kind !== "library" && "min-w-8 shrink-[20]",
+                    i === 0 && phoneHidden && "max-sm:hidden",
+                  )}
                 />
               </Fragment>
             );
@@ -139,7 +148,6 @@ export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   );
 }
 
-/** The header on every signed-in page: app mark, breadcrumb, page actions, Settings. */
 export function AppHeader({
   crumbs,
   leading,
@@ -147,9 +155,7 @@ export function AppHeader({
   className,
 }: {
   crumbs: Crumb[];
-  /** Before the app mark, such as the button that opens the chapter list on a phone. */
   leading?: ReactNode;
-  /** Before Settings, such as the editor's Read link. */
   actions?: ReactNode;
   className?: string;
 }) {

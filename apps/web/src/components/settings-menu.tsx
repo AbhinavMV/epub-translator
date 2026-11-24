@@ -42,7 +42,6 @@ function SignOutItem() {
   );
 }
 
-/** The one header menu: theme, and in the hosted app API keys, Admin and Sign out. */
 export function SettingsMenu() {
   const [prefs, setPrefs] = usePrefs();
   const auth = useAuth();
@@ -80,7 +79,7 @@ export function SettingsMenu() {
               >
                 <span
                   aria-hidden
-                  className="block h-5 w-7 rounded-[5px] border border-black/15"
+                  className="block h-5 w-7 rounded-[5px] border border-foreground/30"
                   style={{ background: t.swatch }}
                 />
                 {t.label}

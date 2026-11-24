@@ -47,7 +47,6 @@ export interface ChapterStatusInfo {
   translated: number;
   failed: number;
   total: number;
-  /** Share of passages translated, 0 to 1. */
   ratio: number;
   label: string;
   detail: string;

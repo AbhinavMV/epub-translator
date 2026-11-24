@@ -10,7 +10,6 @@ function arc(ratio: number): string {
   return `M8 ${8 - R} A${R} ${R} 0 ${ratio > 0.5 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
 }
 
-/** A ring that fills with the share translated: green tick when done, red dot when passages failed. */
 export function ChapterStatusIcon({
   status,
   className,

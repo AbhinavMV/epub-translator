@@ -31,7 +31,6 @@ export function ProgressBar({
   );
 }
 
-/** One line of progress text, green with a tick once complete, over an optional bar. */
 export function StatusLine({
   status,
   bar = true,

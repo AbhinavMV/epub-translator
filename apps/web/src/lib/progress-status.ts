@@ -7,9 +7,7 @@ import {
 
 export interface ProgressStatus {
   text: string;
-  /** Share done, 0 to 1, for the bar. */
   ratio: number;
-  /** Complete: shown in green with a tick. */
   done: boolean;
 }
 
