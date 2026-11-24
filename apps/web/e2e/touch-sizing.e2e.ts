@@ -42,6 +42,20 @@ test.describe("touch screens", () => {
       });
     }
   }
+
+  test("a sheet's Close button is 44 px and clear of its title", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/books/angel-1/read/c1?hosted=1");
+    await page.getByRole("button", { name: "Reader settings" }).click();
+    const sheet = page.getByRole("dialog", { name: "Reader settings" });
+    const close = sheet.getByRole("button", { name: "Close" });
+    const title = sheet.getByRole("heading", { name: "Reader settings" });
+    await expect(close).toBeVisible();
+    const [c, t] = [await close.boundingBox(), await title.boundingBox()];
+    expect(c?.height).toBeGreaterThanOrEqual(44);
+    expect(c?.width).toBeGreaterThanOrEqual(44);
+    expect((t?.x ?? 0) + (t?.width ?? 0)).toBeLessThanOrEqual(c?.x ?? 0);
+  });
 });
 
 test("controls are 36 px with a mouse", async ({ page }) => {
