@@ -1,9 +1,10 @@
+import { CONTENTS_CHAPTER_ID } from "@et/contracts";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, PencilLine } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
-import { BookTitle } from "@/components/book-title";
+import { AppHeader, useVolumeCrumbs } from "@/components/app-header";
 import { ChapterRail } from "@/components/chapter-rail";
 import { PartSentinel } from "@/components/part-sentinel";
 import { ChapterContent } from "@/components/reader/chapter-view";
@@ -13,6 +14,7 @@ import { ViewModeToggle } from "@/components/reader/view-mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isBusy, progressFor } from "@/lib/chapter-status";
+import { useRecordLastOpened } from "@/lib/last-opened-store";
 import { effectiveLayout, type PageAction, type StartAt } from "@/lib/pagination";
 import { type FontName, usePrefs, type WidthName } from "@/lib/reader-settings-store";
 
@@ -45,6 +47,10 @@ export function ReaderPage() {
 
   const chapters = book.data?.chapters ?? [];
   const position = chapters.findIndex((c) => c.id === chapterId);
+  useRecordLastOpened(
+    bookId,
+    position >= 0 && chapterId !== CONTENTS_CHAPTER_ID ? chapterId : undefined,
+  );
   const running = isBusy(progressFor(job.data, chapterId)?.status);
   const view = chapter.data?.chapterId === chapterId ? chapter.data : undefined;
 
@@ -119,7 +125,7 @@ export function ReaderPage() {
     maxWidth: sideBySide ? `${widthEm * 2 + 4}em` : undefined,
   } as React.CSSProperties;
 
-  const title = book.data?.title;
+  const crumbs = useVolumeCrumbs(book.data, job.data?.titles.book);
 
   const content = view ? (
     <ChapterContent
@@ -146,28 +152,37 @@ export function ReaderPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4">
+      <AppHeader
+        crumbs={crumbs}
+        actions={
+          <Button variant="ghost" asChild>
+            <Link
+              to="/books/$bookId"
+              params={{ bookId }}
+              search={{ chapter: chapterId }}
+              aria-label="Editor"
+            >
+              <PencilLine />
+              <span className="max-sm:hidden">Editor</span>
+            </Link>
+          </Button>
+        }
+      />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           aria-label={prefs.railCollapsed ? "Show contents" : "Hide contents"}
           onClick={() => setPrefs({ railCollapsed: !prefs.railCollapsed })}
         >
           {prefs.railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
         </Button>
-        <BookTitle title={title} translated={job.data?.titles.book} />
-        <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+        <span className="mr-auto font-mono text-xs whitespace-nowrap text-muted-foreground">
           Chapter {position >= 0 ? position + 1 : "–"} of {chapters.length || "–"}
         </span>
         <ViewModeToggle value={prefs.viewMode} onChange={(viewMode) => setPrefs({ viewMode })} />
         <ReaderSettings />
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/books/$bookId" params={{ bookId }} search={{ chapter: chapterId }}>
-            <PencilLine />
-            <span className="hidden sm:inline">Editor</span>
-          </Link>
-        </Button>
-      </header>
+      </div>
       <div
         className="h-0.5 w-full bg-border/60"
         role="progressbar"

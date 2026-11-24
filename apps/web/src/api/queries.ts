@@ -27,9 +27,13 @@ export function useProjects() {
   return useQuery({ queryKey: keys.projects, queryFn: () => api.listProjects() });
 }
 
-export function useProject(id: string) {
+export function useProject(id: string | null | undefined) {
   const api = useApi();
-  return useQuery({ queryKey: keys.project(id), queryFn: () => api.getProject(id) });
+  return useQuery({
+    queryKey: keys.project(id ?? ""),
+    queryFn: () => api.getProject(id ?? ""),
+    enabled: Boolean(id),
+  });
 }
 
 export function useRenameProject(id: string) {

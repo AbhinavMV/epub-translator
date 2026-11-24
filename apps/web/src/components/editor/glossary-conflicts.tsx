@@ -42,12 +42,12 @@ export function GlossaryConflictList({
                   onClick={() => pick(conflict.source, rendering.target)}
                 >
                   <span>{rendering.target}</span>
-                  <span className="text-[11px] font-normal text-muted-foreground">
+                  <span className="text-xs font-normal text-muted-foreground">
                     {volumeLabel(rendering)}
                     {inForce ? " · in force" : ""}
                   </span>
                   {rendering.note ? (
-                    <span className="text-[11px] font-normal text-muted-foreground">
+                    <span className="text-xs font-normal text-muted-foreground">
                       {rendering.note}
                     </span>
                   ) : null}

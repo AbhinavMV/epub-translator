@@ -23,7 +23,7 @@ async function copy(text: string, what: string) {
 
 function LangTag({ code }: { code: string }) {
   return (
-    <span className="rounded-sm border px-1 py-px font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+    <span className="rounded-sm border px-1 py-px font-mono text-xs tracking-wider text-muted-foreground uppercase">
       {code}
     </span>
   );
@@ -59,7 +59,7 @@ function TargetCell({
         <button
           type="button"
           onClick={onSuggestion}
-          className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-flag/15 px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-flag/25"
+          className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-flag/15 px-2 py-0.5 text-xs font-medium text-foreground hover:bg-flag/25"
         >
           <Sparkles className="size-3" />
           Suggested edit

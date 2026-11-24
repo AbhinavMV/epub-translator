@@ -7,7 +7,7 @@ const QUOTA = /HTTP 429|rate.?limit|quota|credit/i;
 function hintFor(message: string, hosted: boolean): string | null {
   if (AUTH.test(message)) {
     return hosted
-      ? "Check the key under AI keys, then translate again."
+      ? "Check the key under Settings → API keys, then translate again."
       : "Fix the key in apps/api/.env, restart the app, then translate again.";
   }
   if (QUOTA.test(message)) {

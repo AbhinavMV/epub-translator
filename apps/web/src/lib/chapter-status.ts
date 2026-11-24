@@ -38,3 +38,52 @@ export const STATUS_DOT: Record<ChapterStatus, string> = {
   partial: "bg-flag",
   failed: "bg-destructive",
 };
+
+export type ChapterState = "not-started" | "busy" | "partial" | "failed" | "done";
+
+export interface ChapterStatusInfo {
+  state: ChapterState;
+  /** Done and flagged passages, capped at the total. */
+  translated: number;
+  failed: number;
+  total: number;
+  ratio: number;
+  label: string;
+  detail: string;
+}
+
+/**
+ * Derives the state from the passage counts rather than `progress.status`: a chapter with only
+ * flagged passages left is translated, though the job may still call it partial.
+ */
+export function chapterStatus(
+  progress: ChapterProgress | undefined,
+  segmentCount: number,
+): ChapterStatusInfo {
+  const total = progress?.total ?? segmentCount;
+  const translated = Math.min(total, (progress?.done ?? 0) + (progress?.flagged ?? 0));
+  const failed = progress?.failed ?? 0;
+  const ratio = total > 0 ? translated / total : 0;
+  const counts = { translated, failed, total, ratio };
+  const passages = `${translated}/${total} passages`;
+
+  if (progress && isBusy(progress.status)) {
+    return { ...counts, state: "busy", label: STATUS_LABEL[progress.status], detail: passages };
+  }
+  if (failed > 0) {
+    return {
+      ...counts,
+      state: "failed",
+      label: "Has failed passages",
+      detail: `${translated}/${total} · ${failed} failed`,
+    };
+  }
+  if (progress?.error) return { ...counts, state: "failed", label: "Failed", detail: passages };
+  if (translated === total) {
+    return { ...counts, state: "done", label: "Translated", detail: "Translated" };
+  }
+  if (translated === 0) {
+    return { ...counts, state: "not-started", label: "Not started", detail: `${total} passages` };
+  }
+  return { ...counts, state: "partial", label: "Partly translated", detail: passages };
+}
