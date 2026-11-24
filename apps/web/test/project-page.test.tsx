@@ -217,6 +217,15 @@ describe("project menu", () => {
     ]);
   });
 
+  it("puts the cursor in the name field on Rename project", async () => {
+    renderAt("/projects/p1", { getProject: vi.fn(async () => translated) });
+    await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Rename project" }));
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Project name" })).toHaveFocus(),
+    );
+  });
+
   it("uploads a volume into this project", async () => {
     renderAt("/projects/p1", { getProject: vi.fn(async () => translated) });
     await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));

@@ -95,7 +95,7 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
     <li
       aria-labelledby={labelId}
       className={cn(
-        "grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 border-t py-2.5 pr-1 pl-3 first:border-t-0 hover:bg-secondary/40",
+        "grid min-w-0 grid-cols-[2.25rem_fit-content(50%)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-t py-2.5 pr-1 pl-3 first:border-t-0 hover:bg-secondary/40",
         "sm:grid-cols-[3rem_minmax(0,1fr)_minmax(8rem,11rem)_auto] sm:gap-x-4 sm:px-3.5 sm:py-3",
         "lg:grid-cols-[minmax(0,1fr)_auto] lg:content-start lg:items-start lg:gap-x-2 lg:gap-y-1 lg:border-t-0 lg:p-0 lg:hover:bg-transparent",
       )}
@@ -125,15 +125,18 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
         </div>
       </Link>
 
-      <div className="col-start-2 row-start-1 min-w-0 lg:col-start-1 lg:col-end-3 lg:row-start-2">
+      <div
+        className={cn(
+          "col-start-2 row-start-1 min-w-0 lg:col-start-1 lg:col-end-3 lg:row-start-2",
+          editing && "col-end-4 sm:col-end-3",
+        )}
+      >
         {editing ? (
           <VolumeNumberForm book={book} onDone={() => setEditing(false)} />
         ) : (
           <span
             id={labelId}
-            className="block truncate text-sm font-semibold tabular-nums"
-            data-overflow="clip"
-            title={label}
+            className="block text-sm font-semibold tabular-nums [overflow-wrap:anywhere]"
           >
             {label}
           </span>
@@ -165,6 +168,7 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
       <span
         className={cn(
           "col-start-3 row-start-1 flex min-w-0 items-start justify-end gap-1 text-right text-xs leading-[18px] tabular-nums break-words",
+          editing && "max-sm:hidden",
           "sm:justify-start sm:self-end sm:text-left lg:col-start-1 lg:row-start-4 lg:self-center",
           status.done ? "font-medium text-ok" : "text-muted-foreground",
         )}
@@ -199,7 +203,7 @@ function VolumeActions({
   const openReader = useOpenReader();
   const [moving, setMoving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const keepFocus = useRef(false);
+  const afterClose = useRef<(() => void) | null>(null);
 
   return (
     <>
@@ -223,8 +227,11 @@ function VolumeActions({
           collisionPadding={8}
           className="w-56 max-w-(--radix-dropdown-menu-content-available-width)"
           onCloseAutoFocus={(e) => {
-            if (keepFocus.current) e.preventDefault();
-            keepFocus.current = false;
+            const next = afterClose.current;
+            afterClose.current = null;
+            if (!next) return;
+            e.preventDefault();
+            next();
           }}
         >
           <DropdownMenuItem asChild>
@@ -238,8 +245,7 @@ function VolumeActions({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => {
-              keepFocus.current = true;
-              onEditNumber();
+              afterClose.current = onEditNumber;
             }}
           >
             <Hash /> Change volume number

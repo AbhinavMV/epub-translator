@@ -96,10 +96,9 @@ function ProjectMenu({
   upload: UploadDialogController;
 }) {
   const [deleting, setDeleting] = useState(false);
-  const keepFocus = useRef(false);
+  const afterClose = useRef<(() => void) | null>(null);
   const rename = (initial: string) => {
-    keepFocus.current = true;
-    onRename(initial);
+    afterClose.current = () => onRename(initial);
   };
 
   return (
@@ -115,8 +114,11 @@ function ProjectMenu({
           collisionPadding={8}
           className="w-60 max-w-(--radix-dropdown-menu-content-available-width)"
           onCloseAutoFocus={(e) => {
-            if (keepFocus.current) e.preventDefault();
-            keepFocus.current = false;
+            const next = afterClose.current;
+            afterClose.current = null;
+            if (!next) return;
+            e.preventDefault();
+            next();
           }}
         >
           <DropdownMenuItem onSelect={() => rename(project.name)}>
