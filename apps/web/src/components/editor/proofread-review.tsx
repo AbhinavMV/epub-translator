@@ -5,7 +5,7 @@ import type {
   ProofreadSuggestion,
 } from "@et/contracts";
 import { stripTokens } from "@et/core";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, CircleCheck, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -185,36 +185,41 @@ export function ProofreadSheet({
   const suggestions = proofread?.suggestions ?? [];
   const pending = suggestions.filter((s) => s.state === "pending").map((s) => s.segmentId);
   const decided = suggestions.filter((s) => s.state !== "pending");
+  const count = (state: ProofreadSuggestion["state"]) =>
+    suggestions.filter((s) => s.state === state).length;
+  const plural = (n: number) => `${n} suggestion${n === 1 ? "" : "s"}`;
+  const bulk = pending.length === 1 ? "" : " all";
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full gap-0 sm:max-w-lg">
         <SheetHeader className="border-b">
           <SheetTitle>Proofreading suggestions</SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="break-words">
             {chapterTitle}
             {proofread ? ` · ${proofread.model}` : ""}
           </SheetDescription>
-          {pending.length > 0 && (
-            <div className="flex gap-2 pt-2">
-              <Button size="sm" disabled={busy} onClick={() => onDecide({ accept: pending })}>
-                <Check />
-                Accept all ({pending.length})
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => onDecide({ reject: pending })}
-              >
-                Reject all
-              </Button>
-            </div>
-          )}
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {suggestions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No changes were suggested.</p>
+          ) : pending.length > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {pending.length} of {plural(suggestions.length)} left. Nothing changes until you
+              accept.
+            </p>
           ) : (
+            <p
+              role="status"
+              className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm"
+            >
+              <CircleCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span className="min-w-0">
+                {`All ${plural(suggestions.length)} reviewed: ${count("accepted")} accepted, ${count("rejected")} rejected`}
+                {count("outdated") > 0 ? `, ${count("outdated")} not applied` : ""}
+              </span>
+            </p>
+          )}
+          {suggestions.length > 0 && (
             <ul className="space-y-3">
               {[...suggestions.filter((s) => s.state === "pending"), ...decided].map((s) => (
                 <SuggestionCard
@@ -229,10 +234,35 @@ export function ProofreadSheet({
             </ul>
           )}
         </div>
-        <SheetFooter className="border-t">
-          <Button variant="ghost" size="sm" disabled={busy} onClick={onDiscard}>
-            Clear proofreading results
-          </Button>
+        <SheetFooter className="flex-row flex-wrap items-center border-t">
+          {proofread && (
+            <Button variant="ghost" size="sm" disabled={busy} onClick={onDiscard}>
+              Clear proofreading results
+            </Button>
+          )}
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            {pending.length > 0 ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => onDecide({ reject: pending })}
+                >
+                  <X />
+                  Reject{bulk} {pending.length}
+                </Button>
+                <Button size="sm" disabled={busy} onClick={() => onDecide({ accept: pending })}>
+                  <Check />
+                  Accept{bulk} {pending.length}
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={() => onOpenChange(false)}>
+                Done
+              </Button>
+            )}
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>
