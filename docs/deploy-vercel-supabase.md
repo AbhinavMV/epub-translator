@@ -76,7 +76,7 @@ Project Settings, Deployment Protection, enable Standard Protection (Vercel Auth
 
 1. Open the domain and sign in with the admin account.
 2. Open Admin, create an invite (optionally bound to an email, default 72 hours) and send the link to the person yourself.
-3. They open the link, choose a password and sign in. Each user then unlocks or creates their own browser key vault in the app and adds a provider key. Keys never leave their browser.
+3. They open the link, choose a password and sign in. Each user then opens **Settings → API keys**, unlocks or creates their own browser key vault and adds a provider key. Keys never leave their browser.
 4. Password recovery is an admin-generated link from the Admin page; there is no email sending. Whoever holds such a link can set the password and sign in as that user, so an admin can always sign in as any user (provider keys still stay in the user's browser vault and are not reachable that way, but books and translations are). Send reset links over a channel you trust.
 
 ## Fallback if Services is unavailable
