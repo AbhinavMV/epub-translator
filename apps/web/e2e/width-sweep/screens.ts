@@ -54,6 +54,13 @@ const glossaryLoaded = (page: Page) =>
     .filter({ hasText: "Anthropic" })
     .filter({ hasText: "claude-haiku-5-5" });
 
+const openApiKeys = async (page: Page) => {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "API keys" }).click();
+};
+
+const MOCK_PASSPHRASE = "mock passphrase";
+
 const adminReady = (page: Page) => page.getByText("kenji@example.com").first();
 
 const ANGEL = "お隣の天使様にいつの間にか駄目人間にされていた件";
@@ -74,7 +81,12 @@ const upload = (fileName: string) => async (page: Page) => {
   });
 };
 
-const editorReady = (page: Page) => page.getByRole("progressbar", { name: "Chapters translated" });
+const editorReady = (page: Page) => page.getByRole("progressbar", { name: "Passages translated" });
+
+const openModelSheet = async (page: Page) => {
+  await page.getByRole("button", { name: /^Model and mode/ }).click();
+  await page.locator(OVERLAY.sheet).waitFor();
+};
 const readerReady = (page: Page) => page.locator(".reader-prose").first();
 
 const click = (target: (page: Page) => Locator) => async (page: Page) => {
@@ -252,7 +264,7 @@ export const SCREENS: readonly Screen[] = [
     ready: editorReady,
     open: click((page) => page.getByRole("button", { name: "Show", exact: true })),
     opened: (page) => page.getByRole("button", { name: "Hide", exact: true }),
-    reachable: (width) => width < 1024,
+    reachable: (width) => width < 640,
   },
   {
     name: "editor chapters sheet",
@@ -294,15 +306,34 @@ export const SCREENS: readonly Screen[] = [
     name: "export menu",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("button", { name: "Export options" }).last()),
+    open: click((page) => page.getByRole("button", { name: "Export", exact: true })),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
+  },
+  {
+    name: "translate menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: "More translate options" })),
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+  },
+  {
+    name: "model sheet",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: openModelSheet,
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
   },
   {
     name: "provider select",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("combobox", { name: "Provider" })),
+    open: async (page) => {
+      if (!(await page.locator(OVERLAY.sheet).isVisible())) await openModelSheet(page);
+      await page.getByRole("combobox", { name: "Provider" }).click();
+    },
     opened: scoped(OVERLAY.select),
     scope: OVERLAY.select,
   },
@@ -310,7 +341,10 @@ export const SCREENS: readonly Screen[] = [
     name: "model select",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("combobox", { name: "Model" })),
+    open: async (page) => {
+      if (!(await page.locator(OVERLAY.sheet).isVisible())) await openModelSheet(page);
+      await page.getByRole("combobox", { name: "Model" }).click();
+    },
     opened: scoped(OVERLAY.select),
     scope: OVERLAY.select,
   },
@@ -318,7 +352,10 @@ export const SCREENS: readonly Screen[] = [
     name: "target language select",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("combobox", { name: "Target language" })),
+    open: async (page) => {
+      if (!(await page.locator(OVERLAY.sheet).isVisible())) await openModelSheet(page);
+      await page.getByRole("combobox", { name: "Target language" }).click();
+    },
     opened: scoped(OVERLAY.select),
     scope: OVERLAY.select,
   },
@@ -344,6 +381,18 @@ export const SCREENS: readonly Screen[] = [
   },
   { name: "reader failed passages", path: "/books/angel-2-5/read/c2", ready: readerReady },
   { name: "reader untranslated", path: "/books/angel-3/read/c1", ready: readerReady },
+  {
+    name: "reader paged untranslated",
+    path: "/books/angel-3/read/c1",
+    prefs: { layout: "paged" },
+    ready: (page) => page.getByTestId("paged-columns"),
+  },
+  {
+    name: "reader paged interleaved",
+    path: "/books/angel-2-5/read/c2",
+    prefs: { layout: "paged", viewMode: "interleaved" },
+    ready: (page) => page.getByTestId("paged-columns"),
+  },
   { name: "reader long title", path: "/books/long-2/read/c1", ready: readerReady },
   {
     name: "reader contents sheet",
@@ -359,8 +408,8 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1/read/c1",
     ready: readerReady,
     open: click((page) => page.getByRole("button", { name: "Reader settings" })),
-    opened: scoped(OVERLAY.popover),
-    scope: OVERLAY.popover,
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
   },
 
   { name: "hosted library", path: "/", hosted: "1", ready: libraryReady },
@@ -433,11 +482,42 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1?chapter=c1",
     hosted: "1",
     ready: editorReady,
-    open: async (page) => {
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByRole("menuitem", { name: "API keys" }).click();
-    },
+    open: openApiKeys,
     opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "api keys unlocked",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => {
+      await openApiKeys(page);
+      await page.getByLabel("New passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByLabel("Repeat passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByRole("button", { name: "Set passphrase" }).click();
+      await page.getByRole("button", { name: "Add Google Gemini key" }).click();
+    },
+    opened: (page) => page.locator(OVERLAY.dialog).filter({ hasText: "Generative Language API" }),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "api keys locked",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => {
+      await openApiKeys(page);
+      await page.getByLabel("New passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByLabel("Repeat passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByRole("button", { name: "Set passphrase" }).click();
+      await page.getByRole("button", { name: "Add Anthropic Claude key" }).click();
+      await page.getByLabel("Anthropic Claude API key").fill("sk-ant-mock-key-0000");
+      await page.getByRole("button", { name: "Save key" }).click();
+      await page.getByText(/^saved · ending/).waitFor();
+      await page.getByRole("button", { name: "Lock now" }).click();
+    },
+    opened: (page) => page.locator(OVERLAY.dialog).filter({ hasText: "Forgot it?" }),
     scope: OVERLAY.dialog,
   },
   {

@@ -1,10 +1,7 @@
 import { CONTENTS_CHAPTER_ID } from "@et/contracts";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ChapterRail } from "@/components/chapter-rail";
-import { EditorToolbar } from "@/components/editor/toolbar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { makeJob } from "./fixtures";
 
 const chapters = [
@@ -37,39 +34,5 @@ describe("ChapterRail titles", () => {
     expect(items[0]).toHaveTextContent("Book title & navigation");
     expect(items[1]).toHaveTextContent("第一章");
     expect(screen.queryByText("Contents")).toBeNull();
-  });
-});
-
-describe("EditorToolbar title action", () => {
-  it("translates the title and contents on request", async () => {
-    const onTranslateTitles = vi.fn();
-    render(
-      <TooltipProvider>
-        <EditorToolbar
-          chapterProgress={undefined}
-          busyCount={0}
-          translatedChapters={0}
-          totalChapters={2}
-          canTranslate
-          noProviderHint=""
-          starting={false}
-          titlesBusy={false}
-          hasPrev={false}
-          hasNext
-          hasTranslation={false}
-          onTranslate={() => {}}
-          onTranslateAll={() => {}}
-          onTranslateTitles={onTranslateTitles}
-          onPrev={() => {}}
-          onNext={() => {}}
-          onCancel={() => {}}
-          epubHref={undefined}
-          bilingualEpubHref={undefined}
-          txtHref={undefined}
-        />
-      </TooltipProvider>,
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Translate title & contents" }));
-    expect(onTranslateTitles).toHaveBeenCalledOnce();
   });
 });

@@ -7,55 +7,6 @@ import type { ExpectedFailure } from "./expectations";
  */
 export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
   {
-    screen: "admin",
-    offender:
-      'overflows: div > main > section > div[data-slot="table-container"] "EmailRoleStatusActionsa.reader.with.a.ra…"',
-    widths: [280, 1023],
-    review: "H1",
-  },
-  {
-    screen: "admin",
-    offender:
-      'overflows: div > main > section > div[data-slot="table-container"] "ForStatusExpiresActionsan.invited.friend…"',
-    widths: [280, 1023],
-    review: "H1",
-  },
-  {
-    screen: "editor failed passages",
-    offender:
-      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
-    widths: [280, 639],
-    review: "E6",
-  },
-  {
-    screen: "editor long title",
-    offender:
-      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
-    widths: [280, 639],
-    review: "E6",
-  },
-  {
-    screen: "editor proofread chapter",
-    offender:
-      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
-    widths: [280, 639],
-    review: "E6",
-  },
-  {
-    screen: "editor source shown",
-    offender:
-      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
-    widths: [280, 639],
-    review: "E6",
-  },
-  {
-    screen: "editor untranslated",
-    offender:
-      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
-    widths: [280, 639],
-    review: "E6",
-  },
-  {
     screen: "glossary dialog empty",
     offender:
       'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
@@ -110,19 +61,5 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
       'overflows: div[data-slot="dialog-content"][role="dialog"] > div > div "Suggest from volumeclaude-haiku-5-5"',
     widths: [280, 639],
     review: "P1",
-  },
-  {
-    screen: "hosted editor",
-    offender:
-      'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Provider"] > span[data-slot="select-value"] "Fake (offline test)"',
-    widths: [280, 1920],
-    review: "E6",
-  },
-  {
-    screen: "reader settings",
-    offender:
-      'past-viewport: div > div[data-slot="popover-content"][role="dialog"] "FontSerifSansSystemSize19pxLine height1.…"',
-    widths: [280, 639],
-    review: "sweep: the popover is wider than a phone screen",
   },
 ];

@@ -81,10 +81,10 @@ async function breadcrumb() {
 }
 
 describe.each([
-  ["editor", "/books/angel-2?chapter=c2"],
-  ["reader", "/books/angel-2/read/c2"],
-])("%s shell", (_, path) => {
-  it("shows Library / Project / Vol. N and Settings", async () => {
+  ["editor", "/books/angel-2?chapter=c2", "Vol. 2"],
+  ["reader", "/books/angel-2/read/c2", "Chapter 2 (translated)"],
+])("%s shell", (_, path, current) => {
+  it("shows Library / Project / the current page and Settings", async () => {
     renderAt(path);
     const nav = await breadcrumb();
     expect(within(nav).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/");
@@ -92,7 +92,7 @@ describe.each([
       "href",
       "/projects/project-angel",
     );
-    expect(within(nav).getByText("Vol. 2")).toHaveAttribute("aria-current", "page");
+    expect(await within(nav).findByText(current)).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 

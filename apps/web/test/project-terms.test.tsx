@@ -358,14 +358,6 @@ describe("book editor header", () => {
         translatedTitle={null}
         chapterId={undefined}
         jobId={undefined}
-        providers={providers}
-        selection={null}
-        onSelection={() => {}}
-        mode="live"
-        batchAvailable={false}
-        onMode={() => {}}
-        targetLang="en"
-        onTargetLang={() => {}}
         onOpenRail={() => {}}
       />
     ));
