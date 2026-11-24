@@ -6,7 +6,7 @@ import { ApiProvider } from "@/api/api-context";
 import { type Api, createHttpApi } from "@/api/client";
 import { createSupabaseUploader } from "@/api/signed-upload";
 import { AdminApiProvider, createHttpAdminApi } from "@/auth/admin-api";
-import { fetchAppConfig, LOCAL_CONFIG } from "@/auth/app-config";
+import { fetchAppConfig } from "@/auth/app-config";
 import { type AuthClient, createSupabaseAuthClient } from "@/auth/auth-client";
 import { AuthProvider } from "@/auth/auth-context";
 import { authedFetch, type FetchFn } from "@/auth/authed-fetch";
@@ -15,6 +15,7 @@ import { UnlockDialog } from "@/keys/keys-dialog";
 import { createQueryClient } from "@/lib/query-client";
 import { isHostedConfig } from "@/translate/hosted-config";
 import { createWorkApi } from "@/translate/work-api";
+import type { AppServices } from "./app-services";
 import { router } from "./router";
 import "./styles.css";
 
@@ -32,24 +33,26 @@ function reloadWhenUserChanges(client: AuthClient, scope: string) {
 async function boot() {
   const root = document.getElementById("root");
   if (!root) return;
-  const mock = import.meta.env.VITE_MOCK_API === "1";
-  const config = mock ? LOCAL_CONFIG : await fetchAppConfig();
+  if (import.meta.env.VITE_MOCK_API === "1") {
+    const { createMockApp } = await import("@/api/mock-app");
+    mount(root, await createMockApp(window.location.search, window.localStorage));
+    return;
+  }
+  const config = await fetchAppConfig();
   const client: AuthClient | null =
     config.authMode === "supabase" && config.supabaseUrl && config.supabasePublishableKey
       ? createSupabaseAuthClient(config.supabaseUrl, config.supabasePublishableKey)
       : null;
   const fetchFn: FetchFn | undefined = client ? authedFetch(client) : undefined;
 
-  let api: Api = mock
-    ? (await import("@/api/mock")).createMockApi()
-    : createHttpApi(fetchFn, undefined, {
-        upload: { mode: config.uploadMode, maxBytes: config.maxUploadBytes },
-        ...(config.uploadMode === "signed" && config.supabaseUrl && config.supabasePublishableKey
-          ? { uploader: createSupabaseUploader(config.supabaseUrl, config.supabasePublishableKey) }
-          : {}),
-      });
+  let api: Api = createHttpApi(fetchFn, undefined, {
+    upload: { mode: config.uploadMode, maxBytes: config.maxUploadBytes },
+    ...(config.uploadMode === "signed" && config.supabaseUrl && config.supabasePublishableKey
+      ? { uploader: createSupabaseUploader(config.supabaseUrl, config.supabasePublishableKey) }
+      : {}),
+  });
   let hosted: Hosted | null = null;
-  if (!mock && isHostedConfig(config)) {
+  if (isHostedConfig(config)) {
     const scope = client ? ((await client.getSession())?.userId ?? SIGNED_OUT_SCOPE) : "local";
     const { composeHostedClient } = await import("@/translate/compose-hosted");
     ({ api, hosted } = await composeHostedClient({
@@ -60,6 +63,10 @@ async function boot() {
     if (client) reloadWhenUserChanges(client, scope);
   }
 
+  mount(root, { api, client, adminApi: createHttpAdminApi(fetchFn), hosted });
+}
+
+function mount(root: HTMLElement, { api, client, authFetch, adminApi, hosted }: AppServices) {
   const queryClient = createQueryClient();
   const app = (
     <ApiProvider api={api}>
@@ -71,8 +78,8 @@ async function boot() {
   );
   createRoot(root).render(
     <StrictMode>
-      <AuthProvider client={client}>
-        <AdminApiProvider value={createHttpAdminApi(fetchFn)}>
+      <AuthProvider client={client} {...(authFetch ? { fetchFn: authFetch } : {})}>
+        <AdminApiProvider value={adminApi}>
           {hosted ? <HostedProvider hosted={hosted}>{app}</HostedProvider> : app}
         </AdminApiProvider>
       </AuthProvider>

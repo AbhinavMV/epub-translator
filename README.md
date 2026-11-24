@@ -128,4 +128,8 @@ pnpm lint        # biome (pnpm format to fix)
 
 `pnpm install` points git at `.githooks/`, whose pre-commit hook runs `biome check` on the staged files and stops a commit that fails lint or formatting.
 
+**Mock API:** `VITE_MOCK_API=1 pnpm --filter @et/web dev` runs the web app on an in-memory API (`apps/web/src/api/mock.ts`), with no server and no keys. It is seeded from `apps/web/src/api/mock-seed.ts` with the states layout checks need: very long project and volume titles, a project fully translated into French, a partly translated project whose volumes (numbered 1, 2, 2.5 and 3) are translated, partly translated and untranslated, a not-started project, a one-volume project, an empty glossary, a glossary conflict, a chapter with failed passages (Vol. 2.5, chapter 2) and pending proofread suggestions (Vol. 1, chapter 1). The data resets on every page load.
+
+Add `?hosted=1` to any URL to make the mock behave like hosted mode: a signed-in admin, the account menu, AI keys (kept in memory only), the Admin page with sample invites and users, and the hosted upload wording. `?hosted=signed-out` starts signed out, so `/signin` renders, and any email and password then sign in. The choice is kept in `localStorage` until `?hosted=0` turns it off. Translation in this mode still runs on the mock, not in the browser.
+
 To run a live provider smoke test, set `LIVE=1` plus the provider's key and run `pnpm --filter @et/providers test`. It spends a few hundred tokens.
