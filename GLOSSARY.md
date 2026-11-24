@@ -35,6 +35,10 @@ _Avoid_: Term list, dictionary
 One source term, its rendering, and an optional note.
 _Avoid_: Term
 
+**Glossary skip**:
+The reader's choice, on the project page (**Skip for now**) or before a translation (**Translate anyway**), to translate a project that has no glossary entries. It is remembered per project on one device, and turns off both the project warning and the editor's "Translate without a glossary?" prompt.
+_Avoid_: Dismiss, ignore glossary
+
 **Glossary conflict**:
 A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader settles the conflict by picking a rendering (or writing a new one) and saving the glossary.
 

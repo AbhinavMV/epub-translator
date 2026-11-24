@@ -62,6 +62,7 @@ export interface GlossaryEditorProps {
   /** `settled` names the conflicts the reader settled since the last save. */
   onSave: (glossary: GlossaryEntry[], settled: string[]) => Promise<unknown>;
   onDirtyChange?: (dirty: boolean) => void;
+  initialSuggesting?: boolean;
   suggestions: (add: (entries: GlossaryEntry[]) => void) => ReactNode;
 }
 
@@ -72,13 +73,14 @@ export function GlossaryEditor({
   saving,
   onSave,
   onDirtyChange,
+  initialSuggesting = false,
   suggestions,
 }: GlossaryEditorProps) {
   const [saved, setSaved] = useState<readonly GlossaryEntry[]>(glossary);
   const [rows, setRows] = useState(() => toRows(glossary));
   const [settled, setSettled] = useState<readonly string[]>([]);
   const [query, setQuery] = useState("");
-  const [suggesting, setSuggesting] = useState(false);
+  const [suggesting, setSuggesting] = useState(initialSuggesting);
   const [focus, setFocus] = useState<{ key: number; field: Field } | null>(null);
   const idPrefix = useId();
   const inputId = (key: number, field: Field | "note") => `${idPrefix}-${key}-${field}`;

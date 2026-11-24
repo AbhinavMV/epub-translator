@@ -13,7 +13,7 @@ import { AdminPage } from "@/routes/admin";
 import { BookPage } from "@/routes/book";
 import { InvitePage } from "@/routes/invite";
 import { LibraryPage } from "@/routes/library";
-import { ProjectPage, parseProjectTab } from "@/routes/project";
+import { ProjectPage, parseProjectSearch } from "@/routes/project";
 import { ReaderPage } from "@/routes/reader";
 import { ResetPasswordPage } from "@/routes/reset";
 import { SignInPage } from "@/routes/signin";
@@ -72,9 +72,7 @@ const libraryRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/projects/$projectId",
-  validateSearch: (search: Record<string, unknown>): { tab?: "glossary" | "prompt" } => ({
-    tab: parseProjectTab(search.tab),
-  }),
+  validateSearch: parseProjectSearch,
   component: ProjectPage,
 });
 

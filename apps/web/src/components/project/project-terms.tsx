@@ -38,9 +38,12 @@ function useProjectTerms(projectId: string) {
 export function ProjectGlossaryPanel({
   projectId,
   books,
+  suggest = false,
 }: {
   projectId: string;
   books: BookSummary[];
+  /** Opens with Suggest terms showing, reading every volume. */
+  suggest?: boolean;
 }) {
   const { data, saving, persist } = useProjectTerms(projectId);
   const resolveConflict = useResolveGlossaryConflict(projectId);
@@ -97,7 +100,10 @@ export function ProjectGlossaryPanel({
         saving={saving || resolveConflict.isPending}
         onSave={save}
         onDirtyChange={onDirtyChange}
-        suggestions={(add) => <ProjectGlossarySuggestions books={books} onAdd={add} />}
+        initialSuggesting={suggest}
+        suggestions={(add) => (
+          <ProjectGlossarySuggestions books={books} onAdd={add} readAll={suggest} />
+        )}
       />
       <Dialog
         open={blocker.status === "blocked"}
