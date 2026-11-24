@@ -36,7 +36,7 @@ One source term, its rendering, and an optional note.
 _Avoid_: Term
 
 **Glossary conflict**:
-A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader picks one.
+A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader settles the conflict by picking a rendering (or writing a new one) and saving the glossary.
 
 **Custom prompt**:
 The project's free-text style instructions, which take the place of the default style guidance when translating any of its books. The fidelity and format rules always apply and cannot be edited.
