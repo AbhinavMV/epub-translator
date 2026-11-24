@@ -93,6 +93,9 @@ const click = (target: (page: Page) => Locator) => async (page: Page) => {
   await target(page).click();
 };
 
+const promptLoaded = (page: Page) =>
+  page.getByRole("textbox", { name: "Custom prompt", disabled: false });
+
 const PROJECTS: [string, string | RegExp][] = [
   ["angel", ANGEL],
   ["long", LONG_SERIES],
@@ -189,7 +192,14 @@ export const SCREENS: readonly Screen[] = [
   {
     name: "project prompt tab",
     path: "/projects/project-long?tab=prompt",
-    ready: heading(LONG_SERIES),
+    ready: promptLoaded,
+  },
+  {
+    name: "project prompt tab fixed rules",
+    path: "/projects/project-angel?tab=prompt",
+    ready: promptLoaded,
+    open: click((page) => page.getByRole("button", { name: /^Fixed rules/ })),
+    opened: (page) => page.getByRole("region", { name: "Fixed rules" }),
   },
   {
     name: "project rename",
@@ -219,14 +229,6 @@ export const SCREENS: readonly Screen[] = [
     ready: heading(LONG_SERIES),
     open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
     opened: glossaryLoaded,
-    scope: OVERLAY.dialog,
-  },
-  {
-    name: "custom prompt dialog",
-    path: "/projects/project-angel?tab=prompt",
-    ready: heading(ANGEL),
-    open: click((page) => page.getByRole("button", { name: /^Custom prompt/ })),
-    opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
   },
   {

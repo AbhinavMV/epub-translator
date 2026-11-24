@@ -148,11 +148,20 @@ describe("project glossary and custom prompt", () => {
     });
   });
 
+  it("opens on the custom prompt in force, editable in place", async () => {
+    renderAt("/projects/p1?tab=prompt", projectApi());
+    const panel = await screen.findByRole("tabpanel", { name: /Custom prompt/ });
+    const box = await within(panel).findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() => expect(box).toHaveValue("Keep honorifics."));
+    expect(within(panel).getByText(/from the next chapter/)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("saves the custom prompt to the project, keeping its glossary", async () => {
     const api = projectApi();
     renderAt("/projects/p1?tab=prompt", api);
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    const box = screen.getByRole("textbox", { name: "Custom prompt" });
+    const box = await screen.findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() => expect(box).toHaveValue("Keep honorifics."));
     await userEvent.clear(box);
     await userEvent.type(box, "Use a light tone.");
     await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
@@ -160,12 +169,23 @@ describe("project glossary and custom prompt", () => {
       customPrompt: "Use a light tone.",
       glossary: stored.glossary,
     });
+    await waitFor(() => expect(box).toHaveValue("Use a light tone."));
+  });
+
+  it("keeps the fixed rules collapsed until asked for", async () => {
+    renderAt("/projects/p1?tab=prompt", projectApi());
+    const toggle = await screen.findByRole("button", { name: /fixed rules/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: /fixed rules/i })).toBeNull();
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: /fixed rules/i })).toBeInTheDocument();
   });
 
   it("shows the fixed rules without naming a language, since every target shares them", async () => {
     renderAt("/projects/p1?tab=prompt", projectApi());
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    const rules = within(screen.getByRole("dialog")).getByRole("region", { name: /fixed rules/i });
+    await userEvent.click(await screen.findByRole("button", { name: /fixed rules/i }));
+    const rules = screen.getByRole("region", { name: /fixed rules/i });
     expect(rules.textContent?.split("\n")[0]).toBe(
       "Translate the identified source-language target passages into the target language.",
     );
@@ -173,25 +193,42 @@ describe("project glossary and custom prompt", () => {
 
   it("shows the fixed rules read-only above the project's custom prompt", async () => {
     renderAt("/projects/p1?tab=prompt", projectApi());
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    const dialog = screen.getByRole("dialog");
-    const rules = within(dialog).getByRole("region", { name: /fixed rules/i });
+    await userEvent.click(await screen.findByRole("button", { name: /fixed rules/i }));
+    const rules = screen.getByRole("region", { name: /fixed rules/i });
     expect(rules).toHaveTextContent(/FIDELITY RULES/);
     expect(rules).toHaveTextContent(/FORMAT RULES/);
     expect(within(rules).queryByRole("textbox")).toBeNull();
-    expect(within(dialog).getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
-      "Keep honorifics.",
-    );
+    const box = screen.getByRole("textbox", { name: "Custom prompt" });
+    expect(rules.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("pre-fills the default style guidance and stores nothing when it is saved unchanged", async () => {
     const getProjectSettings = vi.fn(async () => ({ ...stored, customPrompt: "" }));
     const api = { ...projectApi(), getProjectSettings };
     renderAt("/projects/p1?tab=prompt", api);
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    expect(screen.getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
+    const box = await screen.findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() =>
+      expect(box).toHaveValue(
+        "Use natural, readable prose in the target language while preserving the source meaning.",
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
+    expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
+      customPrompt: "",
+      glossary: stored.glossary,
+    });
+  });
+
+  it("resets to the default style guidance without saving until asked", async () => {
+    const api = projectApi();
+    renderAt("/projects/p1?tab=prompt", api);
+    const box = await screen.findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() => expect(box).toHaveValue("Keep honorifics."));
+    await userEvent.click(screen.getByRole("button", { name: "Reset to default" }));
+    expect(box).toHaveValue(
       "Use natural, readable prose in the target language while preserving the source meaning.",
     );
+    expect(api.saveProjectTerms).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
       customPrompt: "",
