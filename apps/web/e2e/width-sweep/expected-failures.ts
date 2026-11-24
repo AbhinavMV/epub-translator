@@ -7,20 +7,6 @@ import type { ExpectedFailure } from "./expectations";
  */
 export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
   {
-    screen: "admin",
-    offender:
-      'overflows: div > main > section > div[data-slot="table-container"] "EmailRoleStatusActionsa.reader.with.a.ra…"',
-    widths: [280, 1023],
-    review: "H1",
-  },
-  {
-    screen: "admin",
-    offender:
-      'overflows: div > main > section > div[data-slot="table-container"] "ForStatusExpiresActionsan.invited.friend…"',
-    widths: [280, 1023],
-    review: "H1",
-  },
-  {
     screen: "editor chapters sheet",
     offender:
       'past-viewport: div[data-slot="sheet-content"][role="dialog"] "ChaptersChoose a chapter013 to review198…"',
