@@ -1,7 +1,6 @@
 import { DEFAULT_INVITE_HOURS, type InviteSummary, type UserSummary } from "@et/contracts";
-import { Link } from "@tanstack/react-router";
 import { Copy } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import {
   useCreateInvite,
@@ -13,8 +12,7 @@ import {
   useUsers,
 } from "@/auth/admin-queries";
 import { useAuth } from "@/auth/auth-context";
-import { AppMark } from "@/components/app-mark";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppHeader } from "@/components/app-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,14 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 export function inviteLink(origin: string, token: string): string {
   return `${origin}/invite#t=${token}`;
@@ -50,9 +41,67 @@ async function copy(text: string) {
 
 function SectionTitle({ id, children }: { id: string; children: string }) {
   return (
-    <h2 id={id} className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
+    <h2 id={id} className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
       {children}
     </h2>
+  );
+}
+
+const INVITE_COLUMNS = "sm:grid-cols-[minmax(0,2fr)_auto_minmax(0,1.5fr)_auto]";
+const USER_COLUMNS = "sm:grid-cols-[minmax(0,2fr)_auto_auto_auto]";
+
+function RowList({
+  labelledBy,
+  columns,
+  headers,
+  empty,
+  children,
+}: {
+  labelledBy: string;
+  columns: string;
+  headers: readonly string[];
+  empty: string | null;
+  children: ReactNode;
+}) {
+  if (empty) return <p className="text-sm text-muted-foreground">{empty}</p>;
+  return (
+    <ul aria-labelledby={labelledBy} className={cn("grid grid-cols-[minmax(0,1fr)]", columns)}>
+      <li
+        aria-hidden="true"
+        className="hidden border-b pb-2 text-xs font-medium text-muted-foreground sm:col-span-full sm:grid sm:grid-cols-subgrid sm:gap-x-4"
+      >
+        {headers.map((header, i) => (
+          <span key={header} className={i === headers.length - 1 ? "text-right" : undefined}>
+            {header}
+          </span>
+        ))}
+      </li>
+      {children}
+    </ul>
+  );
+}
+
+function Row({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b py-3 last:border-b-0 sm:col-span-full sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-x-4 sm:py-2">
+      {children}
+    </li>
+  );
+}
+
+function Who({ children }: { children: ReactNode }) {
+  return (
+    <p className="min-w-0 basis-full text-sm font-medium [overflow-wrap:anywhere] sm:basis-auto">
+      {children}
+    </p>
+  );
+}
+
+function Actions({ children }: { children: ReactNode }) {
+  return (
+    <div className="-ml-3 flex basis-full flex-wrap gap-1 sm:ml-0 sm:basis-auto sm:justify-end">
+      {children}
+    </div>
   );
 }
 
@@ -108,7 +157,7 @@ function InvitesSection() {
     <section aria-labelledby="invites-heading" className="flex flex-col gap-4">
       <SectionTitle id="invites-heading">Invites</SectionTitle>
       <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-[1_1_16rem] flex-col gap-1.5">
           <label htmlFor="invite-email" className="text-sm font-medium">
             Email (optional)
           </label>
@@ -120,7 +169,7 @@ function InvitesSection() {
             placeholder="anyone with the link"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-[0_1_9rem] flex-col gap-1.5">
           <label htmlFor="invite-hours" className="text-sm font-medium">
             Expires in (hours)
           </label>
@@ -128,7 +177,6 @@ function InvitesSection() {
             id="invite-hours"
             type="number"
             min={1}
-            className="w-28"
             value={hours}
             onChange={(e) => setHours(e.target.value)}
           />
@@ -138,39 +186,37 @@ function InvitesSection() {
         </Button>
       </form>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>For</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Expires</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(invites.data ?? []).map((invite: InviteSummary) => (
-            <TableRow key={invite.id}>
-              <TableCell>{invite.email ?? "Anyone with the link"}</TableCell>
-              <TableCell>
-                <Badge variant={invite.status === "pending" ? "default" : "secondary"}>
-                  {invite.status}
-                </Badge>
-              </TableCell>
-              <TableCell>{new Date(invite.expiresAt).toLocaleString()}</TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Revoke invite for ${invite.email ?? "anyone"}`}
-                  onClick={() => revoke.mutate(invite.id)}
-                >
-                  Revoke
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <RowList
+        labelledBy="invites-heading"
+        columns={INVITE_COLUMNS}
+        headers={["For", "Status", "Expires", "Actions"]}
+        empty={invites.data?.length === 0 ? "No invites yet." : null}
+      >
+        {(invites.data ?? []).map((invite: InviteSummary) => (
+          <Row key={invite.id}>
+            <Who>{invite.email ?? "Anyone with the link"}</Who>
+            <div>
+              <Badge variant={invite.status === "pending" ? "default" : "secondary"}>
+                {invite.status}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground sm:text-foreground">
+              <span className="sm:sr-only">Expires </span>
+              {new Date(invite.expiresAt).toLocaleString()}
+            </p>
+            <Actions>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={`Revoke invite for ${invite.email ?? "anyone"}`}
+                onClick={() => revoke.mutate(invite.id)}
+              >
+                Revoke
+              </Button>
+            </Actions>
+          </Row>
+        ))}
+      </RowList>
 
       <LinkDialog
         title="Invite link"
@@ -197,64 +243,57 @@ function UsersSection({ selfId }: { selfId: string | null }) {
   return (
     <section aria-labelledby="users-heading" className="flex flex-col gap-4">
       <SectionTitle id="users-heading">Users</SectionTitle>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(users.data ?? []).map((user) => {
-            const label = user.email ?? user.id;
-            return (
-              <TableRow key={user.id}>
-                <TableCell>{label}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>
-                  <Badge variant={user.disabled ? "destructive" : "secondary"}>
-                    {user.disabled ? "disabled" : "active"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="space-x-1 text-right">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label={`Reset link for ${label}`}
-                    onClick={() => void onReset(user)}
-                  >
-                    Reset link
-                  </Button>
-                  {user.id !== selfId && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`${user.disabled ? "Enable" : "Disable"} ${label}`}
-                        onClick={() =>
-                          setDisabled.mutate({ id: user.id, disabled: !user.disabled })
-                        }
-                      >
-                        {user.disabled ? "Enable" : "Disable"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Delete ${label}`}
-                        onClick={() => setTarget(user)}
-                      >
-                        Delete
-                      </Button>
-                    </>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      <RowList
+        labelledBy="users-heading"
+        columns={USER_COLUMNS}
+        headers={["Email", "Role", "Status", "Actions"]}
+        empty={null}
+      >
+        {(users.data ?? []).map((user) => {
+          const label = user.email ?? user.id;
+          return (
+            <Row key={user.id}>
+              <Who>{label}</Who>
+              <p className="text-sm text-muted-foreground sm:text-foreground">{user.role}</p>
+              <div>
+                <Badge variant={user.disabled ? "destructive" : "secondary"}>
+                  {user.disabled ? "disabled" : "active"}
+                </Badge>
+              </div>
+              <Actions>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Reset link for ${label}`}
+                  onClick={() => void onReset(user)}
+                >
+                  Reset link
+                </Button>
+                {user.id !== selfId && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`${user.disabled ? "Enable" : "Disable"} ${label}`}
+                      onClick={() => setDisabled.mutate({ id: user.id, disabled: !user.disabled })}
+                    >
+                      {user.disabled ? "Enable" : "Disable"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Delete ${label}`}
+                      onClick={() => setTarget(user)}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </Actions>
+            </Row>
+          );
+        })}
+      </RowList>
 
       <LinkDialog
         title="Password reset link"
@@ -268,7 +307,7 @@ function UsersSection({ selfId }: { selfId: string | null }) {
           <DialogHeader>
             <DialogTitle>Delete {target?.email ?? "this user"}?</DialogTitle>
             <DialogDescription>
-              This removes the account and everything they imported or translated. It cannot be
+              This removes the account and everything they uploaded or translated. It cannot be
               undone.
             </DialogDescription>
           </DialogHeader>
@@ -298,27 +337,23 @@ export function AdminPage() {
   const allowed = auth.mode === "supabase" && auth.me?.isAdmin === true;
 
   return (
-    <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-center gap-3">
-        <AppMark />
-        <h1 className="min-w-0 flex-1 font-serif text-xl font-semibold">Admin</h1>
-        <Link to="/" className="text-sm underline">
-          Library
-        </Link>
-        <ThemeToggle />
-      </header>
-      {allowed ? (
-        <>
-          <InvitesSection />
-          <UsersSection selfId={auth.me?.id ?? null} />
-        </>
-      ) : (
-        <p role="alert" className="text-sm text-muted-foreground">
-          {auth.mode === "none"
-            ? "Administration is only available on the hosted app."
-            : "You do not have access to this page."}
-        </p>
-      )}
+    <div className="flex min-h-full flex-col">
+      <AppHeader crumbs={[{ kind: "library" }, { kind: "current", label: "Admin" }]} />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
+        <h1 className="font-serif text-xl font-semibold">Admin</h1>
+        {allowed ? (
+          <>
+            <InvitesSection />
+            <UsersSection selfId={auth.me?.id ?? null} />
+          </>
+        ) : (
+          <p role="alert" className="text-sm text-muted-foreground">
+            {auth.mode === "none"
+              ? "Administration is only available on the hosted app."
+              : "You do not have access to this page."}
+          </p>
+        )}
+      </main>
     </div>
   );
 }

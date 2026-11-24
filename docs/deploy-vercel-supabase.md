@@ -20,12 +20,12 @@ Find the last migration the project ran and paste each later `packages/store-pos
 2. **apply-0008** (after 0007). Adds the `proofreads` table that stores AI proofreading suggestions, owner-scoped for `et_owner` like the other library tables.
 3. **apply-0009** (after 0008). Adds the owner-scoped `projects` table and a nullable project and volume number on `books`.
 4. **apply-0010** (after 0009). Adds the owner-scoped `project_settings` table that holds each project's glossary, custom prompt and glossary conflicts.
-5. **apply-0011** (after 0010). Adds `series_title` to `projects`, which import uses to suggest a project whose books were all deleted, even after a rename.
-6. **apply-0013** (after 0011; it does not wait for 0012). Adds `segment_count` to `books`, filled from each stored book, so the library can tell which projects are fully translated without loading every book. Paste it again once this code is deployed: a book that older code imported in between is left at 0.
-7. **Deploy this code.** Apply 0009 to 0011 and 0013 first: every translation request reads `project_settings`, every import preview and the backfill read `series_title`, every import writes `segment_count`, and older code keeps working with the new columns and tables. Until step 9 has run, translations use no glossary or custom prompt.
+5. **apply-0011** (after 0010). Adds `series_title` to `projects`, which upload uses to suggest a project whose books were all deleted, even after a rename.
+6. **apply-0013** (after 0011; it does not wait for 0012). Adds `segment_count` to `books`, filled from each stored book, so the library can tell which projects are fully translated without loading every book. Paste it again once this code is deployed: a book that older code uploaded in between is left at 0.
+7. **Deploy this code.** Apply 0009 to 0011 and 0013 first: every translation request reads `project_settings`, every upload preview and the backfill read `series_title`, every upload writes `segment_count`, and older code keeps working with the new columns and tables. Until step 9 has run, translations use no glossary or custom prompt.
 8. **Place the existing books in projects.** With the API's `DATABASE_URL` set, `pnpm --filter @et/api backfill:projects --postgres` prints, per user, the proposed projects and volume numbers without writing; add `--apply` to write them. It also fills the series title of projects created before 0011. Applying again changes nothing. `--owner <uuid>` limits either script to one user.
 9. **Move the glossary and custom prompt each book had before projects onto its project.** `pnpm --filter @et/api merge:project-settings --postgres` prints, per project, the merged glossary, the custom prompt and every glossary conflict without writing; add `--apply` to write them. Where volumes disagree on a term, the higher volume's rendering stays in force and the others are recorded as a glossary conflict for the reader to resolve. The merge writes nothing for a user while any of their books has no project (run step 8 first), skips a project whose glossary or custom prompt has already been saved, so applying again keeps later edits, and leaves out a project whose merged glossary exceeds 2,000 entries (the script names it). The books' own settings rows are left in place.
-10. **apply-0012**, last. Makes `books.project_id` NOT NULL. It fails, changing nothing, while any book still has no project, which happens if older code imported a book after step 8; run step 8 with `--apply` again and paste it again.
+10. **apply-0012**, last. Makes `books.project_id` NOT NULL. It fails, changing nothing, while any book still has no project, which happens if older code uploaded a book after step 8; run step 8 with `--apply` again and paste it again.
 
 In short, for a project that last ran 0008: apply-0009, apply-0010, apply-0011, apply-0013, deploy, `backfill:projects --postgres --apply`, `merge:project-settings --postgres --apply`, apply-0012. Run each script without `--apply` first to review its plan. `pnpm --filter @et/store-postgres db:migrate` on a library that is not yet backfilled applies up to 0011 and then stops with an error at 0012, leaving it and 0013 unrecorded; paste apply-0013 by hand before deploying, and re-run it after the backfill.
 
@@ -75,9 +75,9 @@ Project Settings, Deployment Protection, enable Standard Protection (Vercel Auth
 ## 6. First sign-in and invites
 
 1. Open the domain and sign in with the admin account.
-2. Open Admin, create an invite (optionally bound to an email, default 72 hours) and send the link to the person yourself.
-3. They open the link, choose a password and sign in. Each user then unlocks or creates their own browser key vault in the app and adds a provider key. Keys never leave their browser.
-4. Password recovery is an admin-generated link from the Admin page; there is no email sending. Whoever holds such a link can set the password and sign in as that user, so an admin can always sign in as any user (provider keys still stay in the user's browser vault and are not reachable that way, but books and translations are). Send reset links over a channel you trust.
+2. Open **Settings → Admin**, create an invite (optionally bound to an email, default 72 hours) and send the link to the person yourself. Invites and users are listed as rows with their status and actions; on a phone each row stacks, so the page works on any screen.
+3. They open the link, choose a password and sign in. Each user then opens **Settings → API keys**, unlocks or creates their own browser key vault and adds a provider key. Keys never leave their browser.
+4. Password recovery is an admin-generated link (**Reset link** on the user's row in Admin); there is no email sending, and the sign-in page tells users to ask the person who invited them. Whoever holds such a link can set the password and sign in as that user, so an admin can always sign in as any user (provider keys still stay in the user's browser vault and are not reachable that way, but books and translations are). Send reset links over a channel you trust.
 
 ## Fallback if Services is unavailable
 
@@ -87,4 +87,4 @@ Move the API into a Vercel function under `api/` that re-exports the Hono app, d
 
 - Supabase Free pauses the project after a week of inactivity and has an egress allowance; each instance keeps a 64 MB cache of recently read EPUBs to reduce reads.
 - Exports older than 24 hours are removed on the owner's next export.
-- Uploads are limited to 50 MB, matching the bucket limit. Upload tickets are limited to 30 per user per hour, and unfinished uploads older than 2 hours are removed on the owner's next import.
+- Uploads are limited to 50 MB, matching the bucket limit. Upload tickets are limited to 30 per user per hour, and unfinished uploads older than 2 hours are removed on the owner's next upload.

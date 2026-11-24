@@ -1,4 +1,10 @@
-import type { BookSummary, ProjectDetail, ProjectSummary } from "@et/contracts";
+import {
+  type BookSummary,
+  type ProjectDetail,
+  ProjectDetailSchema,
+  type ProjectSummary,
+  ProjectSummarySchema,
+} from "@et/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -15,6 +21,7 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { LibraryPage } from "@/routes/library";
 import { ProjectPage } from "@/routes/project";
 
@@ -44,7 +51,9 @@ function renderAt(path: string, overrides: Partial<Api>) {
     >
       <ApiProvider api={api}>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={createDeviceStores(null)}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,
@@ -60,6 +69,8 @@ const summaries: ProjectSummary[] = [
     volumeCount: 3,
     coverUrl: "/api/books/v1/cover",
     fullyTranslatedLang: null,
+    mainLang: null,
+    translatedVolumeCount: 0,
   },
   {
     id: "p2",
@@ -68,6 +79,8 @@ const summaries: ProjectSummary[] = [
     volumeCount: 0,
     coverUrl: null,
     fullyTranslatedLang: null,
+    mainLang: null,
+    translatedVolumeCount: 0,
   },
 ];
 
@@ -95,16 +108,28 @@ const detail: ProjectDetail = {
     book("v25", "魔女の旅々 2.5", 2.5),
   ],
   fullyTranslatedLang: null,
+  mainLang: null,
 };
 
+async function projectAction(name: string) {
+  await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+  await userEvent.click(await screen.findByRole("menuitem", { name }));
+}
+
+async function projectActions() {
+  await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+  const items = within(await screen.findByRole("menu")).getAllByRole("menuitem");
+  await userEvent.keyboard("{Escape}");
+  return items.map((i) => i.textContent?.trim());
+}
+
 describe("Library", () => {
-  it("lists projects with the cover of volume 1 and the volume count", async () => {
+  it("lists projects with the cover of volume 1 and their status", async () => {
     renderAt("/", { listProjects: vi.fn(async () => summaries) });
     const card = await screen.findByRole("link", { name: /魔女の旅々/ });
-    expect(within(card).getByText("3 volumes")).toBeInTheDocument();
+    expect(within(card).getByText("Not started · 3 volumes")).toBeInTheDocument();
     expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/books/v1/cover");
-    expect(screen.getByRole("link", { name: /Empty project/ })).toHaveTextContent("0 volumes");
-    expect(screen.getByText(/Library · 2/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Empty project/ })).toHaveTextContent("No volumes");
   });
 
   it("opens a project from its card", async () => {
@@ -114,23 +139,6 @@ describe("Library", () => {
     });
     await userEvent.click(await screen.findByRole("link", { name: /魔女の旅々/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/projects/p1"));
-  });
-
-  it("badges fully translated projects, naming the language unless it is English", async () => {
-    const [first, second] = summaries as [ProjectSummary, ProjectSummary];
-    renderAt("/", {
-      listProjects: vi.fn(async () => [
-        { ...first, fullyTranslatedLang: "en" },
-        { ...second, id: "p2", fullyTranslatedLang: "fr" },
-        { ...second, id: "p3", name: "Untranslated", fullyTranslatedLang: null },
-      ]),
-    });
-    const english = await screen.findByRole("link", { name: /魔女の旅々/ });
-    expect(within(english).getByText("Fully translated")).toBeInTheDocument();
-    const french = screen.getByRole("link", { name: /Empty project/ });
-    expect(within(french).getByText("Fully translated · French")).toBeInTheDocument();
-    const none = screen.getByRole("link", { name: /Untranslated/ });
-    expect(within(none).queryByText(/^Fully translated/)).not.toBeInTheDocument();
   });
 });
 
@@ -166,25 +174,6 @@ describe("Project page", () => {
     expect(screen.queryByText(/^Fully translated/)).not.toBeInTheDocument();
   });
 
-  it("badges each completely translated volume, naming the language unless it is English", async () => {
-    renderAt("/projects/p1", {
-      getProject: vi.fn(async () => ({
-        ...detail,
-        books: [
-          { ...book("v1", "魔女の旅々", 1), translatedLang: "en" },
-          { ...book("v2", "魔女の旅々 2", 2), translatedLang: "fr" },
-          { ...book("v25", "魔女の旅々 2.5", 2.5), translatedLang: null },
-        ],
-      })),
-    });
-    await screen.findByText("Translated · French");
-    const card = (href: string) =>
-      screen.getAllByRole("link").find((l) => l.getAttribute("href") === href) as HTMLElement;
-    expect(within(card("/books/v1")).getByText("Translated")).toBeInTheDocument();
-    expect(within(card("/books/v2")).getByText("Translated · French")).toBeInTheDocument();
-    expect(within(card("/books/v25")).queryByText(/^Translated/)).not.toBeInTheDocument();
-  });
-
   it("shows only the translated title on a volume card", async () => {
     renderAt("/projects/p1", {
       getProject: vi.fn(async () => ({
@@ -203,7 +192,7 @@ describe("Project page", () => {
       return { id: current.id, name, createdAt: current.createdAt };
     });
     renderAt("/projects/p1", { getProject: vi.fn(async () => current), renameProject });
-    await userEvent.click(await screen.findByRole("button", { name: "Rename project" }));
+    await projectAction("Rename project");
     const input = screen.getByRole("textbox", { name: "Project name" });
     await userEvent.clear(input);
     await userEvent.type(input, "Wandering Witch{Enter}");
@@ -216,7 +205,7 @@ describe("Project page", () => {
   it("does not save a blank name", async () => {
     const renameProject = vi.fn();
     renderAt("/projects/p1", { getProject: vi.fn(async () => detail), renameProject });
-    await userEvent.click(await screen.findByRole("button", { name: "Rename project" }));
+    await projectAction("Rename project");
     await userEvent.clear(screen.getByRole("textbox", { name: "Project name" }));
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(renameProject).not.toHaveBeenCalled();
@@ -239,14 +228,15 @@ describe("Use translated title", () => {
   it("is not offered when no volume has a translated title", async () => {
     renderAt("/projects/p1", { getProject: vi.fn(async () => detail) });
     await screen.findByRole("heading", { level: 1, name: "魔女の旅々" });
-    expect(screen.queryByRole("button", { name: "Use translated title" })).toBeNull();
+    expect(await projectActions()).not.toContain("Use translated title");
   });
 
   it("is not offered when the translated title already is the name", async () => {
     const project = withBooks([translated("v3", 3, "Some Series, Vol. 3")], "Some Series");
     renderAt("/projects/p1", { getProject: vi.fn(async () => project) });
     await screen.findByRole("heading", { level: 1, name: "Some Series" });
-    expect(screen.queryByRole("button", { name: "Use translated title" })).toBeNull();
+    expect(await projectActions()).not.toContain("Use translated title");
+    expect(screen.queryByRole("region", { name: "Rename offer" })).toBeNull();
   });
 
   it("pre-fills the rename field without the volume marker and saves only on save", async () => {
@@ -257,20 +247,20 @@ describe("Use translated title", () => {
     });
     renderAt("/projects/p1", { getProject: vi.fn(async () => current), renameProject });
 
-    await userEvent.click(await screen.findByRole("button", { name: "Use translated title" }));
+    await projectAction("Use translated title");
     expect(screen.getByRole("textbox", { name: "Project name" })).toHaveValue("Some Series");
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("heading", { level: 1, name: "魔女の旅々" })).toBeInTheDocument();
     expect(renameProject).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole("button", { name: "Use translated title" }));
+    await projectAction("Use translated title");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(renameProject).toHaveBeenCalledWith("p1", "Some Series");
     expect(
       await screen.findByRole("heading", { level: 1, name: "Some Series" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Use translated title" })).toBeNull();
+    expect(await projectActions()).not.toContain("Use translated title");
   });
 
   it("takes the title of the lowest-numbered translated volume", async () => {
@@ -280,9 +270,24 @@ describe("Use translated title", () => {
       translated("v2", 2, "The Journey of Elaina 2"),
     ]);
     renderAt("/projects/p1", { getProject: vi.fn(async () => project) });
-    await userEvent.click(await screen.findByRole("button", { name: "Use translated title" }));
+    await projectAction("Use translated title");
     expect(screen.getByRole("textbox", { name: "Project name" })).toHaveValue(
       "The Journey of Elaina",
     );
+  });
+});
+
+describe("mock api", () => {
+  it("serves projects with a main language and progress the contracts accept", async () => {
+    const api = createMockApi();
+    const list = ProjectSummarySchema.array().parse(await api.listProjects());
+    for (const summary of list) {
+      expect(summary.translatedVolumeCount).toBeLessThanOrEqual(summary.volumeCount);
+      const detail = ProjectDetailSchema.parse(await api.getProject(summary.id));
+      expect(detail.mainLang).toBe(summary.mainLang);
+      for (const b of detail.books) {
+        expect(b.translatedPercent === null).toBe(detail.mainLang === null);
+      }
+    }
   });
 });

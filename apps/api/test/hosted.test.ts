@@ -372,6 +372,92 @@ describe("fully translated projects", () => {
     expect(results.status).toBe(200);
     expect(await fullyTranslated()).toEqual(["en", "en", "en"]);
   });
+
+  it("reports the main language and progress in it across volumes and languages", async () => {
+    const importBook = async (body: Record<string, unknown>) =>
+      BookSummarySchema.parse(
+        await (await app.request(`${HOST}/api/books/import`, post("alice", body))).json(),
+      );
+    const one = await importBook({ path: await upload("alice", ALICE) });
+    const projectId = one.projectId ?? "";
+    const two = await importBook({
+      path: await upload("alice", ALICE, new Uint8Array([...EPUB, 9])),
+      placement: { projectId, volumeNumber: 2 },
+    });
+    await db.query(
+      "insert into public.projects (owner_id, id, name, created_at) values ($1, 'empty', 'Empty', now())",
+      [ALICE],
+    );
+    const job = async (bookId: string, lang: string) =>
+      (
+        (await (
+          await app.request(`${HOST}/api/books/${bookId}/workspace?targetLang=${lang}`, as("alice"))
+        ).json()) as { id: string }
+      ).id;
+    const oneFr = await job(one.id, "fr");
+    const twoEs = await job(two.id, "es");
+    const twoFr = await job(two.id, "fr");
+    const translate = async (jobId: string, status: "done" | "flagged") => {
+      const unit = WorkUnitSchema.parse(
+        await (
+          await app.request(`${HOST}/api/jobs/${jobId}/chapters/ch-0/lease`, post("alice", {}))
+        ).json(),
+      );
+      const res = await app.request(
+        `${HOST}/api/jobs/${jobId}/results`,
+        post("alice", {
+          leaseId: unit.leaseId,
+          segments: [{ id: "a.xhtml#0", text: "One two", status }],
+          usage: { inputTokens: 1, outputTokens: 1 },
+        }),
+      );
+      expect(res.status).toBe(200);
+    };
+    const progress = async () => {
+      const list = ProjectSummarySchema.array().parse(
+        await (await app.request(`${HOST}/api/projects`, as("alice"))).json(),
+      );
+      const detail = ProjectDetailSchema.parse(
+        await (await app.request(`${HOST}/api/projects/${projectId}`, as("alice"))).json(),
+      );
+      const summary = list.find((p) => p.id === projectId);
+      const percent = (id: string) => detail.books.find((b) => b.id === id)?.translatedPercent;
+      return {
+        mainLang: [summary?.mainLang, detail.mainLang],
+        translatedVolumeCount: summary?.translatedVolumeCount,
+        volumeCount: summary?.volumeCount,
+        fullyTranslatedLang: summary?.fullyTranslatedLang,
+        percents: [percent(one.id), percent(two.id)],
+        empty: list.find((p) => p.id === "empty"),
+      };
+    };
+
+    expect(await progress()).toMatchObject({
+      mainLang: [null, null],
+      translatedVolumeCount: 0,
+      volumeCount: 2,
+      fullyTranslatedLang: null,
+      percents: [null, null],
+      empty: { volumeCount: 0, mainLang: null, translatedVolumeCount: 0 },
+    });
+
+    await translate(oneFr, "done");
+    await translate(twoEs, "flagged");
+    expect(await progress()).toMatchObject({
+      mainLang: ["es", "es"],
+      translatedVolumeCount: 1,
+      fullyTranslatedLang: null,
+      percents: [0, 100],
+    });
+
+    await translate(twoFr, "done");
+    expect(await progress()).toMatchObject({
+      mainLang: ["fr", "fr"],
+      translatedVolumeCount: 2,
+      fullyTranslatedLang: "fr",
+      percents: [100, 100],
+    });
+  });
 });
 
 describe("exports", () => {

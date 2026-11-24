@@ -1,11 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { SettingsMenu } from "@/components/settings-menu";
 import { type Hosted, HostedProvider } from "@/keys/hosted-context";
-import { KeysDialog, UnlockDialog } from "@/keys/keys-dialog";
+import { UnlockDialog } from "@/keys/keys-dialog";
 import { MemoryEnvelopeStore } from "@/keys/memory-store";
 import { UnlockBus } from "@/keys/unlock-bus";
 import { Vault } from "@/keys/vault";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { hostedProviders } from "@/translate/hosted-api";
 
 const KEY = "sk-ant-fake-ui-0123456789ABCDwxyz";
@@ -19,18 +21,25 @@ async function setup(prepare?: (vault: Vault) => Promise<void>) {
   const unlock = new UnlockBus();
   const hosted = { vault, unlock, runtime: {} } as unknown as Hosted;
   render(
-    <HostedProvider hosted={hosted}>
-      <KeysDialog />
-      <UnlockDialog />
-    </HostedProvider>,
+    <DeviceStoresProvider stores={createDeviceStores(null)}>
+      <HostedProvider hosted={hosted}>
+        <SettingsMenu />
+        <UnlockDialog />
+      </HostedProvider>
+    </DeviceStoresProvider>,
   );
-  return { vault, store, unlock, user: userEvent.setup() };
+  const user = userEvent.setup();
+  const openKeys = async () => {
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(await screen.findByRole("menuitem", { name: "API keys" }));
+  };
+  return { vault, store, unlock, user, openKeys };
 }
 
-describe("AI keys dialog", () => {
+describe("API keys dialog", () => {
   it("first use: sets a passphrase, then adds a key and shows only the last four", async () => {
-    const { vault, store, user } = await setup();
-    await user.click(screen.getByRole("button", { name: /AI keys/ }));
+    const { vault, store, user, openKeys } = await setup();
+    await openKeys();
     expect(screen.getByText(/never to this app's server/)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("New passphrase"), PASS);
@@ -52,13 +61,13 @@ describe("AI keys dialog", () => {
   });
 
   it("asks for the existing passphrase when another tab set one meanwhile", async () => {
-    const { store, user } = await setup();
+    const { store, user, openKeys } = await setup();
     const other = new Vault({ store, scope: "u", iterations: 1000 });
     await other.load();
     await other.initialize(PASS);
     await other.setKey("anthropic", KEY);
 
-    await user.click(screen.getByRole("button", { name: /AI keys/ }));
+    await openKeys();
     await user.type(screen.getByLabelText("New passphrase"), "my own different passphrase");
     await user.type(screen.getByLabelText("Repeat passphrase"), "my own different passphrase");
     await user.click(screen.getByRole("button", { name: "Set passphrase" }));
@@ -69,28 +78,28 @@ describe("AI keys dialog", () => {
   });
 
   it("does not accept mismatched passphrases", async () => {
-    const { user } = await setup();
-    await user.click(screen.getByRole("button", { name: /AI keys/ }));
+    const { user, openKeys } = await setup();
+    await openKeys();
     await user.type(screen.getByLabelText("New passphrase"), PASS);
     await user.type(screen.getByLabelText("Repeat passphrase"), "something else entirely");
     expect(screen.getByRole("button", { name: "Set passphrase" })).toBeDisabled();
   });
 
   it("shows the Gemini restriction hint", async () => {
-    const { user } = await setup(async (v) => {
+    const { user, openKeys } = await setup(async (v) => {
       await v.initialize(PASS);
     });
-    await user.click(screen.getByRole("button", { name: /AI keys/ }));
+    await openKeys();
     await user.click(await screen.findByRole("button", { name: "Add Google Gemini key" }));
     expect(screen.getByText(/Generative Language API/)).toBeInTheDocument();
   });
 
   it("forgets a key", async () => {
-    const { vault, user } = await setup(async (v) => {
+    const { vault, user, openKeys } = await setup(async (v) => {
       await v.initialize(PASS);
       await v.setKey("openai", "sk-fake-openai-123456");
     });
-    await user.click(screen.getByRole("button", { name: /AI keys/ }));
+    await openKeys();
     await user.click(await screen.findByRole("button", { name: "Forget OpenAI key" }));
     await waitFor(() => expect(vault.snapshot().keys).toEqual([]));
   });

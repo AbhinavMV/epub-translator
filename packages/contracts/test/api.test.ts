@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BookSummarySchema,
   ChapterStatusSchema,
   ImportPlacementSchema,
   ProjectDetailSchema,
@@ -64,15 +65,50 @@ describe("project schemas", () => {
   const project = { id: "p1", name: "本", createdAt: "2026-10-23T00:00:00.000Z" };
 
   it("require fullyTranslatedLang, null when no language is complete", () => {
-    const summary = { ...project, volumeCount: 1, coverUrl: null };
-    expect(ProjectSummarySchema.safeParse(summary).success).toBe(false);
-    expect(ProjectSummarySchema.parse({ ...summary, fullyTranslatedLang: null })).toMatchObject({
+    const summary = { ...project, volumeCount: 1, coverUrl: null, mainLang: null };
+    const counted = { ...summary, translatedVolumeCount: 0 };
+    expect(ProjectSummarySchema.safeParse(counted).success).toBe(false);
+    expect(ProjectSummarySchema.parse({ ...counted, fullyTranslatedLang: null })).toMatchObject({
       fullyTranslatedLang: null,
     });
-    const detail = { ...project, books: [] };
+    const detail = { ...project, books: [], mainLang: "fr" };
     expect(ProjectDetailSchema.safeParse(detail).success).toBe(false);
     expect(ProjectDetailSchema.parse({ ...detail, fullyTranslatedLang: "fr" })).toMatchObject({
       fullyTranslatedLang: "fr",
     });
+  });
+
+  it("require the main language and translated volume count", () => {
+    const summary = { ...project, volumeCount: 2, coverUrl: null, fullyTranslatedLang: null };
+    expect(ProjectSummarySchema.safeParse({ ...summary, mainLang: "fr" }).success).toBe(false);
+    expect(ProjectSummarySchema.safeParse({ ...summary, translatedVolumeCount: 1 }).success).toBe(
+      false,
+    );
+    expect(
+      ProjectSummarySchema.parse({ ...summary, mainLang: "fr", translatedVolumeCount: 1 }),
+    ).toMatchObject({ mainLang: "fr", translatedVolumeCount: 1 });
+    const detail = { ...project, books: [], fullyTranslatedLang: null };
+    expect(ProjectDetailSchema.safeParse(detail).success).toBe(false);
+    expect(ProjectDetailSchema.parse({ ...detail, mainLang: null })).toMatchObject({
+      mainLang: null,
+    });
+  });
+
+  it("let a book summary carry its translated percentage", () => {
+    const book = {
+      id: "b1",
+      title: "本",
+      author: null,
+      sourceLang: "ja",
+      coverUrl: null,
+      chapterCount: 1,
+      segmentCount: 3,
+      createdAt: project.createdAt,
+    };
+    expect(BookSummarySchema.parse(book).translatedPercent).toBeUndefined();
+    expect(BookSummarySchema.parse({ ...book, translatedPercent: 66 }).translatedPercent).toBe(66);
+    expect(BookSummarySchema.parse({ ...book, translatedPercent: null }).translatedPercent).toBe(
+      null,
+    );
   });
 });

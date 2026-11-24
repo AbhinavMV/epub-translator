@@ -1,4 +1,5 @@
 import type {
+  BookDetail,
   BookSummary,
   ProjectDetail,
   ProjectSettings,
@@ -23,6 +24,7 @@ import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { ProjectPage } from "@/routes/project";
 
 globalThis.ResizeObserver ??= class {
@@ -55,7 +57,9 @@ function renderAt(path: string, overrides: Partial<Api>, bookPage: () => ReactNo
     >
       <ApiProvider api={api}>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={createDeviceStores(null)}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,
@@ -83,6 +87,7 @@ const detail: ProjectDetail = {
   createdAt: "2026-10-02T00:00:00.000Z",
   books: [book("v1", 1), book("v2", 2)],
   fullyTranslatedLang: null,
+  mainLang: null,
 };
 
 const providers: ProviderInfo[] = [
@@ -120,18 +125,20 @@ function projectApi(
 }
 
 describe("project glossary and custom prompt", () => {
-  it("shows the glossary size and its unresolved conflicts", async () => {
-    renderAt("/projects/p1", projectApi());
-    const section = await screen.findByRole("region", { name: "Glossary and custom prompt" });
-    expect(await within(section).findByText(/1 glossary entry,/)).toBeInTheDocument();
-    expect(within(section).getByText(/1 glossary conflict/)).toBeInTheDocument();
+  it("shows the glossary entries and its unresolved conflicts in the tab", async () => {
+    renderAt("/projects/p1?tab=glossary", projectApi());
+    const section = await screen.findByRole("tabpanel", { name: /Glossary/ });
+    expect(await within(section).findByDisplayValue("Elaina")).toBeInTheDocument();
+    expect(within(section).getByText(/1 of 2,000 entries/)).toBeInTheDocument();
+    expect(
+      within(section).getByRole("region", { name: "1 glossary conflict to settle" }),
+    ).toBeInTheDocument();
   });
 
   it("saves glossary edits to the project, keeping its prompt", async () => {
     const api = projectApi();
-    renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await userEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    renderAt("/projects/p1?tab=glossary", api);
+    await userEvent.click(await screen.findByRole("button", { name: "Add entry" }));
     const sources = screen.getAllByRole("textbox", { name: "Source term" });
     const targets = screen.getAllByRole("textbox", { name: "Rendering" });
     await userEvent.type(sources.at(-1) as HTMLElement, "サヤ");
@@ -146,11 +153,20 @@ describe("project glossary and custom prompt", () => {
     });
   });
 
+  it("opens on the custom prompt in force, editable in place", async () => {
+    renderAt("/projects/p1?tab=prompt", projectApi());
+    const panel = await screen.findByRole("tabpanel", { name: /Custom prompt/ });
+    const box = await within(panel).findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() => expect(box).toHaveValue("Keep honorifics."));
+    expect(within(panel).getByText(/from the next chapter/)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("saves the custom prompt to the project, keeping its glossary", async () => {
     const api = projectApi();
-    renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    const box = screen.getByRole("textbox", { name: "Custom prompt" });
+    renderAt("/projects/p1?tab=prompt", api);
+    const box = await screen.findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() => expect(box).toHaveValue("Keep honorifics."));
     await userEvent.clear(box);
     await userEvent.type(box, "Use a light tone.");
     await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
@@ -158,38 +174,66 @@ describe("project glossary and custom prompt", () => {
       customPrompt: "Use a light tone.",
       glossary: stored.glossary,
     });
+    await waitFor(() => expect(box).toHaveValue("Use a light tone."));
+  });
+
+  it("keeps the fixed rules collapsed until asked for", async () => {
+    renderAt("/projects/p1?tab=prompt", projectApi());
+    const toggle = await screen.findByRole("button", { name: /fixed rules/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: /fixed rules/i })).toBeNull();
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: /fixed rules/i })).toBeInTheDocument();
   });
 
   it("shows the fixed rules without naming a language, since every target shares them", async () => {
-    renderAt("/projects/p1", projectApi());
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    const rules = within(screen.getByRole("dialog")).getByRole("region", { name: /fixed rules/i });
+    renderAt("/projects/p1?tab=prompt", projectApi());
+    await userEvent.click(await screen.findByRole("button", { name: /fixed rules/i }));
+    const rules = screen.getByRole("region", { name: /fixed rules/i });
     expect(rules.textContent?.split("\n")[0]).toBe(
       "Translate the identified source-language target passages into the target language.",
     );
   });
 
   it("shows the fixed rules read-only above the project's custom prompt", async () => {
-    renderAt("/projects/p1", projectApi());
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    const dialog = screen.getByRole("dialog");
-    const rules = within(dialog).getByRole("region", { name: /fixed rules/i });
+    renderAt("/projects/p1?tab=prompt", projectApi());
+    await userEvent.click(await screen.findByRole("button", { name: /fixed rules/i }));
+    const rules = screen.getByRole("region", { name: /fixed rules/i });
     expect(rules).toHaveTextContent(/FIDELITY RULES/);
     expect(rules).toHaveTextContent(/FORMAT RULES/);
     expect(within(rules).queryByRole("textbox")).toBeNull();
-    expect(within(dialog).getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
-      "Keep honorifics.",
-    );
+    const box = screen.getByRole("textbox", { name: "Custom prompt" });
+    expect(rules.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("pre-fills the default style guidance and stores nothing when it is saved unchanged", async () => {
     const getProjectSettings = vi.fn(async () => ({ ...stored, customPrompt: "" }));
     const api = { ...projectApi(), getProjectSettings };
-    renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
-    expect(screen.getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
+    renderAt("/projects/p1?tab=prompt", api);
+    const box = await screen.findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() =>
+      expect(box).toHaveValue(
+        "Use natural, readable prose in the target language while preserving the source meaning.",
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
+    expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
+      customPrompt: "",
+      glossary: stored.glossary,
+    });
+  });
+
+  it("resets to the default style guidance without saving until asked", async () => {
+    const api = projectApi();
+    renderAt("/projects/p1?tab=prompt", api);
+    const box = await screen.findByRole("textbox", { name: "Custom prompt" });
+    await waitFor(() => expect(box).toHaveValue("Keep honorifics."));
+    await userEvent.click(screen.getByRole("button", { name: "Reset to default" }));
+    expect(box).toHaveValue(
       "Use natural, readable prose in the target language while preserving the source meaning.",
     );
+    expect(api.saveProjectTerms).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Save custom prompt" }));
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
       customPrompt: "",
@@ -199,10 +243,9 @@ describe("project glossary and custom prompt", () => {
 
   it("locks the volume picker while suggestions are running", async () => {
     const api = { ...projectApi(), suggestGlossary: () => new Promise<never>(() => {}) };
-    renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await screen.findByText(/1 request/);
-    const picker = screen.getByRole("combobox", { name: "Volume to sample" });
+    renderAt("/projects/p1?tab=glossary", api);
+    await openSuggest();
+    const picker = screen.getByRole("combobox", { name: "Read from" });
     expect(picker).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
     await waitFor(() => expect(picker).toBeDisabled());
@@ -214,9 +257,8 @@ describe("project glossary and custom prompt", () => {
       usage: null,
     }));
     const api = { ...projectApi(), suggestGlossary };
-    renderAt("/projects/p1", api);
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await screen.findByText(/1 request/);
+    renderAt("/projects/p1?tab=glossary", api);
+    await openSuggest();
     await userEvent.click(await screen.findByRole("button", { name: "Suggest from volume" }));
     expect(suggestGlossary).toHaveBeenCalledWith(
       "v2",
@@ -228,12 +270,19 @@ describe("project glossary and custom prompt", () => {
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
       customPrompt: "Keep honorifics.",
       glossary: [
-        { source: "イレイナ", target: "Elaina" },
         { source: "サヤ", target: "Saya" },
+        { source: "イレイナ", target: "Elaina" },
       ],
     });
   });
 });
+
+async function openSuggest() {
+  await userEvent.click(await screen.findByRole("button", { name: "Suggest terms" }));
+  const panel = screen.getByRole("region", { name: "Suggest terms" });
+  await within(panel).findByText(/\d+ requests? ·/);
+  return panel;
+}
 
 describe("suggesting from all volumes", () => {
   const plans: Record<string, { requests: number; chars: number }> = {
@@ -258,14 +307,14 @@ describe("suggesting from all volumes", () => {
   }
 
   async function chooseAllVolumes() {
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await userEvent.click(screen.getByRole("combobox", { name: "Volume to sample" }));
+    await openSuggest();
+    await userEvent.click(screen.getByRole("combobox", { name: "Read from" }));
     await userEvent.click(await screen.findByRole("option", { name: "All volumes" }));
   }
 
   it("shows the volume count, requests and characters before starting", async () => {
     renderAt(
-      "/projects/p1",
+      "/projects/p1?tab=glossary",
       allVolumesApi(async () => ({ terms: [], usage: null })),
     );
     await chooseAllVolumes();
@@ -287,9 +336,9 @@ describe("suggesting from all volumes", () => {
       terms: byVolume[bookId]?.[body.chunk ?? 0] ?? [],
       usage: null,
     }));
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await screen.findByText(/3 volumes/);
+    await within(screen.getByRole("region", { name: "Suggest terms" })).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
@@ -311,9 +360,9 @@ describe("suggesting from all volumes", () => {
             signal?.addEventListener("abort", () => reject(new Error("aborted")));
           }),
     );
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await screen.findByText(/3 volumes/);
+    await within(screen.getByRole("region", { name: "Suggest terms" })).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
     expect(await screen.findByText("Suggesting… volume 2 of 3")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
@@ -330,9 +379,9 @@ describe("suggesting from all volumes", () => {
       if (bookId === "v2") throw new Error("Rate limited");
       return { terms: [{ source: `${bookId}-term`, target: "T" }], usage: null };
     });
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await screen.findByText(/3 volumes/);
+    await within(screen.getByRole("region", { name: "Suggest terms" })).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Rate limited");
@@ -342,27 +391,25 @@ describe("suggesting from all volumes", () => {
 });
 
 describe("book editor header", () => {
-  it("links to the project instead of editing the glossary or prompt", async () => {
+  it("links to the project from the breadcrumb instead of editing the glossary or prompt", async () => {
+    const book = {
+      ...detail.books[0],
+      projectId: "p1",
+      chapters: [],
+      settings: {},
+    } as unknown as BookDetail;
     const { router } = renderAt("/books/v1", projectApi(), () => (
       <EditorHeader
         bookId="v1"
-        projectId="p1"
-        title="魔女の旅々 1"
+        book={book}
         translatedTitle={null}
         chapterId={undefined}
         jobId={undefined}
-        providers={providers}
-        selection={null}
-        onSelection={() => {}}
-        mode="live"
-        batchAvailable={false}
-        onMode={() => {}}
-        targetLang="en"
-        onTargetLang={() => {}}
         onOpenRail={() => {}}
       />
     ));
-    const link = await screen.findByRole("link", { name: /project/i });
+    const nav = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    const link = await within(nav).findByRole("link", { name: detail.name });
     expect(screen.queryByRole("button", { name: /^glossary/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /custom prompt/i })).toBeNull();
     await userEvent.click(link);

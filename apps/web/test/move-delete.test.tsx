@@ -15,6 +15,7 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { ProjectPage } from "@/routes/project";
 
 function renderAt(path: string, overrides: Partial<Api>) {
@@ -38,7 +39,9 @@ function renderAt(path: string, overrides: Partial<Api>) {
     >
       <ApiProvider api={api}>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={createDeviceStores(null)}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,
@@ -66,6 +69,7 @@ const detail = (books: BookSummary[]): ProjectDetail => ({
   createdAt: "2026-10-02T00:00:00.000Z",
   books,
   fullyTranslatedLang: null,
+  mainLang: null,
 });
 
 const threeBooks = detail([
@@ -75,7 +79,7 @@ const threeBooks = detail([
 ]);
 
 const summaries: ProjectSummary[] = [
-  { ...detail([]), volumeCount: 3, coverUrl: null },
+  { ...detail([]), volumeCount: 3, coverUrl: null, translatedVolumeCount: 0 },
   {
     id: "p2",
     name: "Wandering Witch",
@@ -83,6 +87,8 @@ const summaries: ProjectSummary[] = [
     volumeCount: 1,
     coverUrl: null,
     fullyTranslatedLang: null,
+    mainLang: null,
+    translatedVolumeCount: 0,
   },
 ];
 
@@ -93,7 +99,8 @@ describe("Delete a project", () => {
       getProject: vi.fn(async () => threeBooks),
       deleteProject,
     });
-    await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete project…" }));
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("3 volumes");
     expect(deleteProject).not.toHaveBeenCalled();
@@ -105,20 +112,23 @@ describe("Delete a project", () => {
 
   it("says when there is a single volume or none", async () => {
     renderAt("/projects/p1", { getProject: vi.fn(async () => detail([book("v1", "本", 1)])) });
-    await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete project…" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("1 volume will");
   });
 
   it("offers an empty project for deletion without mentioning volumes to lose", async () => {
     renderAt("/projects/p1", { getProject: vi.fn(async () => detail([])) });
-    await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete project…" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("It has no volumes.");
   });
 
   it("cancelling keeps the project", async () => {
     const deleteProject = vi.fn(async () => {});
     renderAt("/projects/p1", { getProject: vi.fn(async () => threeBooks), deleteProject });
-    await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Project actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete project…" }));
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(deleteProject).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -139,9 +149,8 @@ describe("Move a book", () => {
       listProjects: vi.fn(async () => summaries),
       moveBook,
     });
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Move 魔女の旅々 2 to another project" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Vol. 2 actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Move to project…" }));
     const dialog = screen.getByRole("dialog");
     const select = within(dialog).getByRole("combobox", { name: "Project" });
     expect(within(select).queryByRole("option", { name: "魔女の旅々" })).not.toBeInTheDocument();

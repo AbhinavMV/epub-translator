@@ -80,12 +80,6 @@ export function createHostedApi(base: Api, runtime: ClientRuntime, vault: Vault)
       await runtime.translateAll(jobId, body);
       return settled(jobId);
     },
-    async retryChapter(jobId, chapterId, body) {
-      runtime.abortChapter(jobId, chapterId);
-      await base.clearChapter(jobId, chapterId);
-      await runtime.translateChapter(jobId, chapterId, body);
-      return settled(jobId);
-    },
     async clearChapter(jobId, chapterId) {
       runtime.abortChapter(jobId, chapterId);
       await base.clearChapter(jobId, chapterId);

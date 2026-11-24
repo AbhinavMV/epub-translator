@@ -1,18 +1,27 @@
+import { CONTENTS_CHAPTER_ID } from "@et/contracts";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, PencilLine } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  List,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PencilLine,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
-import { BookTitle } from "@/components/book-title";
-import { ChapterRail } from "@/components/chapter-rail";
+import { AppHeader, useVolumeCrumbs } from "@/components/app-header";
+import { ChapterRailPanel, ChapterSheet } from "@/components/chapter-rail";
 import { PartSentinel } from "@/components/part-sentinel";
 import { ChapterContent } from "@/components/reader/chapter-view";
 import { PagedReader, type PagePosition } from "@/components/reader/paged-reader";
 import { ReaderSettings } from "@/components/reader/reader-settings";
-import { ViewModeToggle } from "@/components/reader/view-mode-toggle";
+import { UntranslatedNotice } from "@/components/reader/untranslated-notice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isBusy, progressFor } from "@/lib/chapter-status";
+import { chapterStatus, isBusy, progressFor } from "@/lib/chapter-status";
+import { useRecordLastOpened } from "@/lib/last-opened-store";
 import { effectiveLayout, type PageAction, type StartAt } from "@/lib/pagination";
 import { type FontName, usePrefs, type WidthName } from "@/lib/reader-settings-store";
 
@@ -45,12 +54,21 @@ export function ReaderPage() {
 
   const chapters = book.data?.chapters ?? [];
   const position = chapters.findIndex((c) => c.id === chapterId);
-  const running = isBusy(progressFor(job.data, chapterId)?.status);
+  useRecordLastOpened(
+    bookId,
+    position >= 0 && chapterId !== CONTENTS_CHAPTER_ID ? chapterId : undefined,
+  );
+  const summary = position >= 0 ? chapters[position] : undefined;
+  const progress = progressFor(job.data, chapterId);
+  const running = isBusy(progress?.status);
+  const status = job.data && summary ? chapterStatus(progress, summary.segmentCount) : undefined;
+  const showNotice = status !== undefined && status.translated < status.total;
   const view = chapter.data?.chapterId === chapterId ? chapter.data : undefined;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(0);
   const [startAt, setStartAt] = useState<StartAt>("first");
+  const [contentsOpen, setContentsOpen] = useState(false);
   const paged = effectiveLayout(prefs.layout, prefs.viewMode) === "paged";
 
   const go = useCallback(
@@ -65,6 +83,13 @@ export function ReaderPage() {
     },
     [navigate, bookId, search.job],
   );
+  const rail = {
+    chapters,
+    job: job.data,
+    activeId: chapterId,
+    onSelect: (id: string) => go(id),
+    sourceLang: book.data?.sourceLang,
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset scroll when the chapter changes
   useEffect(() => {
@@ -119,15 +144,37 @@ export function ReaderPage() {
     maxWidth: sideBySide ? `${widthEm * 2 + 4}em` : undefined,
   } as React.CSSProperties;
 
-  const title = book.data?.title;
+  const translatedTitle =
+    chapterId === CONTENTS_CHAPTER_ID ? undefined : job.data?.titles.chapters[chapterId];
+  const chapterTitle =
+    chapterId === CONTENTS_CHAPTER_ID
+      ? "Book title & navigation"
+      : (translatedTitle ?? summary?.title ?? view?.title ?? "…");
+  const crumbs = useVolumeCrumbs(book.data, job.data?.titles.book, {
+    label: chapterTitle,
+    lang:
+      translatedTitle || chapterId === CONTENTS_CHAPTER_ID
+        ? undefined
+        : (book.data?.sourceLang ?? undefined),
+  });
 
   const content = view ? (
-    <ChapterContent
-      view={view}
-      mode={prefs.viewMode}
-      running={running}
-      targetLang={job.data?.targetLang}
-    />
+    <>
+      {showNotice && status && (
+        <UntranslatedNotice
+          status={status}
+          sourceLang={book.data?.sourceLang}
+          bookId={bookId}
+          chapterId={chapterId}
+        />
+      )}
+      <ChapterContent
+        view={view}
+        mode={prefs.viewMode}
+        running={running}
+        targetLang={job.data?.targetLang}
+      />
+    </>
   ) : (
     <div className="space-y-4">
       <Skeleton className="h-8 w-2/3" />
@@ -142,32 +189,43 @@ export function ReaderPage() {
     prefs.width,
     prefs.viewMode,
     running,
+    showNotice && status ? `${status.translated}/${status.total}` : "",
   ].join("|");
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/60 px-3 py-2 md:px-4">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={prefs.railCollapsed ? "Show contents" : "Hide contents"}
-          onClick={() => setPrefs({ railCollapsed: !prefs.railCollapsed })}
-        >
-          {prefs.railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-        </Button>
-        <BookTitle title={title} translated={job.data?.titles.book} />
-        <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
-          Chapter {position >= 0 ? position + 1 : "–"} of {chapters.length || "–"}
-        </span>
-        <ViewModeToggle value={prefs.viewMode} onChange={(viewMode) => setPrefs({ viewMode })} />
-        <ReaderSettings />
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/books/$bookId" params={{ bookId }} search={{ chapter: chapterId }}>
-            <PencilLine />
-            <span className="hidden sm:inline">Editor</span>
-          </Link>
-        </Button>
-      </header>
+      <AppHeader
+        crumbs={crumbs}
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Contents"
+              onClick={() => setContentsOpen(true)}
+            >
+              <List />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="max-md:hidden"
+              aria-label={prefs.railCollapsed ? "Show contents" : "Hide contents"}
+              onClick={() => setPrefs({ railCollapsed: !prefs.railCollapsed })}
+            >
+              {prefs.railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </Button>
+            <ReaderSettings />
+            <Button variant="ghost" className="max-sm:hidden" asChild>
+              <Link to="/books/$bookId" params={{ bookId }} search={{ chapter: chapterId }}>
+                <PencilLine />
+                Edit
+              </Link>
+            </Button>
+          </>
+        }
+      />
       <div
         className="h-0.5 w-full bg-border/60"
         role="progressbar"
@@ -183,15 +241,19 @@ export function ReaderPage() {
       </div>
       <div className="flex min-h-0 flex-1">
         {!prefs.railCollapsed && (
-          <aside className="hidden w-64 shrink-0 overflow-y-auto border-r bg-card/40 md:block">
-            <ChapterRail
-              chapters={chapters}
-              job={job.data}
-              activeId={chapterId}
-              onSelect={(id) => go(id)}
-            />
-          </aside>
+          <ChapterRailPanel
+            title="Contents"
+            className="hidden w-64 shrink-0 md:flex"
+            {...rail}
+            compact
+          />
         )}
+        <ChapterSheet
+          title="Contents"
+          open={contentsOpen}
+          onOpenChange={setContentsOpen}
+          {...rail}
+        />
         {paged ? (
           <PagedReader
             key={chapterId}
@@ -220,11 +282,16 @@ export function ReaderPage() {
               />
               <nav
                 aria-label="Chapter navigation"
-                className="mt-12 flex items-stretch justify-between gap-3 border-t pt-6 font-sans text-sm"
+                className="mt-12 flex items-stretch justify-between gap-2 border-t pt-6 font-sans text-sm"
               >
                 <Button variant="outline" disabled={!prevId} onClick={() => go(prevId)}>
                   <ArrowLeft /> Previous
                 </Button>
+                {position >= 0 && (
+                  <span className="self-center text-center text-xs text-muted-foreground tabular-nums">
+                    {position + 1} of {chapters.length}
+                  </span>
+                )}
                 <Button variant="outline" disabled={!nextId} onClick={() => go(nextId)}>
                   Next <ArrowRight />
                 </Button>

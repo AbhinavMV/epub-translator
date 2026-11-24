@@ -1,5 +1,5 @@
-import { KeyRound, Lock, LockOpen } from "lucide-react";
-import { type FormEvent, useState, useSyncExternalStore } from "react";
+import { Lock, LockOpen } from "lucide-react";
+import { type FormEvent, useId, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,9 +8,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { HOSTED_FALLBACKS } from "@/translate/hosted-api";
 import {
   MAX_CONCURRENCY,
@@ -45,6 +45,7 @@ function UnlockForm({ hosted, onDone }: { hosted: Hosted; onDone: () => void }) 
   const [passphrase, setPassphrase] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const id = useId();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,13 +64,15 @@ function UnlockForm({ hosted, onDone }: { hosted: Hosted; onDone: () => void }) 
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1.5 text-sm">
-        <span aria-hidden="true">Passphrase</span>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={id} className="text-sm font-medium">
+          Passphrase
+        </label>
         <Input
+          id={id}
           type="password"
           value={passphrase}
           onChange={(e) => setPassphrase(e.target.value)}
-          aria-label="Passphrase"
           {...NO_AUTOFILL}
         />
       </div>
@@ -107,13 +110,15 @@ function ProviderRow({ hosted, provider }: { hosted: Hosted; provider: KeyedProv
 
   const label = HOSTED_FALLBACKS[provider].label;
   return (
-    <li className="flex flex-col gap-2 rounded-md border p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{label}</span>
-        <span className="font-mono text-xs text-muted-foreground">
-          {saved ? `saved · ending ${saved.last4}` : "no key"}
-        </span>
-        <div className="ml-auto flex gap-2">
+    <li className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 basis-40 flex-col">
+          <span className="text-sm font-medium">{label}</span>
+          <span className="text-xs text-muted-foreground">
+            {saved ? `saved · ending ${saved.last4}` : "no key"}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -165,6 +170,7 @@ function SetupForm({ hosted }: { hosted: Hosted }) {
   const [passphrase, setPassphrase] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const id = useId();
 
   const mismatch = confirm !== "" && confirm !== passphrase;
   const submit = async (e: FormEvent) => {
@@ -184,22 +190,34 @@ function SetupForm({ hosted }: { hosted: Hosted }) {
         Choose a passphrase to protect your keys on this device. It is never sent anywhere and
         cannot be recovered; if you forget it you will need to enter your keys again.
       </p>
-      <Input
-        type="password"
-        value={passphrase}
-        onChange={(e) => setPassphrase(e.target.value)}
-        placeholder="Passphrase"
-        aria-label="New passphrase"
-        {...NO_AUTOFILL}
-      />
-      <Input
-        type="password"
-        value={confirm}
-        onChange={(e) => setConfirm(e.target.value)}
-        placeholder="Repeat passphrase"
-        aria-label="Repeat passphrase"
-        {...NO_AUTOFILL}
-      />
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${id}-new`} className="text-sm font-medium">
+          New passphrase
+        </label>
+        <Input
+          id={`${id}-new`}
+          type="password"
+          value={passphrase}
+          onChange={(e) => setPassphrase(e.target.value)}
+          aria-describedby={`${id}-hint`}
+          {...NO_AUTOFILL}
+        />
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+          At least {MIN_PASSPHRASE} characters.
+        </p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${id}-repeat`} className="text-sm font-medium">
+          Repeat passphrase
+        </label>
+        <Input
+          id={`${id}-repeat`}
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          {...NO_AUTOFILL}
+        />
+      </div>
       {mismatch ? <p className="text-sm text-destructive">The passphrases do not match.</p> : null}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
@@ -210,18 +228,21 @@ function SetupForm({ hosted }: { hosted: Hosted }) {
         <Lock />
         Set passphrase
       </Button>
-      <p className="text-xs text-muted-foreground">At least {MIN_PASSPHRASE} characters.</p>
     </form>
   );
 }
 
 function ConcurrencyField() {
   const [value, setValue] = useState(() => readConcurrency(window.localStorage));
+  const id = useId();
   return (
-    <label className="flex items-center gap-2 text-sm">
-      Parallel requests
-      <select
-        className="rounded-md border bg-background px-2 py-1 text-sm"
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        Parallel requests
+      </label>
+      <NativeSelect
+        id={id}
+        className="w-auto"
         value={value}
         onChange={(e) => {
           const next = Number(e.target.value);
@@ -237,8 +258,8 @@ function ConcurrencyField() {
             {n}
           </option>
         ))}
-      </select>
-    </label>
+      </NativeSelect>
+    </div>
   );
 }
 
@@ -253,7 +274,7 @@ function KeysBody({ hosted, onDone }: { hosted: Hosted; onDone: () => void }) {
         <Button
           variant="ghost"
           size="sm"
-          className="self-start text-destructive"
+          className="h-auto min-h-9 self-start py-1.5 text-left whitespace-normal text-destructive coarse:min-h-11"
           onClick={() => void hosted.vault.reset()}
         >
           Forgot it? Remove all keys from this device
@@ -262,8 +283,8 @@ function KeysBody({ hosted, onDone }: { hosted: Hosted; onDone: () => void }) {
     );
   }
   return (
-    <div className="flex flex-col gap-3">
-      <ul className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
+      <ul aria-label="Provider keys" className="flex flex-col divide-y rounded-md border px-3 py-3">
         {KEYED_PROVIDERS.map((p) => (
           <ProviderRow key={p} hosted={hosted} provider={p} />
         ))}
@@ -282,24 +303,21 @@ function KeysBody({ hosted, onDone }: { hosted: Hosted; onDone: () => void }) {
   );
 }
 
-export function KeysDialog() {
+export function KeysDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const hosted = useHosted();
-  const [open, setOpen] = useState(false);
-  const snapshot = useVaultSnapshot(hosted?.vault);
   if (!hosted) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <KeyRound />
-          <span className="hidden sm:inline">AI keys</span>
-          {snapshot?.status === "locked" ? <Lock className="size-3 text-muted-foreground" /> : null}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>AI keys</DialogTitle>
+          <DialogTitle>API keys</DialogTitle>
           <DialogDescription>
             Keys stay on this device, encrypted with your passphrase. They are sent only to the AI
             provider you pick, never to this app's server. They lock after 30 idle minutes.
@@ -324,7 +342,7 @@ export function UnlockDialog() {
     <Dialog open={pending} onOpenChange={(open) => !open && hosted.unlock.dismiss()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Unlock your AI keys</DialogTitle>
+          <DialogTitle>Unlock your API keys</DialogTitle>
           <DialogDescription>
             Enter your passphrase to use the keys saved on this device.
           </DialogDescription>

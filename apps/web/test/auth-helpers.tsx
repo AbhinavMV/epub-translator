@@ -14,6 +14,7 @@ import { type AdminApi, AdminApiProvider } from "@/auth/admin-api";
 import { type AuthClient, type AuthEvent, AuthFailure, type AuthSession } from "@/auth/auth-client";
 import { AuthProvider } from "@/auth/auth-context";
 import { RequireAuth } from "@/auth/require-auth";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 
 export const SESSION: AuthSession = { accessToken: "jwt-1", userId: "u1", email: "me@example.com" };
 
@@ -134,6 +135,12 @@ export function renderApp({
       </AdminApiProvider>
     </AuthProvider>
   );
-  const result = render(wrap(<RouterProvider router={router} />));
+  const result = render(
+    wrap(
+      <DeviceStoresProvider stores={createDeviceStores(null)}>
+        <RouterProvider router={router} />
+      </DeviceStoresProvider>,
+    ),
+  );
   return { ...result, router };
 }

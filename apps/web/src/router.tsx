@@ -6,14 +6,14 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { RequireAuth } from "@/auth/require-auth";
-import { Toaster } from "@/components/ui/sonner";
+import { ToastLayer } from "@/components/toast-layer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useApplyTheme } from "@/lib/theme";
 import { AdminPage } from "@/routes/admin";
 import { BookPage } from "@/routes/book";
 import { InvitePage } from "@/routes/invite";
 import { LibraryPage } from "@/routes/library";
-import { ProjectPage } from "@/routes/project";
+import { ProjectPage, parseProjectSearch } from "@/routes/project";
 import { ReaderPage } from "@/routes/reader";
 import { ResetPasswordPage } from "@/routes/reset";
 import { SignInPage } from "@/routes/signin";
@@ -25,14 +25,15 @@ function Root() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <TooltipProvider delayDuration={300}>
-      {PUBLIC_PATHS.has(pathname) ? (
-        <Outlet />
-      ) : (
-        <RequireAuth>
+      <ToastLayer theme={theme === "dark" ? "dark" : "light"}>
+        {PUBLIC_PATHS.has(pathname) ? (
           <Outlet />
-        </RequireAuth>
-      )}
-      <Toaster theme={theme === "dark" ? "dark" : "light"} position="bottom-right" />
+        ) : (
+          <RequireAuth>
+            <Outlet />
+          </RequireAuth>
+        )}
+      </ToastLayer>
     </TooltipProvider>
   );
 }
@@ -72,6 +73,7 @@ const libraryRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/projects/$projectId",
+  validateSearch: parseProjectSearch,
   component: ProjectPage,
 });
 

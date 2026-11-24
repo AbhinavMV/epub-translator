@@ -3,9 +3,12 @@ import { TARGET_LANGUAGES } from "@et/contracts";
 import { compareVolumes } from "@et/core";
 import { useState } from "react";
 import { useProviders } from "@/api/queries";
-import { GlossarySuggestions } from "@/components/editor/glossary-suggestions";
-import { resolveSelection, type Selection } from "@/components/editor/model-selection";
-import { ProviderSelect } from "@/components/editor/provider-select";
+import {
+  FIELD_TRIGGER,
+  GlossarySuggestions,
+  SuggestField,
+} from "@/components/editor/glossary-suggestions";
+import { envHint, resolveSelection, type Selection } from "@/components/editor/model-selection";
 import {
   Select,
   SelectContent,
@@ -13,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useHosted } from "@/keys/hosted-context";
 
 const ALL_VOLUMES = "__all-volumes__";
 
@@ -24,12 +28,17 @@ const volumeLabel = (book: BookSummary) =>
 export function ProjectGlossarySuggestions({
   books,
   onAdd,
+  readAll = false,
 }: {
   books: BookSummary[];
   onAdd: (entries: GlossaryEntry[]) => void;
+  readAll?: boolean;
 }) {
   const providers = useProviders();
-  const [bookId, setBookId] = useState<string | null>(null);
+  const hosted = useHosted();
+  const [bookId, setBookId] = useState<string | null>(
+    readAll && books.length > 1 ? ALL_VOLUMES : null,
+  );
   const [targetLang, setTargetLang] = useState("en");
   const [chosen, setChosen] = useState<Selection | null>(null);
   const [running, setRunning] = useState(false);
@@ -38,37 +47,78 @@ export function ProjectGlossarySuggestions({
   const latest = books.at(-1);
   const sampled = bookId === ALL_VOLUMES ? null : (books.find((b) => b.id === bookId) ?? latest);
 
-  if (!latest) return null;
+  if (!latest) {
+    return (
+      <p className="text-sm text-muted-foreground">Upload a volume to suggest terms from it.</p>
+    );
+  }
 
   const controls = (
-    <div className="flex flex-wrap items-center gap-2">
-      <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
-        <SelectTrigger size="sm" className="w-[8rem]" aria-label="Volume to sample">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {books.map((b) => (
-            <SelectItem key={b.id} value={b.id}>
-              {volumeLabel(b)}
-            </SelectItem>
-          ))}
-          {books.length > 1 && <SelectItem value={ALL_VOLUMES}>All volumes</SelectItem>}
-        </SelectContent>
-      </Select>
-      <Select value={targetLang} onValueChange={setTargetLang}>
-        <SelectTrigger size="sm" className="w-[6.5rem]" aria-label="Suggest renderings in">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {TARGET_LANGUAGES.map((l) => (
-            <SelectItem key={l.code} value={l.code}>
-              {l.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <ProviderSelect providers={providers.data} selection={selection} onChange={setChosen} />
-    </div>
+    <>
+      <SuggestField label="Read from">
+        {(id) => (
+          <Select value={sampled?.id ?? ALL_VOLUMES} onValueChange={setBookId} disabled={running}>
+            <SelectTrigger id={id} className={FIELD_TRIGGER}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {books.length > 1 && <SelectItem value={ALL_VOLUMES}>All volumes</SelectItem>}
+              {books.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {volumeLabel(b)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </SuggestField>
+      <SuggestField label="Suggest renderings in">
+        {(id) => (
+          <Select value={targetLang} onValueChange={setTargetLang} disabled={running}>
+            <SelectTrigger id={id} className={FIELD_TRIGGER}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TARGET_LANGUAGES.map((l) => (
+                <SelectItem key={l.code} value={l.code}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </SuggestField>
+      <SuggestField label="Provider">
+        {(id) => (
+          <Select
+            value={selection?.provider ?? ""}
+            onValueChange={(next) => {
+              const p = providers.data?.find((x) => x.id === next);
+              if (p) setChosen({ provider: p.id, model: p.defaultModel });
+            }}
+            disabled={!providers.data || running}
+          >
+            <SelectTrigger id={id} className={FIELD_TRIGGER}>
+              <SelectValue placeholder="Provider" />
+            </SelectTrigger>
+            <SelectContent>
+              {providers.data?.map((p) => (
+                <SelectItem key={p.id} value={p.id} disabled={!p.configured}>
+                  <span className="flex flex-col">
+                    <span>{p.label}</span>
+                    {!p.configured && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {hosted ? "Add a key under Settings → API keys" : envHint(p)}
+                      </span>
+                    )}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </SuggestField>
+    </>
   );
 
   return (

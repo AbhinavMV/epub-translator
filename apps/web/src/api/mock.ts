@@ -20,7 +20,8 @@ import type {
 } from "@et/contracts";
 import { compareTargetLanguages } from "@et/contracts";
 import { compareVolumes, parseVolumeTitle, unnumberedVolumeNumber } from "@et/core";
-import type { Api, EventSourceLike } from "./client";
+import { type Api, ApiRequestError, type EventSourceLike } from "./client";
+import { FAILED_PASSAGE_NOTE, MOCK_SEED, type ProjectSeed, type SegmentSeed } from "./mock-seed";
 
 const MOCK_SAMPLE_PLANS: Record<SampleSize, GlossarySamplePlan> = {
   standard: { requests: 1, chars: 12_000 },
@@ -215,11 +216,18 @@ class MockSource implements EventSourceLike {
 }
 
 interface SegState {
-  html: string;
+  html: string | null;
   status: SegmentStatus;
+  note?: string;
 }
 
-export function createMockApi(): Api {
+function settledStatus(c: Pick<ChapterProgress, "done" | "flagged" | "failed" | "total">) {
+  if (c.done === c.total && c.failed === 0) return "done";
+  if (c.done + c.failed === 0) return "idle";
+  return "partial";
+}
+
+export function createMockApi(seed: readonly ProjectSeed[] = MOCK_SEED): Api {
   const books = new Map<string, { summary: BookSummary; settings: BookSettings }>();
   const projects = new Map<string, Project>();
   const projectSettings = new Map<string, ProjectSettings>();
@@ -230,12 +238,14 @@ export function createMockApi(): Api {
   const queues = new Map<string, string[]>();
   const batchTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const proofreads = new Map<string, ChapterProofread>();
+  const translatedTitles = new Map<string, string>();
 
   const segCount = CHAPTERS.reduce((n, c) => n + c.pairs.length, 0);
   const addBook = (
     id: string,
     title: string,
     placement: { projectId: string; volumeNumber: number } | null = null,
+    author = "Sample Author",
   ) => {
     const createdAt = new Date().toISOString();
     const projectId = placement?.projectId ?? `project-${id}`;
@@ -245,7 +255,7 @@ export function createMockApi(): Api {
       summary: {
         id,
         title,
-        author: "Sample Author",
+        author,
         sourceLang: "ja",
         coverUrl: coverFor(title),
         chapterCount: CHAPTERS.length,
@@ -257,7 +267,6 @@ export function createMockApi(): Api {
       settings: { provider: null, model: null },
     });
   };
-  addBook("mock-book", "お隣の天使様 (sample)");
 
   const emit = (jobId: string, event: JobEvent) => {
     for (const s of sources.get(jobId) ?? []) s.onmessage?.({ data: JSON.stringify(event) });
@@ -268,31 +277,38 @@ export function createMockApi(): Api {
 
   const recompute = (job: JobSummary): JobSummary => {
     const running = job.progress.some((p) => ["running", "queued", "submitted"].includes(p.status));
+    const failed = job.progress.some((p) => p.status === "failed");
     const allDone = job.progress.every((p) => p.status === "done");
     const done = job.progress.filter((p) => p.status === "done");
+    const bookTitle =
+      translatedTitles.get(job.id) ??
+      `${books.get(job.bookId)?.summary.title ?? "Untitled"} (translated)`;
     const titles = {
-      book: done.length > 0 ? "The Angel Next Door (sample)" : null,
+      book: done.length > 0 ? bookTitle : null,
       chapters: Object.fromEntries(
         done.map((p) => [p.chapterId, `Chapter ${p.chapterId.replace(/\D+/g, "")} (translated)`]),
       ),
     };
-    return { ...job, titles, status: running ? "running" : allDone ? "done" : "idle" };
+    const status = running ? "running" : failed ? "failed" : allDone ? "done" : "idle";
+    return { ...job, titles, status };
   };
 
   const progressFor = (jobId: string, c: MockChapter, status: ChapterProgress["status"]) => {
     let done = 0;
     let flagged = 0;
+    let failed = 0;
     for (let i = 0; i < c.pairs.length; i++) {
       const s = segs.get(segKey(jobId, segId(c, i)));
       if (s?.status === "done") done++;
       if (s?.status === "flagged") flagged++;
+      if (s?.status === "failed") failed++;
     }
     return {
       chapterId: c.id,
       status,
       done: done + flagged,
       flagged,
-      failed: 0,
+      failed,
       total: c.pairs.length,
       error: null,
     } satisfies ChapterProgress;
@@ -400,6 +416,111 @@ export function createMockApi(): Api {
     setChapterProgress(jobId, progressFor(jobId, c, "idle"));
   };
 
+  const newJob = (bookId: string, targetLang: string): JobSummary => {
+    const job: JobSummary = {
+      id: `job-${bookId}-${targetLang}`,
+      bookId,
+      targetLang,
+      status: "idle",
+      error: null,
+      progress: CHAPTERS.map((c) => ({
+        chapterId: c.id,
+        status: "idle",
+        done: 0,
+        flagged: 0,
+        failed: 0,
+        total: c.pairs.length,
+        error: null,
+      })),
+      titles: { book: null, chapters: {} },
+      usage: { inputTokens: 0, outputTokens: 0 },
+      createdAt: new Date().toISOString(),
+    };
+    jobs.set(job.id, job);
+    return job;
+  };
+
+  const proofreadOf = (jobId: string, chapterId: string, model: string) => {
+    const c = CHAPTERS.find((x) => x.id === chapterId);
+    const suggestions = (c?.pairs ?? []).flatMap((_, i) => {
+      const id = segId(c as MockChapter, i);
+      const html = segs.get(segKey(jobId, id))?.html;
+      if (!html) return [];
+      const before = html.replace(/^<p>|<\/p>$/g, "");
+      const fix = MOCK_FIXES.find((f) => before.includes(f.find));
+      return fix
+        ? [
+            {
+              segmentId: id,
+              kind: fix.kind,
+              before,
+              after: before.replace(fix.find, fix.replace),
+              reason: fix.reason,
+              state: "pending" as const,
+            },
+          ]
+        : [];
+    });
+    const proofread: ChapterProofread = {
+      jobId,
+      chapterId,
+      model,
+      createdAt: new Date().toISOString(),
+      usage: { inputTokens: 1800, outputTokens: 120 },
+      suggestions,
+    };
+    proofreads.set(`${jobId}:${chapterId}`, proofread);
+    return proofread;
+  };
+
+  const seedSegment = (jobId: string, c: MockChapter, i: number, state: SegmentSeed) => {
+    const pair = c.pairs[i];
+    if (!pair || state === "pending") return;
+    segs.set(
+      segKey(jobId, segId(c, i)),
+      state === "failed"
+        ? { html: null, status: "failed", note: FAILED_PASSAGE_NOTE }
+        : { html: `<p>${pair[1]}</p>`, status: state },
+    );
+  };
+
+  for (const project of seed) {
+    projects.set(project.id, {
+      id: project.id,
+      name: project.name,
+      createdAt: new Date().toISOString(),
+    });
+    for (const volume of project.volumes) {
+      addBook(
+        volume.id,
+        volume.title,
+        { projectId: project.id, volumeNumber: volume.volumeNumber },
+        volume.author,
+      );
+      for (const t of volume.translations ?? []) {
+        const job = newJob(volume.id, t.lang);
+        translatedTitles.set(job.id, t.bookTitle);
+        for (const c of CHAPTERS) {
+          const chapter = t.chapters[c.id];
+          if (!chapter) continue;
+          for (let i = 0; i < c.pairs.length; i++) {
+            seedSegment(job.id, c, i, chapter === "done" ? "done" : (chapter[i] ?? "pending"));
+          }
+          const counts = progressFor(job.id, c, "idle");
+          setChapterProgress(job.id, { ...counts, status: settledStatus(counts) });
+        }
+        for (const chapterId of t.proofread ?? []) {
+          proofreadOf(job.id, chapterId, "claude-opus-5-5");
+        }
+      }
+    }
+    projectSettings.set(project.id, {
+      customPrompt: "",
+      glossary: structuredClone([...(project.glossary ?? [])]),
+      glossaryConflicts: structuredClone([...(project.conflicts ?? [])]),
+    });
+  }
+
   const booksOf = (projectId: string) =>
     [...books.values()]
       .map((b) => ({
@@ -422,27 +543,60 @@ export function createMockApi(): Api {
     const complete = (lang: string) => volumes.every((b) => isComplete(b, lang));
     return volumes.length > 0 ? (allLangs().find(complete) ?? null) : null;
   };
+  const best = (b: BookSummary, lang: string) =>
+    Math.max(
+      0,
+      ...[...jobs.values()]
+        .filter((j) => j.bookId === b.id && j.targetLang === lang)
+        .map(translated),
+    );
+  const mainLang = (projectId: string) => {
+    const volumes = booksOf(projectId);
+    const ranked = allLangs()
+      .map((lang) => ({
+        lang,
+        complete: volumes.filter((b) => isComplete(b, lang)).length,
+        started: volumes.filter((b) => isComplete(b, lang) || best(b, lang) > 0).length,
+      }))
+      .filter(({ started }) => started > 0)
+      .sort((a, b) => b.complete - a.complete || b.started - a.started);
+    return ranked[0]?.lang ?? null;
+  };
+  const translatedPercent = (b: BookSummary, lang: string | null) => {
+    if (!lang) return null;
+    if (isComplete(b, lang)) return 100;
+    return b.segmentCount ? Math.min(99, Math.floor((best(b, lang) * 100) / b.segmentCount)) : 0;
+  };
 
   const api: Api = {
     listProjects: () =>
       delay(
         [...projects.values()].map((p) => {
-          const first = booksOf(p.id)[0];
+          const volumes = booksOf(p.id);
+          const main = mainLang(p.id);
           return {
             ...p,
-            volumeCount: booksOf(p.id).length,
-            coverUrl: first?.coverUrl ?? null,
+            volumeCount: volumes.length,
+            coverUrl: volumes[0]?.coverUrl ?? null,
             fullyTranslatedLang: fullyTranslatedLang(p.id),
+            mainLang: main,
+            translatedVolumeCount: main ? volumes.filter((b) => isComplete(b, main)).length : 0,
           };
         }),
       ),
     async getProject(id): Promise<ProjectDetail> {
       const project = projects.get(id);
       if (!project) throw new Error("Project not found");
+      const main = mainLang(id);
       return delay({
         ...project,
-        books: booksOf(id).map((b) => ({ ...b, translatedLang: volumeLang(b) })),
+        books: booksOf(id).map((b) => ({
+          ...b,
+          translatedLang: volumeLang(b),
+          translatedPercent: translatedPercent(b, main),
+        })),
         fullyTranslatedLang: fullyTranslatedLang(id),
+        mainLang: main,
       });
     },
     async renameProject(id, name) {
@@ -467,10 +621,11 @@ export function createMockApi(): Api {
     async saveProjectTerms(id, terms) {
       if (!projects.has(id)) throw new Error("Project not found");
       const next = {
-        glossaryConflicts: [],
-        ...projectSettings.get(id),
         customPrompt: terms.customPrompt,
         glossary: terms.glossary,
+        glossaryConflicts: (projectSettings.get(id)?.glossaryConflicts ?? []).filter((c) =>
+          terms.glossary.some((e) => e.source === c.source && e.target === c.inForce.target),
+        ),
       };
       projectSettings.set(id, next);
       return delay(structuredClone(next));
@@ -551,7 +706,7 @@ export function createMockApi(): Api {
     },
     async getBook(id): Promise<BookDetail> {
       const book = books.get(id);
-      if (!book) throw new Error("Book not found");
+      if (!book) throw new ApiRequestError("Book not found", 404);
       return delay({
         ...book.summary,
         settings: book.settings,
@@ -587,30 +742,7 @@ export function createMockApi(): Api {
     },
     async getWorkspace(bookId, targetLang) {
       const id = `job-${bookId}-${targetLang}`;
-      let job = jobs.get(id);
-      if (!job) {
-        job = {
-          id,
-          bookId,
-          targetLang,
-          status: "idle",
-          error: null,
-          progress: CHAPTERS.map((c) => ({
-            chapterId: c.id,
-            status: "idle",
-            done: 0,
-            flagged: 0,
-            failed: 0,
-            total: c.pairs.length,
-            error: null,
-          })),
-          titles: { book: null, chapters: {} },
-          usage: { inputTokens: 0, outputTokens: 0 },
-          createdAt: new Date().toISOString(),
-        };
-        jobs.set(id, job);
-      }
-      return delay(job);
+      return delay(jobs.get(id) ?? newJob(bookId, targetLang));
     },
     async getJob(jobId) {
       const job = jobs.get(jobId);
@@ -632,6 +764,7 @@ export function createMockApi(): Api {
             sourceHtml: `<p>${pair[0]}</p>`,
             targetHtml: s?.html ?? null,
             status: s?.status ?? "pending",
+            ...(s?.note ? { note: s.note } : {}),
           };
         }),
       ];
@@ -657,10 +790,6 @@ export function createMockApi(): Api {
         ),
         60,
       ),
-    retryChapter(jobId, chapterId, body) {
-      clear(jobId, chapterId);
-      return delay(start(jobId, [chapterId], body.mode), 60);
-    },
     async clearChapter(jobId, chapterId) {
       clear(jobId, chapterId);
       return delay(jobs.get(jobId) ?? null, 60);
@@ -712,35 +841,7 @@ export function createMockApi(): Api {
       return delay(structuredClone(proofreads.get(`${jobId}:${chapterId}`) ?? null), 40);
     },
     async proofreadChapter(jobId, chapterId, body) {
-      const c = CHAPTERS.find((x) => x.id === chapterId);
-      const suggestions = (c?.pairs ?? []).flatMap((_, i) => {
-        const id = segId(c as MockChapter, i);
-        const html = segs.get(segKey(jobId, id))?.html;
-        if (!html) return [];
-        const before = html.replace(/^<p>|<\/p>$/g, "");
-        const fix = MOCK_FIXES.find((f) => before.includes(f.find));
-        return fix
-          ? [
-              {
-                segmentId: id,
-                kind: fix.kind,
-                before,
-                after: before.replace(fix.find, fix.replace),
-                reason: fix.reason,
-                state: "pending" as const,
-              },
-            ]
-          : [];
-      });
-      const proofread: ChapterProofread = {
-        jobId,
-        chapterId,
-        model: body.model,
-        createdAt: new Date().toISOString(),
-        usage: { inputTokens: 1800, outputTokens: 120 },
-        suggestions,
-      };
-      proofreads.set(`${jobId}:${chapterId}`, proofread);
+      const proofread = proofreadOf(jobId, chapterId, body.model);
       return delay({ proofread: structuredClone(proofread), notes: body.notes ?? [] }, 900);
     },
     async decideProofread(jobId, chapterId, decision) {

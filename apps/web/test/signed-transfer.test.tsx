@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createHttpApi } from "@/api/client";
-import { ExportEpubMenu } from "@/components/editor/export-epub-menu";
+import { ExportMenu } from "@/components/editor/export-menu";
 
 const SUMMARY = {
   id: "b1",
@@ -125,15 +125,17 @@ describe("signed exports", () => {
   it("intercepts export link clicks when a handler is given", async () => {
     const onExport = vi.fn();
     render(
-      <ExportEpubMenu
+      <ExportMenu
         translationHref="/api/jobs/j1/export"
         bilingualHref="/api/jobs/j1/export?layout=bilingual"
+        txtHref="/api/jobs/j1/export.txt"
         disabled={false}
         hint=""
         onExport={onExport}
       />,
     );
-    await userEvent.click(screen.getByRole("link", { name: "Export EPUB" }));
+    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /EPUB.*Translation/ }));
     expect(onExport).toHaveBeenCalledWith("/api/jobs/j1/export");
   });
 });

@@ -1,37 +1,26 @@
-import type { BookSummary, GlossaryRendering, ProjectTerms } from "@et/contracts";
+import type { BookSummary, GlossaryEntry, GlossaryRendering, ProjectTerms } from "@et/contracts";
+import { useBlocker } from "@tanstack/react-router";
+import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useProjectSettings, useResolveGlossaryConflict, useSaveProjectTerms } from "@/api/queries";
-import { GlossaryDialog } from "@/components/editor/glossary-dialog";
-import { PromptDialog } from "@/components/editor/prompt-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { GlossaryEditor } from "./glossary-editor";
 import { ProjectGlossarySuggestions } from "./project-glossary-suggestions";
+import { PromptEditor } from "./prompt-editor";
 
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-export function ProjectTermsSection({
-  projectId,
-  books,
-}: {
-  projectId: string;
-  books: BookSummary[];
-}) {
+function useProjectTerms(projectId: string) {
   const settings = useProjectSettings(projectId);
   const save = useSaveProjectTerms(projectId);
-  const resolveConflict = useResolveGlossaryConflict(projectId);
   const data = settings.data;
-
-  const volumeLabel = (rendering: GlossaryRendering) => {
-    if (rendering.volumeNumber !== null) return `Volume ${rendering.volumeNumber}`;
-    return books.find((b) => b.id === rendering.bookId)?.title ?? "Unnumbered volume";
-  };
-
-  const resolve = (source: string, target: string) =>
-    resolveConflict
-      .mutateAsync({ source, target })
-      .then((next) => next.glossary.find((e) => e.source === source))
-      .catch((error: unknown) => {
-        toast.error("Could not resolve the glossary conflict");
-        throw error;
-      });
 
   const persist = (patch: Partial<ProjectTerms>, failure: string) => {
     if (!data) return Promise.resolve();
@@ -43,42 +32,112 @@ export function ProjectTermsSection({
       });
   };
 
-  return (
-    <section aria-labelledby="terms-heading" className="flex flex-col gap-3">
-      <h2
-        id="terms-heading"
-        className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase"
-      >
-        Glossary and custom prompt
-      </h2>
-      <div className="flex flex-wrap items-center gap-2">
-        <GlossaryDialog
-          glossary={data?.glossary}
-          saving={save.isPending}
-          onSave={(glossary) => persist({ glossary }, "Could not save the glossary")}
-          suggestions={(add) => <ProjectGlossarySuggestions books={books} onAdd={add} />}
-          conflicts={
-            data
-              ? { conflicts: data.glossaryConflicts, volumeLabel, onResolve: resolve }
-              : undefined
-          }
-        />
-        <PromptDialog
-          value={data?.customPrompt}
-          disabled={!data}
-          saving={save.isPending}
-          onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}
-        />
-        {data ? (
-          <p className="text-sm text-muted-foreground">
-            {count(data.glossary.length, "glossary entry", "glossary entries")}, used by every
-            volume
-            {data.glossaryConflicts.length > 0
-              ? ` · ${count(data.glossaryConflicts.length, "glossary conflict", "glossary conflicts")} from merged volumes`
-              : ""}
-          </p>
-        ) : null}
+  return { data, saving: save.isPending, persist };
+}
+
+export function ProjectGlossaryPanel({
+  projectId,
+  books,
+  suggest = false,
+}: {
+  projectId: string;
+  books: BookSummary[];
+  suggest?: boolean;
+}) {
+  const { data, saving, persist } = useProjectTerms(projectId);
+  const resolveConflict = useResolveGlossaryConflict(projectId);
+  const dirty = useRef(false);
+  const onDirtyChange = useCallback((next: boolean) => {
+    dirty.current = next;
+  }, []);
+  const blocker = useBlocker({
+    shouldBlockFn: () => dirty.current,
+    enableBeforeUnload: () => dirty.current,
+    withResolver: true,
+  });
+
+  const volumeLabel = (rendering: GlossaryRendering) => {
+    if (rendering.volumeNumber !== null) return `Vol. ${rendering.volumeNumber}`;
+    return books.find((b) => b.id === rendering.bookId)?.title ?? "Unnumbered volume";
+  };
+
+  if (!data) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-32 w-full" />
       </div>
-    </section>
+    );
+  }
+
+  const save = async (glossary: GlossaryEntry[], settled: string[]) => {
+    // Saving drops a conflict only once its entry moves off the rendering in force, so a
+    // conflict settled on that rendering has to be resolved explicitly.
+    const keptInForce = data.glossaryConflicts.filter(
+      (c) =>
+        settled.includes(c.source) &&
+        glossary.find((e) => e.source === c.source)?.target === c.inForce.target,
+    );
+    try {
+      for (const c of keptInForce) {
+        await resolveConflict.mutateAsync({ source: c.source, target: c.inForce.target });
+      }
+    } catch (error) {
+      toast.error("Could not save the glossary");
+      throw error;
+    }
+    await persist({ glossary }, "Could not save the glossary");
+    toast.success("Glossary saved. It applies from the next chapter.");
+  };
+
+  return (
+    <>
+      <GlossaryEditor
+        glossary={data.glossary}
+        conflicts={data.glossaryConflicts}
+        volumeLabel={volumeLabel}
+        saving={saving || resolveConflict.isPending}
+        onSave={save}
+        onDirtyChange={onDirtyChange}
+        initialSuggesting={suggest}
+        suggestions={(add) => (
+          <ProjectGlossarySuggestions books={books} onAdd={add} readAll={suggest} />
+        )}
+      />
+      <Dialog
+        open={blocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open) blocker.reset?.();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Discard unsaved glossary changes?</DialogTitle>
+            <DialogDescription>
+              You changed the glossary without saving. Leaving now discards those changes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => blocker.reset?.()}>
+              Keep editing
+            </Button>
+            <Button variant="destructive" onClick={() => blocker.proceed?.()}>
+              Discard changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+export function ProjectPromptPanel({ projectId }: { projectId: string }) {
+  const { data, saving, persist } = useProjectTerms(projectId);
+  return (
+    <PromptEditor
+      value={data?.customPrompt}
+      saving={saving}
+      onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}
+    />
   );
 }

@@ -27,9 +27,13 @@ export function useProjects() {
   return useQuery({ queryKey: keys.projects, queryFn: () => api.listProjects() });
 }
 
-export function useProject(id: string) {
+export function useProject(id: string | null | undefined) {
   const api = useApi();
-  return useQuery({ queryKey: keys.project(id), queryFn: () => api.getProject(id) });
+  return useQuery({
+    queryKey: keys.project(id ?? ""),
+    queryFn: () => api.getProject(id ?? ""),
+    enabled: Boolean(id),
+  });
 }
 
 export function useRenameProject(id: string) {
@@ -104,9 +108,9 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   ]);
 }
 
-export function useBooks() {
+export function useBooks({ enabled = true }: { enabled?: boolean } = {}) {
   const api = useApi();
-  return useQuery({ queryKey: keys.books, queryFn: () => api.listBooks() });
+  return useQuery({ queryKey: keys.books, queryFn: () => api.listBooks(), enabled });
 }
 
 export function useBook(id: string) {
@@ -234,7 +238,6 @@ export function useSaveSettings(bookId: string) {
 type JobAction =
   | { kind: "translate"; chapterId: string; body: TranslateBody }
   | { kind: "translate-all"; body: TranslateBody }
-  | { kind: "retry"; chapterId: string; body: TranslateBody }
   | { kind: "clear"; chapterId: string }
   | { kind: "cancel" };
 
@@ -275,8 +278,6 @@ export function useJobAction(jobId: string | undefined) {
           return api.translateChapter(jobId, action.chapterId, action.body);
         case "translate-all":
           return api.translateAll(jobId, action.body);
-        case "retry":
-          return api.retryChapter(jobId, action.chapterId, action.body);
         case "clear":
           return api.clearChapter(jobId, action.chapterId);
         case "cancel":

@@ -81,7 +81,7 @@ describe("EditorPanes parts", () => {
       hasMore
       loadingMore={false}
       onLoadMore={() => {}}
-      onRetry={() => {}}
+      onRetryFailed={() => {}}
       onClear={() => {}}
       {...props}
     />

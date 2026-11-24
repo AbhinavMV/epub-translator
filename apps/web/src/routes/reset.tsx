@@ -16,7 +16,10 @@ export function ResetPasswordPage() {
   if (auth.status !== "signedIn") {
     return (
       <AuthShell title="Reset your password" description="This reset link is no longer valid.">
-        <Link to="/signin" className="text-sm underline">
+        <Link
+          to="/signin"
+          className="self-start text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
           Back to sign in
         </Link>
       </AuthShell>

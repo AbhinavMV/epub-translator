@@ -25,17 +25,15 @@ function coverUrl(book: StoredBook): string | null {
   return book.coverHref ? `/api/books/${book.id}/cover` : null;
 }
 
-export function projectSummary({
-  project,
-  books,
-  fullyTranslatedLang,
-}: ProjectOverview): ProjectSummary {
+export function projectSummary({ project, books, progress }: ProjectOverview): ProjectSummary {
   const first = books[0];
   return {
     ...project,
     volumeCount: books.length,
     coverUrl: first ? coverUrl(first) : null,
-    fullyTranslatedLang,
+    fullyTranslatedLang: progress.fullyTranslatedLang,
+    mainLang: progress.mainLang,
+    translatedVolumeCount: progress.translatedVolumeCount,
   };
 }
 

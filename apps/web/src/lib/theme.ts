@@ -1,34 +1,35 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { type ThemeName, usePrefs } from "./reader-settings-store";
 
-export function resolveTheme(theme: ThemeName, prefersDark: boolean): "light" | "sepia" | "dark" {
+export type ResolvedTheme = "light" | "sepia" | "dark";
+
+export function resolveTheme(theme: ThemeName, prefersDark: boolean): ResolvedTheme {
   if (theme === "system") return prefersDark ? "dark" : "light";
   return theme;
 }
 
-export function useApplyTheme(): "light" | "sepia" | "dark" {
+function darkQuery(): MediaQueryList | null {
+  return typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-color-scheme: dark)")
+    : null;
+}
+
+function subscribeDark(onChange: () => void) {
+  const media = darkQuery();
+  media?.addEventListener("change", onChange);
+  return () => media?.removeEventListener("change", onChange);
+}
+
+const prefersDark = () => darkQuery()?.matches ?? false;
+
+export function useApplyTheme(): ResolvedTheme {
   const [prefs] = usePrefs();
-  const media = useMemo(
-    () =>
-      typeof window.matchMedia === "function"
-        ? window.matchMedia("(prefers-color-scheme: dark)")
-        : null,
-    [],
-  );
-  const resolved = resolveTheme(prefs.theme, media?.matches ?? false);
+  const dark = useSyncExternalStore(subscribeDark, prefersDark);
+  const resolved = resolveTheme(prefs.theme, dark);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
   }, [resolved]);
-
-  useEffect(() => {
-    if (!media || prefs.theme !== "system") return;
-    const onChange = () => {
-      document.documentElement.dataset.theme = resolveTheme("system", media.matches);
-    };
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, [media, prefs.theme]);
 
   return resolved;
 }

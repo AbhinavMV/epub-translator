@@ -3,7 +3,12 @@ import { NotFoundError } from "../domain/errors.ts";
 import { compareVolumes, type Project, unnumberedVolumeNumber } from "../domain/project.ts";
 import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
-import { commonLanguage, completeLanguages, type FullyTranslatedDeps } from "./fully-translated.ts";
+import {
+  type ProjectProgressDeps,
+  type ProjectProgressSummary,
+  projectProgress,
+  type VolumeProgress,
+} from "./project-progress.ts";
 
 export interface ProjectWithBooks {
   project: Project;
@@ -38,20 +43,23 @@ export async function requireProject(
 }
 
 export interface ProjectOverview extends ProjectWithBooks {
-  /** The target language every volume is completely translated into, if any. */
-  fullyTranslatedLang: string | null;
-  /** Per volume id, the preferred target language that volume is completely translated into. */
-  volumeLangs: Map<string, string | null>;
+  progress: ProjectProgressSummary;
+  volumes: Map<string, VolumeProgress>;
 }
 
-type OverviewDeps = ProjectDeps & FullyTranslatedDeps;
+type OverviewDeps = ProjectDeps & ProjectProgressDeps;
 
 async function overview(deps: OverviewDeps, entry: ProjectWithBooks): Promise<ProjectOverview> {
-  const perVolume = await completeLanguages(deps, entry.books);
+  const { volumes, ...progress } = await projectProgress(deps, entry.books);
   return {
     ...entry,
-    fullyTranslatedLang: commonLanguage(perVolume),
-    volumeLangs: new Map(entry.books.map((b, i) => [b.id, perVolume[i]?.[0] ?? null])),
+    progress,
+    volumes: new Map(
+      entry.books.flatMap((b, i) => {
+        const v = volumes[i];
+        return v ? [[b.id, v] as const] : [];
+      }),
+    ),
   };
 }
 

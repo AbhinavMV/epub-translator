@@ -35,7 +35,13 @@ export function ProofreadMenu({
   modelLabel,
   onStart,
   onStop,
+  waiting = 0,
+  labelled = false,
+  className,
 }: {
+  waiting?: number;
+  labelled?: boolean;
+  className?: string;
   scope: ProofreadScope;
   run: ProofreadRunState;
   disabledHint: string | null;
@@ -47,7 +53,13 @@ export function ProofreadMenu({
 
   if (run.running) {
     return (
-      <Button variant="outline" size="sm" onClick={onStop} aria-label="Stop proofreading">
+      <Button
+        variant="outline"
+        size="sm"
+        className={className}
+        onClick={onStop}
+        aria-label="Stop proofreading"
+      >
         <Loader2 className="animate-spin" />
         <span>
           Proofreading {Math.min(run.done + 1, run.total)}/{run.total}
@@ -58,9 +70,25 @@ export function ProofreadMenu({
   }
 
   const trigger = (
-    <Button variant="outline" size="sm" disabled={disabledHint !== null}>
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={disabledHint !== null}
+      title="Proofread"
+      className={className}
+      aria-label={
+        waiting > 0
+          ? `Proofread, ${waiting} suggestion${waiting === 1 ? "" : "s"} waiting`
+          : "Proofread"
+      }
+    >
       <SpellCheck />
-      <span className="hidden sm:inline">Proofread</span>
+      <span className={labelled ? undefined : "max-xl:hidden"}>Proofread</span>
+      {waiting > 0 && (
+        <span className="rounded-full bg-primary/15 px-1.5 text-xs font-medium text-primary tabular-nums">
+          {waiting}
+        </span>
+      )}
       <ChevronDown className="opacity-60" />
     </Button>
   );
@@ -82,7 +110,7 @@ export function ProofreadMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-2rem)]">
           <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
             AI checks the translation against the original. You review every change.
           </DropdownMenuLabel>

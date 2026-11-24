@@ -11,7 +11,7 @@ One work published as a sequence of volumes, such as a single light novel series
 _Avoid_: Series, collection, group
 
 **Book**:
-One imported EPUB file, which is one volume of a project.
+One uploaded EPUB file, which is one volume of a project.
 _Avoid_: Epub, file
 
 **Volume number**:
@@ -35,8 +35,12 @@ _Avoid_: Term list, dictionary
 One source term, its rendering, and an optional note.
 _Avoid_: Term
 
+**Glossary skip**:
+The reader's decision to translate a project without any glossary entries. Once made, the reader is no longer urged to set up a glossary for that project before translating.
+_Avoid_: Dismiss, ignore glossary
+
 **Glossary conflict**:
-A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader picks one.
+A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader settles the conflict by choosing a rendering or writing a new one.
 
 **Custom prompt**:
 The project's free-text style instructions, which take the place of the default style guidance when translating any of its books. The fidelity and format rules always apply and cannot be edited.
@@ -47,3 +51,11 @@ The rendering of a book's own title, taken from its English translation. With it
 
 **Fully translated**:
 A project in which every volume has a complete translation into the same target language. Flagged segments count as translated; proofreading is not required.
+
+**Main language**:
+The target language a project's progress is counted in: the language most of its volumes are translated into. A volume counts as translated only in the main language. A project with nothing translated yet has no main language.
+_Avoid_: Primary language, default language
+
+**Chapter status**:
+Where a chapter's translation stands. It is one of Translated (every passage, flagged ones included), Partly translated, Has failed passages, Not started, or Translating (while work on it is waiting or under way).
+_Avoid_: Character count, progress dot
