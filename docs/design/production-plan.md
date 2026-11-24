@@ -1,6 +1,6 @@
 # Redesign: production plan
 
-How the reviewed prototype (`docs/design/prototype/`) becomes the real web app. The findings it answers are in `docs/design/ui-review.md`.
+How the reviewed prototype became the real web app. The prototype was removed once the hosted preview was signed off; it remains in the history of [#37](https://github.com/AbhinavMV/epub-translator/pull/37). The findings it answers are in `docs/design/ui-review.md`.
 
 ## Decisions already made
 
