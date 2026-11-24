@@ -1,5 +1,4 @@
 import type { BookSummary } from "@et/contracts";
-import { FolderInput } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 import { toast } from "sonner";
 import { useMoveBook, useProjects } from "@/api/queries";
@@ -14,27 +13,22 @@ import {
 } from "@/components/ui/dialog";
 import { NativeSelect } from "@/components/ui/native-select";
 
-export function MoveBookButton({ book }: { book: BookSummary }) {
-  const [open, setOpen] = useState(false);
+export function MoveBookDialog({
+  book,
+  open,
+  onOpenChange,
+}: {
+  book: BookSummary;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const title = book.translatedTitle || book.title;
-
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-xs text-muted-foreground"
-        aria-label={`Move ${title} to another project`}
-        onClick={() => setOpen(true)}
-      >
-        <FolderInput /> Move
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          {open && <MoveBookForm book={book} title={title} onClose={() => setOpen(false)} />}
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        {open && <MoveBookForm book={book} title={title} onClose={() => onOpenChange(false)} />}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -69,7 +63,7 @@ function MoveBookForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>Move to another project</DialogTitle>
-        <DialogDescription>
+        <DialogDescription className="break-words">
           “{title}” keeps its translations. Its volume number is read again from its title, and the
           new project's glossary applies from now on.
         </DialogDescription>

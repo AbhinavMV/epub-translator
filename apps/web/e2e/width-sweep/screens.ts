@@ -129,6 +129,30 @@ const click = (target: (page: Page) => Locator) => async (page: Page) => {
   await target(page).click();
 };
 
+const PROJECTS: [string, string | RegExp][] = [
+  ["angel", ANGEL],
+  ["long", LONG_SERIES],
+  ["witch", "魔女の旅々"],
+  ["wolf", "狼と香辛料"],
+];
+
+const volumeActions = (page: Page) =>
+  page
+    .getByRole("list", { name: "Volumes" })
+    .getByRole("button", { name: / actions$/ })
+    .first();
+
+/** Opens a menu, then picks `item` from it; safe to call again while the menu is open. */
+const fromMenu = (trigger: (page: Page) => Locator, item?: string) => async (page: Page) => {
+  const menu = page.locator(OVERLAY.menu);
+  if (!(await menu.isVisible())) await trigger(page).click();
+  if (item) await menu.getByRole("menuitem", { name: item }).click();
+};
+
+const projectAction = (item?: string) =>
+  fromMenu((page) => page.getByRole("button", { name: "Project actions" }), item);
+const volumeAction = (item: string) => fromMenu(volumeActions, item);
+
 export const SCREENS: readonly Screen[] = [
   { name: "library", path: "/", ready: libraryReady },
   {
@@ -170,23 +194,56 @@ export const SCREENS: readonly Screen[] = [
   { name: "project long title", path: "/projects/project-long", ready: heading(LONG_SERIES) },
   { name: "project witch", path: "/projects/project-witch", ready: heading("魔女の旅々") },
   { name: "project wolf", path: "/projects/project-wolf", ready: heading("狼と香辛料") },
+  ...PROJECTS.flatMap(([id, title]): Screen[] => [
+    {
+      name: `project menu ${id}`,
+      path: `/projects/project-${id}`,
+      ready: heading(title),
+      open: projectAction(),
+      opened: scoped(OVERLAY.menu),
+      scope: OVERLAY.menu,
+    },
+    {
+      name: `volume menu ${id}`,
+      path: `/projects/project-${id}`,
+      ready: heading(title),
+      open: click(volumeActions),
+      opened: scoped(OVERLAY.menu),
+      scope: OVERLAY.menu,
+    },
+  ]),
+  {
+    name: "project glossary tab",
+    path: "/projects/project-angel?tab=glossary",
+    ready: heading(ANGEL),
+  },
+  {
+    name: "project glossary tab empty",
+    path: "/projects/project-long?tab=glossary",
+    ready: heading(LONG_SERIES),
+  },
+  {
+    name: "project prompt tab",
+    path: "/projects/project-long?tab=prompt",
+    ready: heading(LONG_SERIES),
+  },
   {
     name: "project rename",
     path: "/projects/project-long",
     ready: heading(LONG_SERIES),
-    open: click((page) => page.getByRole("button", { name: "Rename project" })),
+    open: projectAction("Rename project"),
     opened: (page) => page.getByRole("textbox", { name: "Project name" }),
   },
   {
     name: "project volume number",
     path: "/projects/project-long",
     ready: heading(LONG_SERIES),
-    open: click((page) => page.getByRole("button", { name: /^Edit volume number of/ }).first()),
+    open: volumeAction("Change volume number"),
     opened: (page) => page.getByRole("spinbutton").first(),
   },
   {
     name: "glossary dialog",
-    path: "/projects/project-angel",
+    path: "/projects/project-angel?tab=glossary",
     ready: heading(ANGEL),
     open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
     opened: glossaryLoaded,
@@ -194,7 +251,7 @@ export const SCREENS: readonly Screen[] = [
   },
   {
     name: "glossary dialog empty",
-    path: "/projects/project-long",
+    path: "/projects/project-long?tab=glossary",
     ready: heading(LONG_SERIES),
     open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
     opened: glossaryLoaded,
@@ -202,7 +259,7 @@ export const SCREENS: readonly Screen[] = [
   },
   {
     name: "custom prompt dialog",
-    path: "/projects/project-angel",
+    path: "/projects/project-angel?tab=prompt",
     ready: heading(ANGEL),
     open: click((page) => page.getByRole("button", { name: /^Custom prompt/ })),
     opened: scoped(OVERLAY.dialog),
@@ -212,7 +269,7 @@ export const SCREENS: readonly Screen[] = [
     name: "delete project dialog",
     path: "/projects/project-long",
     ready: heading(LONG_SERIES),
-    open: click((page) => page.getByRole("button", { name: "Delete project" })),
+    open: projectAction("Delete project…"),
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
   },
@@ -220,7 +277,7 @@ export const SCREENS: readonly Screen[] = [
     name: "move volume dialog",
     path: "/projects/project-long",
     ready: heading(LONG_SERIES),
-    open: click((page) => page.getByRole("button", { name: /^Move / }).first()),
+    open: volumeAction("Move to project…"),
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
   },
@@ -228,7 +285,7 @@ export const SCREENS: readonly Screen[] = [
     name: "delete volume dialog",
     path: "/projects/project-long",
     ready: heading(LONG_SERIES),
-    open: click((page) => page.getByRole("button", { name: /^Delete (?!project)/ }).first()),
+    open: volumeAction("Delete volume…"),
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
   },
@@ -288,6 +345,26 @@ export const SCREENS: readonly Screen[] = [
     ready: editorReady,
     open: openProofreadSheet,
     opened: (page) => page.getByRole("dialog", { name: /proofread/i }),
+    scope: OVERLAY.sheet,
+  },
+  {
+    name: "proofread sheet reviewed",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => {
+      await page
+        .getByRole("button", { name: /^(Review|Show)$/ })
+        .first()
+        .click();
+      const sheet = page.locator(OVERLAY.sheet);
+      await sheet
+        .getByText(/suggestions? (left|reviewed)/)
+        .first()
+        .waitFor();
+      const acceptAll = sheet.getByRole("button", { name: /^Accept( all)? \d+$/ });
+      if (await acceptAll.isVisible()) await acceptAll.click();
+    },
+    opened: (page) => page.locator(OVERLAY.sheet).filter({ hasText: /suggestions? reviewed/ }),
     scope: OVERLAY.sheet,
   },
   {

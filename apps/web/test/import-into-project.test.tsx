@@ -317,9 +317,8 @@ describe("volume number on the project page", () => {
     });
     renderAt("/projects/p1", { getProject: vi.fn(async () => current), setVolumeNumber });
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Vol. 1 actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Change volume number" }));
     const input = screen.getByRole("spinbutton", { name: "Volume number of 魔女の旅々 1" });
     await userEvent.clear(input);
     await userEvent.type(input, "3{Enter}");
@@ -345,18 +344,16 @@ describe("volume number on the project page", () => {
     const setVolumeNumber = vi.fn();
     renderAt("/projects/p1", { getProject: vi.fn(async () => project), setVolumeNumber });
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Vol. 1 actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Change volume number" }));
     await userEvent.type(
       screen.getByRole("spinbutton", { name: "Volume number of 魔女の旅々 1" }),
       "4",
     );
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(
-      screen.getByRole("button", { name: "Edit volume number of 魔女の旅々 1" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Vol. 1")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
     expect(setVolumeNumber).not.toHaveBeenCalled();
   });
 });
