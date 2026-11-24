@@ -1,0 +1,1002 @@
+<title>EPUB Translator Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600&family=Literata:opsz,wght@7..72,400;7..72,600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Noto+Serif+JP:wght@400;600&display=swap">
+<style>
+/* Layout: a review bar above a resizable app frame; the app responds to the frame's width through container queries, so Phone / Tablet / Desktop can be judged on one screen. */
+:root {
+  --chrome-bg: #f2f3f0; --chrome-fg: #17191e; --chrome-muted: #5b606b; --chrome-line: #d9dbd5; --chrome-on: #ffffff; --chrome-accent: #2c4a8f;
+  --bg: #f7f7f5; --surface: #ffffff; --surface-2: #efefeb; --fg: #15171c; --muted: #5b606b; --line: #dedfda;
+  --accent: #2c4a8f; --accent-fg: #ffffff; --accent-soft: #e6ebf6; --accent-hover: #233c76;
+  --ok: #1f7a4d; --ok-soft: #e3f2ea; --warn: #8a5300; --warn-soft: #fbf0dc; --danger: #b42318; --danger-soft: #fbe7e5;
+  --ins: #dff1e6; --del: #f8e0dd; --scrim: rgba(12, 14, 18, .42); --shadow: 0 1px 2px rgba(15,17,22,.06), 0 8px 24px rgba(15,17,22,.08);
+  --ui: "IBM Plex Sans", "IBM Plex Sans JP", system-ui, sans-serif;
+  --display: "Newsreader", "Noto Serif JP", Georgia, serif;
+  --read: "Newsreader", "Noto Serif JP", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+  --hit: 36px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --chrome-bg: #121317; --chrome-fg: #e9eaee; --chrome-muted: #9aa0ac; --chrome-line: #2a2e36; --chrome-on: #0e0f12; --chrome-accent: #8ea8f0; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --chrome-bg: #121317; --chrome-fg: #e9eaee; --chrome-muted: #9aa0ac; --chrome-line: #2a2e36; --chrome-on: #0e0f12; --chrome-accent: #8ea8f0; color-scheme: dark; }
+
+/* App palettes: the app carries its own theme (light / sepia / dark), resolved from System by script. */
+.frame[data-t="dark"] {
+  --bg: #0e0f12; --surface: #16181d; --surface-2: #1e2127; --fg: #e9eaee; --muted: #a0a6b2; --line: #2a2e36;
+  --accent: #8ea8f0; --accent-fg: #0e0f12; --accent-soft: #1d2640; --accent-hover: #a9bdf4;
+  --ok: #5cc48d; --ok-soft: #14291e; --warn: #e0a24a; --warn-soft: #2d2213; --danger: #f07b6e; --danger-soft: #331816;
+  --ins: #163222; --del: #3a1a17; --scrim: rgba(0,0,0,.6); --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
+}
+.frame[data-t="sepia"] {
+  --bg: #f1e7d3; --surface: #f8f0df; --surface-2: #e8dcc3; --fg: #3a2f20; --muted: #6b5a40; --line: #d9c9a8;
+  --accent: #2c4a8f; --accent-fg: #ffffff; --accent-soft: #e2dccd; --accent-hover: #233c76;
+  --ins: #dcead2; --del: #f1d6cd;
+}
+.frame[data-look="blue"] { --ui: "Inter", "IBM Plex Sans JP", system-ui, sans-serif; --display: "Literata", "Noto Serif JP", Georgia, serif; --read: "Literata", "Noto Serif JP", Georgia, serif; --mono: ui-monospace, "SF Mono", Menlo, monospace; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; }
+.frame[data-look="blue"][data-t="light"] { --bg: #fcfcfd; --surface: #ffffff; --surface-2: #f1f2f5; --fg: #111318; --muted: #5d6370; --line: #e3e5ea; --accent: #2f6fde; --accent-hover: #2a63c8; --accent-soft: #e8f0fc; }
+.frame[data-look="blue"][data-t="dark"] { --bg: #0a0b0d; --surface: #131519; --surface-2: #1b1e23; --fg: #e8eaee; --muted: #9399a5; --line: #262a31; --accent: #6b9cf0; --accent-fg: #0a0b0d; --accent-hover: #85aef3; --accent-soft: #16233d; }
+.frame[data-look="blue"][data-t="sepia"] { --bg: #efe4cf; --fg: #3a2f20; --accent: #2457b8; --accent-hover: #1f4ca3; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--chrome-bg); color: var(--chrome-fg); font: 14px/1.45 var(--ui); display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Review bar */
+.review { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--chrome-line); background: var(--chrome-bg); }
+.review b { font-weight: 600; letter-spacing: -.01em; }
+.review .tag { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--chrome-muted); }
+.review .sp { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--chrome-line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 10px; min-height: 32px; color: var(--chrome-muted); font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--chrome-fg); color: var(--chrome-bg); }
+.review select { border: 1px solid var(--chrome-line); background: transparent; border-radius: 8px; padding: 6px 8px; min-height: 32px; color: var(--chrome-fg); }
+.review .lbl { font-size: 12px; color: var(--chrome-muted); }
+@media (max-width: 720px) { .review .wide-only { display: none; } }
+
+.stage { flex: 1; min-height: 0; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 0; }
+.stage[data-w="phone"], .stage[data-w="tablet"], .stage[data-w="desktop"] { padding: 20px; }
+.frame { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--ui); container-type: inline-size; container-name: app; }
+.stage[data-w="phone"] .frame { width: 390px; max-width: 100%; height: min(844px, 100%); border-radius: 28px; border: 1px solid var(--chrome-line); box-shadow: 0 20px 60px rgba(0,0,0,.18); flex: none; }
+.stage[data-w="tablet"] .frame { width: 820px; height: min(1100px, 100%); border-radius: 18px; border: 1px solid var(--chrome-line); flex: none; }
+.stage[data-w="desktop"] .frame { width: 1280px; min-width: 1280px; height: min(820px, 100%); border-radius: 10px; border: 1px solid var(--chrome-line); flex: none; }
+.scroll { position: absolute; inset: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+
+/* App primitives */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--hit); padding: 0 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-weight: 500; font-size: 13.5px; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.danger { color: var(--danger); }
+.btn.danger.solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn[disabled] { opacity: .5; cursor: default; }
+.btn.icon { width: var(--hit); padding: 0; }
+.btn svg, .ic { width: 16px; height: 16px; flex: none; }
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.chip { max-width: 100%; }
+.pcard .chip, .vrow .chip { white-space: normal; height: auto; min-height: 22px; padding-block: 3px; line-height: 1.3; }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.danger { background: var(--danger-soft); color: var(--danger); }
+.chip.accent { background: var(--accent-soft); color: var(--accent); }
+.chip svg { width: 13px; height: 13px; }
+.meta { font-size: 12.5px; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.bar { height: 4px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.bar.ok > i { background: var(--ok); }
+input.field, select.field, textarea.field { width: 100%; min-height: var(--hit); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); padding: 6px 10px; }
+textarea.field { min-height: 160px; line-height: 1.55; resize: vertical; }
+label.lab { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+.help { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.segctl { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-sm); background: var(--surface-2); }
+.segctl button { border: 0; background: transparent; min-height: calc(var(--hit) - 4px); padding: 0 12px; border-radius: calc(var(--r-sm) - 2px); color: var(--muted); font-weight: 500; font-size: 13px; }
+.segctl button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.segctl.full { display: flex; } .segctl.full button { flex: 1; }
+
+/* App header */
+.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.mark { width: 32px; height: 32px; border-radius: 6px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; flex: none; border: 0; padding: 0; }
+.mark svg { width: 16px; height: 16px; }
+.crumbs { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1; }
+.crumbs a, .crumbs span { color: var(--muted); text-decoration: none; font-size: 13.5px; white-space: nowrap; padding: 6px 6px; border-radius: 6px; }
+.crumbs a:hover { color: var(--fg); background: var(--surface-2); }
+.crumbs .cur { color: var(--fg); font-weight: 500; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.crumbs .sep { padding: 0; color: var(--line); }
+.crumbs .shrink { overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 220px; }
+
+.page { width: 100%; max-width: 1120px; margin: 0 auto; padding: 28px 24px 96px; }
+h1.title { font: 500 32px/1.15 var(--display); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+h2.h2 { font: 600 15px/1.3 var(--ui); margin: 0; }
+.eyebrow { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .02em; }
+
+/* Library */
+.lib-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; gap: 16px; margin-bottom: 24px; }
+.lib-head .grow { min-width: 0; }
+.lib-head .search input { width: clamp(160px, 28cqi, 280px); }
+.search { position: relative; }
+.search svg { position: absolute; left: 10px; top: 50%; translate: 0 -50%; color: var(--muted); }
+.search input { padding-left: 34px; width: 240px; }
+.resume { display: flex; gap: 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); margin-bottom: 28px; }
+.resume .rmain { display: flex; gap: 14px; align-items: center; flex: 1; min-width: 0; }
+.resume .mini { width: 48px; flex: none; }
+.resume .rname { font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resume .racts { display: flex; gap: 8px; flex: none; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 28px 20px; }
+.pcard { display: flex; flex-direction: column; gap: 10px; text-align: left; background: none; border: 0; padding: 0; color: inherit; }
+.pcard:hover .cover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.pcard .name { font-weight: 600; font-size: 14.5px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+.pcard .stat { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+.pcard .sline { display: flex; align-items: flex-start; gap: 5px; font-size: 12.5px; line-height: 18px; min-height: 18px; color: var(--muted); white-space: normal; }
+.pcard .sline svg { margin-top: 2px; }
+.pcard .sline.full { color: var(--ok); font-weight: 500; }
+.pcard .sline svg { width: 14px; height: 14px; flex: none; }
+.picker { border: 1.5px dashed var(--line); border-radius: var(--r-lg); padding: 28px 16px; display: grid; justify-items: center; gap: 10px; text-align: center; transition: border-color .15s, background .15s; }
+.picker.over { border-color: var(--accent); background: var(--accent-soft); }
+.picker .ic { width: 28px; height: 28px; color: var(--accent); }
+.fileline { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.fileline .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcard .sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cover { position: relative; aspect-ratio: 2 / 3; max-width: 100%; width: 100%; border-radius: 4px 10px 10px 4px; overflow: hidden; transition: transform .2s, box-shadow .2s; background: var(--c1); color: var(--c2); box-shadow: inset 5px 0 0 rgba(0,0,0,.12); }
+.cover .vt { position: absolute; top: 14px; right: 14px; bottom: 14px; writing-mode: vertical-rl; font: 600 21px/1.25 "Noto Serif JP", var(--display); letter-spacing: .06em; overflow: hidden; }
+.cover .seal { position: absolute; left: 12px; bottom: 12px; font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.cover.sm .vt { font-size: 11px; top: 6px; right: 6px; bottom: 6px; letter-spacing: 0; }
+.cover.sm .seal { display: none; }
+.drop-hint { margin-top: 32px; border: 1.5px dashed var(--line); border-radius: var(--r-lg); padding: 22px; display: flex; gap: 14px; align-items: center; color: var(--muted); }
+.empty { text-align: center; padding: 64px 16px; border: 1.5px dashed var(--line); border-radius: var(--r-lg); }
+.empty h2 { font: 500 24px/1.2 var(--display); margin: 12px 0 6px; color: var(--fg); }
+
+/* Project */
+.p-head { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: start; margin-bottom: 18px; }
+.p-head .orig { color: var(--muted); margin-top: 6px; }
+.notice { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--fg); margin-bottom: 20px; }
+.notice .txt { flex: 1; min-width: 200px; }
+.notice.warn { background: var(--warn-soft); }
+.tabs { display: flex; gap: 4px; box-shadow: inset 0 -1px 0 var(--line); margin-bottom: 20px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { border: 0; background: none; padding: 10px 12px; min-height: 44px; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--fg); }
+.tabs .count { font: 500 12px var(--mono); color: var(--muted); margin-left: 4px; }
+.vlist { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.vrow { display: grid; grid-template-columns: 48px minmax(0,1fr) minmax(8rem, 11rem) auto; gap: 16px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--line); }
+.vrow:first-child { border-top: 0; }
+.vrow:hover { background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+.vrow .open { all: unset; cursor: pointer; display: block; }
+.vrow .open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.vmain { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.vtop { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.vrow .vn { font-weight: 600; font-size: 14px; }
+.vrow .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.35; }
+.vrow .t[lang="ja"], .vrow .o { font-family: "Noto Serif JP", var(--ui); }
+.vrow .o { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vrow .vmain .bar { margin-top: 5px; display: none; }
+.vtop .sline { display: none; }
+.vstat { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.vstat .bar { width: 100%; }
+.vrow .acts { display: flex; gap: 4px; }
+.sline { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; line-height: 18px; color: var(--muted); white-space: nowrap; }
+.sline.full { color: var(--ok); font-weight: 500; }
+.sline svg { width: 14px; height: 14px; flex: none; }
+.sectionbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.sectionbar .grow { flex: 1; }
+
+/* Glossary */
+.gpanel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 16px; margin-bottom: 16px; display: grid; gap: 14px; }
+.gpanel .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.gpanel .row > div { min-width: 160px; flex: 1; }
+.gtable { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.grow3 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.4fr) 44px; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); align-items: center; }
+.grow3.head { border-top: 0; font-size: 12px; color: var(--muted); font-weight: 500; background: var(--surface-2); }
+.grow3 input { border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 6px 8px; width: 100%; min-height: 34px; }
+.grow3 input:hover, .grow3 input:focus { border-color: var(--line); background: var(--bg); }
+.grow3 .src { font-family: "Noto Serif JP", var(--ui); }
+.grow3.new { background: var(--accent-soft); }
+.conflict { border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); background: var(--warn-soft); border-radius: var(--r-lg); padding: 14px; margin-bottom: 16px; }
+.conflict .opt { display: flex; align-items: center; gap: 10px; padding: 8px 0; flex-wrap: wrap; }
+.cf-opts { display: grid; gap: 8px; }
+.cf-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--fg); }
+.cf-opt:hover { border-color: var(--accent); }
+.cf-opt > span:first-child { min-width: 0; }
+.savebar { position: sticky; bottom: 12px; margin-top: 16px; display: flex; gap: 8px; align-items: center; padding: 10px 12px 10px 16px; border-radius: var(--r-lg); background: var(--fg); color: var(--bg); box-shadow: var(--shadow); }
+.savebar .grow { flex: 1; }
+.savebar .btn { border-color: transparent; }
+.savebar .btn.ghost { color: var(--bg); }
+.savebar .btn.ghost:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
+.rules { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-2); padding: 4px 16px; margin-bottom: 18px; }
+.rules summary { padding: 12px 0; font-weight: 500; cursor: pointer; }
+.rules ul { margin: 0 0 14px; padding-left: 18px; color: var(--muted); display: grid; gap: 6px; }
+
+/* Editor */
+.ed { position: absolute; inset: 0; display: grid; grid-template-columns: 264px minmax(0,1fr); grid-template-rows: 56px minmax(0,1fr); }
+.ed > .top { grid-column: 1 / -1; position: relative; }
+.rail { border-right: 1px solid var(--line); overflow: auto; padding: 12px 8px 24px; background: var(--bg); }
+.rail h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 4px 8px 8px; display: flex; justify-content: space-between; }
+.ch { display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 10px; align-items: start; width: 100%; text-align: left; border: 0; background: none; padding: 9px 8px; border-radius: 8px; color: var(--fg); min-height: 44px; }
+.ch:hover { background: var(--surface-2); }
+.ch[aria-current="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.ch .t { font-size: 13.5px; line-height: 1.35; }
+.ch .t.src { font-family: "Noto Serif JP", var(--ui); }
+.ch .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.st { width: 16px; height: 16px; margin-top: 2px; }
+.main { overflow: auto; position: relative; display: flex; flex-direction: column; }
+.toolbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--bg); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.toolbar .grow { flex: 1; }
+.modelchip { display: inline-flex; align-items: center; gap: 8px; min-height: var(--hit); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); font-size: 13px; }
+.modelchip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.modelchip .m { color: var(--muted); }
+.splitbtn { display: inline-flex; }
+.splitbtn .btn:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.splitbtn .btn:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; border-left: 1px solid color-mix(in srgb, var(--accent-fg) 30%, transparent); width: 34px; padding: 0; }
+.chhead { padding: 24px 20px 12px; display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.chhead .grow { flex: 1; min-width: 240px; }
+.chhead h2 { font: 500 24px/1.25 var(--display); margin: 4px 0 0; text-wrap: balance; }
+.chhead .orig { font-family: "Noto Serif JP", var(--ui); color: var(--muted); font-size: 13px; }
+.status { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+.status .line { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+.colhead { display: contents; }
+.colhead > div { position: sticky; top: 57px; z-index: 2; background: var(--bg); padding: 8px 20px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 500; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.colhead > div + div { border-left: 1px solid var(--line); }
+.seg-src, .seg-tr { padding: 14px 20px; border-bottom: 1px solid var(--line); font-family: var(--read); font-size: 15.5px; line-height: 1.75; }
+.seg-src { font-family: "Noto Serif JP", var(--read); color: color-mix(in srgb, var(--fg) 82%, var(--muted)); }
+.seg-tr { border-left: 1px solid var(--line); position: relative; }
+.seg-tr.pending { color: var(--muted); font-family: var(--ui); font-size: 13px; font-style: normal; }
+.seg-tr.failed { background: var(--danger-soft); font-family: var(--ui); font-size: 13.5px; line-height: 1.5; }
+.seg-tr.failed b { color: var(--danger); font-weight: 600; }
+.seg-tr.working::after { content: ""; display: block; height: 10px; width: 70%; border-radius: 4px; background: linear-gradient(90deg, var(--surface-2), color-mix(in srgb, var(--accent) 18%, var(--surface-2)), var(--surface-2)); background-size: 200% 100%; animation: sh 1.2s linear infinite; margin-top: 6px; }
+@keyframes sh { to { background-position: -200% 0; } }
+.seg-tr .fresh { animation: fade .5s ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.edfoot { display: flex; justify-content: space-between; gap: 8px; padding: 20px; }
+.bottombar { display: none; }
+.viewtabs { display: none; }
+
+/* Reader */
+.rd { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: 52px minmax(0,1fr); }
+.rd .top { position: relative; height: 52px; }
+.rd .body { overflow: auto; }
+.rd article { max-width: var(--measure, 38rem); margin: 0 auto; padding: 40px 24px 40px; font-family: var(--read); font-size: var(--rsize, 19px); line-height: 1.7; }
+.rd article.sans { font-family: var(--ui); }
+.rd article h1 { font: 500 1.6em/1.25 var(--display); margin: 0 0 1.2em; text-wrap: balance; }
+.rd article p { margin: 0 0 1em; }
+.rd article p.src { font-family: "Noto Serif JP", var(--read); color: var(--muted); }
+.rd article .pair { margin-bottom: 1.2em; }
+.rd article .pair .o { font-family: "Noto Serif JP", var(--read); color: var(--muted); font-size: .86em; margin-bottom: .3em; }
+.rd article .sbs { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 1em; }
+.rd article.wide { max-width: 60rem; }
+.rd .pager { display: flex; justify-content: space-between; gap: 8px; max-width: 38rem; margin: 0 auto; padding: 8px 24px 48px; }
+.rd .rprog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line); }
+.rd .rprog i { display: block; height: 100%; background: var(--accent); width: 38%; }
+
+/* Overlays (inside the frame) */
+.scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 20; animation: fade .15s ease; }
+.dialog { position: absolute; z-index: 21; left: 50%; top: 12%; translate: -50% 0; width: min(520px, calc(100% - 32px)); max-height: 76%; overflow: auto; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 22px; display: grid; gap: 16px; }
+.dialog, .sheet .sbody, .gpanel, .auth form { grid-template-columns: minmax(0, 1fr); }
+select.field { min-width: 0; text-overflow: ellipsis; }
+.dialog h2 { font: 500 22px/1.2 var(--display); margin: 0; }
+.dialog .acts { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.sheet { position: absolute; z-index: 21; top: 0; bottom: 0; right: 0; width: min(420px, 100%); background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column; animation: slide .2s ease; }
+.sheet.left { right: auto; left: 0; width: min(320px, 88%); animation-name: slidel; }
+@keyframes slide { from { translate: 30px 0; opacity: .4; } }
+@keyframes slidel { from { translate: -30px 0; opacity: .4; } }
+.sheet header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 12px 18px; border-bottom: 1px solid var(--line); }
+.sheet header h2 { font: 600 15px var(--ui); margin: 0; flex: 1; }
+.sheet .sbody { flex: 1; overflow: auto; padding: 16px 18px; display: grid; gap: 18px; align-content: start; }
+.sheet footer { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
+.menu { position: absolute; z-index: 21; min-width: 230px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow); padding: 6px; display: grid; }
+.menu button, .menu .mi { display: flex; align-items: center; gap: 10px; border: 0; background: none; text-align: left; padding: 8px 10px; min-height: 38px; border-radius: 6px; font-size: 13.5px; color: var(--fg); }
+.menu button:hover { background: var(--surface-2); }
+.menu .lbl { font-size: 11.5px; color: var(--muted); padding: 8px 10px 4px; font-weight: 500; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+.menu .k { margin-left: auto; font-size: 12px; color: var(--muted); }
+.menu .danger { color: var(--danger); }
+.swatches { display: flex; gap: 6px; padding: 4px 6px 6px; }
+.swatches button { flex: 1; flex-direction: column; gap: 6px; padding: 8px 4px; font-size: 12px; min-height: 0; border: 1px solid var(--line); justify-content: center; }
+.swatches button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.swatches i { width: 28px; height: 20px; border-radius: 5px; border: 1px solid rgba(0,0,0,.12); display: block; }
+.sugg { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
+.sugg .diff { font-family: var(--read); font-size: 15px; line-height: 1.65; }
+.sugg del { background: var(--del); text-decoration: line-through; text-decoration-color: var(--danger); }
+.sugg ins { background: var(--ins); text-decoration: none; }
+.sugg .why { font-size: 12.5px; color: var(--muted); }
+.toast { position: absolute; z-index: 30; bottom: 20px; right: 20px; background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: var(--r-md); box-shadow: var(--shadow); display: flex; gap: 10px; align-items: center; font-size: 13.5px; max-width: calc(100% - 40px); animation: fade .2s ease; }
+
+/* Sign-in */
+.auth { min-height: 100%; display: grid; place-items: center; padding: 32px 16px; }
+.auth form { width: min(380px, 100%); display: grid; gap: 16px; }
+.auth h1 { font: 500 30px/1.15 var(--display); margin: 14px 0 4px; }
+
+/* Findings */
+.fd { max-width: 980px; }
+.fd h2 { font: 500 22px/1.25 var(--display); margin: 32px 0 12px; }
+.fd .lede { color: var(--muted); max-width: 64ch; }
+.ftable { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+.frow { display: grid; grid-template-columns: 48px 72px minmax(0,1.3fr) minmax(0,1fr) 72px; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--line); font-size: 13.5px; align-items: start; }
+.frow.head { border-top: 0; background: var(--surface-2); font-size: 12px; font-weight: 500; color: var(--muted); }
+.frow .id { font: 500 12px var(--mono); color: var(--muted); padding-top: 2px; }
+.frow a { color: var(--accent); }
+.cov { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.cov div { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); font-size: 13.5px; }
+.ex { display: none; }
+
+/* ---------- Desktop: volumes become a cover grid, like the library ---------- */
+@container app (min-width: 1024px) {
+  .vlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 28px 20px; border: 0; background: none; border-radius: 0; overflow: visible; }
+  .vrow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "cover cover" "main main" "stat acts"; align-items: start; gap: 10px 8px; padding: 0; border-top: 0; }
+  .vrow:hover { background: none; }
+  .vrow .open { grid-area: cover; }
+  .vrow .open:hover .cover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .vrow .cover.sm .vt { font-size: 19px; top: 14px; right: 14px; bottom: 14px; letter-spacing: .06em; }
+  .vrow .cover.sm .seal { display: block; }
+  .vmain { grid-area: main; gap: 2px; }
+  .vrow .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; height: 2.7em; font-weight: 600; }
+  .vtop { height: 20px; }
+  .vrow .o { display: none; }
+  .vstat { grid-area: stat; padding-top: calc((var(--hit) - 18px) / 2); }
+  .vrow .acts { grid-area: acts; }
+  .vrow .acts .wide-act { display: none; }
+}
+/* ---------- Tablet (frame narrower than 1024) ---------- */
+@container app (max-width: 1023px) {
+  .ed { grid-template-columns: 220px minmax(0,1fr); }
+  .frow { grid-template-columns: 44px minmax(0,1.3fr) minmax(0,1fr) 64px; }
+  .frow .w { display: none; }
+}
+/* ---------- Phone (frame narrower than 640) ---------- */
+@container app (max-width: 639px) {
+  .frame, .scroll { --hit: 44px; }
+  .btn { font-size: 14px; max-width: 100%; white-space: normal; text-align: center; line-height: 1.2; }
+  .top { padding: 0 8px 0 12px; gap: 4px; }
+  .crumbs .hide-sm { display: none; }
+  .tabs { gap: 0; }
+  .tabs button { flex: 1 1 auto; padding: 8px clamp(4px, 2cqi, 12px); white-space: normal; line-height: 1.2; }
+  .crumbs .shrink { max-width: 120px; }
+  .page { padding: 20px 16px 96px; }
+  h1.title { font-size: 26px; }
+  .lib-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
+  .lib-head .grow { min-width: 0; }
+  .lib-head .search { grid-column: 1 / -1; order: 3; width: 100%; }
+  .lib-head .search input { width: 100%; }
+  .hide-sm { display: none; }
+  .search input { width: 100%; }
+  .resume { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px; }
+  .resume .mini { width: 40px; }
+  .resume .racts { display: grid; grid-template-columns: 1fr 1fr; }
+  .grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 22px 14px; }
+  .cover .vt { font-size: 17px; }
+  .drop-hint { display: none; }
+  .p-head { grid-template-columns: 1fr auto; }
+  .vrow { grid-template-columns: 36px minmax(0,1fr) auto; gap: 12px; padding: 10px 4px 10px 12px; }
+  .vrow .o, .vstat { display: none; }
+  .vtop .sline { display: inline-flex; white-space: normal; text-align: right; }
+  .vtop { flex-wrap: wrap; column-gap: 8px; row-gap: 2px; }
+  .vrow .vmain .bar { display: block; }
+  .vrow .t { font-size: 13.5px; color: var(--muted); }
+  .vrow .acts .wide-act { display: none; }
+  .grow3 { grid-template-columns: minmax(0,1fr) 44px; grid-template-areas: "s x" "r x" "n x"; gap: 2px 8px; padding: 10px 8px 10px 4px; }
+  .grow3 > :nth-child(1) { grid-area: s; } .grow3 > :nth-child(2) { grid-area: r; } .grow3 > :nth-child(3) { grid-area: n; } .grow3 > :nth-child(4) { grid-area: x; align-self: center; }
+  .grow3.head { display: none; }
+  .grow3 .src { font-weight: 600; }
+  .ed { grid-template-columns: minmax(0,1fr); grid-template-rows: 56px minmax(0,1fr) auto; }
+  .ed .rail { display: none; }
+  .toolbar { display: none; }
+  .viewtabs { display: flex; position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .chhead { padding: 16px 16px 10px; }
+  .chhead h2 { font-size: 21px; }
+  .status { min-width: 0; width: 100%; }
+  .cols { grid-template-columns: minmax(0,1fr); }
+  .colhead { display: none; }
+  .cols.v-translation .seg-src, .cols.v-source .seg-tr { display: none; }
+  .cols.v-both .seg-src { border-bottom: 0; padding-bottom: 4px; font-size: 13.5px; color: var(--muted); }
+  .seg-src, .seg-tr { padding: 12px 16px; border-left: 0; }
+  .edfoot { display: none; }
+  .bottombar { display: flex; gap: 8px; align-items: center; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--bg); }
+  .bottombar .primary { flex: 1; }
+  .notice { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 10px; }
+  .notice .txt { min-width: 0; overflow-wrap: anywhere; }
+  .notice .btn { grid-column: 1 / -1; width: 100%; white-space: normal; }
+  .rd .top .wide-only { display: none; }
+  .rd article { padding: 24px 18px; }
+  .rd article .sbs { grid-template-columns: 1fr; gap: 6px; }
+  .rd .pager { padding: 8px 18px 40px; }
+  .dialog { top: auto; bottom: 0; translate: -50% 0; width: 100%; border-radius: var(--r-lg) var(--r-lg) 0 0; max-height: 88%; }
+  .dialog .acts .btn { flex: 1; }
+  .sheet { width: 100%; top: auto; height: 86%; border-radius: var(--r-lg) var(--r-lg) 0 0; animation-name: up; }
+  .sheet.left { width: 100%; height: 86%; }
+  @keyframes up { from { translate: 0 40px; opacity: .4; } }
+  .toast { left: 12px; right: 12px; bottom: 76px; }
+  .frow { grid-template-columns: 40px minmax(0,1fr) 60px; }
+  .frow .fix { grid-column: 2 / 4; color: var(--muted); }
+  .frow.head .fix { display: none; }
+  .ex { display: inline; }
+}
+</style>
+
+<div class="review" role="region" aria-label="Prototype controls">
+  <b>EPUB Translator</b><span class="tag">Prototype</span>
+  <span class="sp"></span>
+  <span class="lbl wide-only">Screen</span>
+  <select id="r-screen" aria-label="Screen">
+    <option value="library">Library</option>
+    <option value="project">Project</option>
+    <option value="editor">Editor</option>
+    <option value="reader">Reader</option>
+    <option value="signin">Sign in (hosted)</option>
+    <option value="findings">Findings &amp; changes</option>
+  </select>
+  <span class="lbl wide-only">Width</span>
+  <div class="seg wide-only" id="r-width" role="group" aria-label="Frame width">
+    <button data-w="fit" aria-pressed="true">Fit</button>
+    <button data-w="phone" aria-pressed="false">Phone</button>
+    <button data-w="tablet" aria-pressed="false">Tablet</button>
+    <button data-w="desktop" aria-pressed="false">Desktop</button>
+  </div>
+  <span class="lbl wide-only">Look</span>
+  <div class="seg" id="r-look" role="group" aria-label="Visual look">
+    <button data-look="blue" aria-pressed="true">Blue (chosen)</button>
+    <button data-look="indigo" aria-pressed="false">Indigo</button>
+  </div>
+</div>
+<div class="stage" id="stage" data-w="fit">
+  <div class="frame" id="frame" data-look="blue" data-t="light">
+    <div class="scroll" id="scroll"></div>
+    <div id="layer"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const I = {
+  book: '<path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
+  bookText: '<path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/>',
+  left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', down: '<path d="m6 9 6 6 6-6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  upload: '<path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+  more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>', x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  alert: '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  lang: '<path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  spark: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/>',
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+  pencil: '<path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  move: '<path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-8l-2-3H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1z"/><path d="m12 11 3 3-3 3M8 14h7"/>',
+  type: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+  read: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', refresh: '<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/>',
+  copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M14 9l2 2"/>',
+  glossary: '<path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6.5a2.5 2.5 0 0 0 0 5H20"/><path d="M9 7h7M9 11h5"/>',
+  prompt: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>', batch: '<path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>'
+};
+const ic = (n, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- Example data (illustrative, not the user's library) ---------- */
+const PROJECTS = [
+  { id: 'tonari', name: 'The Angel Next Door Spoils Me Rotten', series: 'お隣の天使様にいつの間にか駄目人間にされていた件', c1: '#dfe6f4', c2: '#203a72', vols: 9, done: 8, lang: 'English', last: 'Vol. 9 · Chapter 1', opened: '2 hours ago' },
+  { id: 'kusuri', name: '薬屋のひとりごと', series: '薬屋のひとりごと', c1: '#efe2d0', c2: '#6b3a1c', vols: 3, done: 1, lang: 'English', suggest: 'The Apothecary Diaries', opened: 'Yesterday' },
+  { id: 'mushoku', name: 'Mushoku Tensei: Jobless Reincarnation', series: '無職転生', c1: '#dcebe3', c2: '#1f5a3d', vols: 4, done: 4, lang: 'English', opened: 'Last week' },
+  { id: 'spice', name: 'Spice and Wolf', series: '狼と香辛料', c1: '#f1e3c8', c2: '#7a4a10', vols: 2, done: 2, lang: 'French', opened: 'Oct 30' },
+  { id: 'konbini', name: 'コンビニ人間', series: 'コンビニ人間', c1: '#e8e4ef', c2: '#45306e', vols: 1, done: 0, lang: 'English', opened: 'Oct 12' },
+  { id: 'longtitle', name: 'The Retired Hero Who Was Exiled From the Capital Quietly Opens a Bakery in the Countryside, but the Princess and the Demon Lord Keep Coming Back for Bread', series: '王都を追放された元勇者は田舎でひっそりパン屋を開くが、なぜか王女と魔王が毎日パンを買いに来る', c1: '#e3ecef', c2: '#1f4f5c', vols: 2, done: 1, lang: 'English', opened: 'Sep 2' }
+];
+const VOLUMES = [
+  { n: 1, t: 'The Angel Next Door Spoils Me Rotten 1', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 1', pct: 100 },
+  { n: 2, t: 'The Angel Next Door Spoils Me Rotten 2', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 2', pct: 100 },
+  { n: 3, t: 'The Angel Next Door Spoils Me Rotten 3', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 3', pct: 100 },
+  { n: 4, t: 'The Angel Next Door Spoils Me Rotten 4', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 4', pct: 100 },
+  { n: 5, t: 'The Angel Next Door Spoils Me Rotten 5', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 5', pct: 100 },
+  { n: 5.5, t: 'The Angel Next Door Spoils Me Rotten 5.5', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 5.5', pct: 100 },
+  { n: 6, t: 'The Angel Next Door Spoils Me Rotten 6', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 6', pct: 100 },
+  { n: 7, t: 'The Angel Next Door Spoils Me Rotten 7', o: 'お隣の天使様にいつの間にか駄目人間にされていた件 7', pct: 100 },
+  { n: 9, t: null, o: 'お隣の天使様にいつの間にか駄目人間にされていた件 9', pct: 34 }
+];
+const PAIRS1 = [
+  ['朝の教室には、まだ誰も来ていなかった。窓から差し込む光が、机の上に長い影を落としている。', 'The classroom was still empty in the morning. Light streaming through the window cast long shadows across the desks.'],
+  ['「おはよう、エマちゃん。今日は早いんだね」', '“Good morning, Emma. You’re early today.”'],
+  ['彼女は少しだけ顔を赤くして、視線を逸らした。その仕草がどこか不自然で、俺は首を傾げた。', 'She blushed slightly and looked away. The gesture felt oddly unnatural, and I tilted my head.'],
+  ['「べ、別に。ちょっと眠れなかっただけ」', '“N-nothing. I just couldn’t sleep very well.”'],
+  ['そう言いながらも、彼女の手は落ち着きなく鞄の紐を弄んでいる。', 'Even as she said it, her hands fidgeted restlessly with the strap of her bag.'],
+  ['窓の外では、桜の花びらがゆっくりと舞い落ちていた。春は、もうすぐそこまで来ている。', 'Outside the window, cherry petals drifted slowly down. Spring was almost upon us.']
+];
+const PAIRS2 = [
+  ['二月に入ると、街は一斉に甘い香りに包まれた。どの店のショーウィンドウにも赤いリボンが踊っている。', 'When February arrived, the town was wrapped in a sweet fragrance. Red ribbons danced in every shop window.'],
+  ['「ねえ、チョコレートは好き？」', '“Hey, do you like chocolate?”'],
+  ['唐突な質問に、俺は思わず箸を止めた。', 'At the sudden question, I stopped my chopsticks without meaning to.'],
+  ['「嫌いじゃないけど、どうして急に？」', '“I don’t dislike it, but why so suddenly?”'],
+  ['彼女は答えず、ただ楽しそうに笑っている。その笑顔の意味を、俺はまだ知らなかった。', 'She didn’t answer, only smiling happily. I still didn’t know what that smile meant.']
+];
+const PAIRS3 = [
+  ['あの日から、世界は少しだけ違って見えるようになった。', 'Since that day, the world has looked just a little different.'],
+  ['「これからも、よろしくね」', '“Let’s keep taking care of each other from now on.”'],
+  ['差し出された手を、俺は静かに握り返した。', 'I quietly took the hand she held out.']
+];
+const mk = (pairs, states) => pairs.map(([s, t], i) => ({ s, t, st: states[i] || 'pending' }));
+const CHAPTERS = [
+  { id: 'meta', o: 'Book title & navigation', t: 'Book title & navigation', meta: true, segs: [{ s: 'お隣の天使様にいつの間にか駄目人間にされていた件 9', t: 'The Angel Next Door Spoils Me Rotten 9', st: 'done' }, { s: '佐伯さん', t: 'Saekisan', st: 'done' }] },
+  { id: 'c1', o: 'プロローグ', t: 'Prologue', segs: mk(PAIRS3, ['done', 'done', 'done']) },
+  { id: 'c2', o: '第一章　婚約者の様子がおかしい', t: 'Chapter 1: Something’s Off About My Fiancée', segs: mk(PAIRS1, ['done', 'done', 'done', 'failed', 'pending', 'pending']) },
+  { id: 'c3', o: '第二章　待ちに待ったバレンタイン', t: 'Chapter 2: The Long-Awaited Valentine’s Day', segs: mk(PAIRS2, []) },
+  { id: 'c4', o: 'エピローグ', t: 'Epilogue', segs: mk(PAIRS3, []) },
+  { id: 'c5', o: 'あとがき', t: 'Afterword', segs: mk(PAIRS3.slice(0, 2), []) }
+];
+const GLOSS = { tonari: [
+  { s: '椎名真昼', r: 'Mahiru Shiina', n: 'Heroine; Amane calls her “Mahiru”' },
+  { s: '藤宮周', r: 'Amane Fujimiya', n: 'Narrator' },
+  { s: '天使様', r: 'the Angel', n: 'Nickname at school; keep lowercase “the”' },
+  { s: '赤澤樹', r: 'Itsuki Akazawa', n: '' },
+  { s: '白河千歳', r: 'Chitose Shirakawa', n: '' },
+  { s: 'さん', r: '-san', n: 'Keep honorifics' }
+] };
+const G = () => (GLOSS[S.pid] ||= []);
+const SUGGEST_NEW = { tonari: [{ s: '佐伯さん', r: 'Saeki-san', n: 'Amane’s pen name (suggested)' }, { s: '門脇優太', r: 'Yuuta Kadowaki', n: 'Suggested from Vol. 3' }], kusuri: [{ s: '猫猫', r: 'Maomao', n: 'Heroine, an apothecary (suggested)' }, { s: '壬氏', r: 'Jinshi', n: 'Suggested from Vol. 1' }, { s: '後宮', r: 'the rear palace', n: 'Suggested from Vol. 1' }] };
+const vnums = () => (S.pid === 'tonari' ? VOLUMES.map((v) => v.n) : Array.from({ length: project().vols }, (_, i) => i + 1));
+const SUGGESTIONS = [
+  { tag: 'Terminology', seg: 2, before: 'She blushed slightly and looked away.', del: 'blushed slightly', ins: 'flushed a little', after: ' and looked away.', why: 'The glossary has no entry here; “flushed a little” keeps the softer 少しだけ and matches volume 8.' },
+  { tag: 'Fluency', seg: 0, before: 'The classroom was still empty ', del: 'in the morning', ins: 'that morning', after: '.', why: 'Reads more naturally in narration.' }
+];
+const FINDINGS = [
+  ['G1', 'All', 'All', 'Every control is 32 px tall; under 44 px on touch screens (all 26 in the phone editor).', 'Controls grow to 44 px in the phone layout; 36 px with a mouse.', 'High'],
+  ['G2', 'All', 'All', 'Light and sepia icons look alike, and the header toggle lacks System.', 'One Settings menu with named swatches: Light, Sepia, Dark, System.', 'Med'],
+  ['G3', 'All', 'All', 'The theme toggle sits in every header and crowds the title.', 'Header holds breadcrumb and one Settings button.', 'Med'],
+  ['G4', 'All', 'All', 'Labels and metadata at 10–11 px mono uppercase.', 'Metadata at 12.5 px, sentence case.', 'Med'],
+  ['G6', 'All', 'All', 'No breadcrumb; the library is only reachable through the logo.', 'Breadcrumb: Library › Project › Vol. 9 on every inner page.', 'Med'],
+  ['L1', 'Library', '375', 'App name wraps onto two lines beside the theme toggle.', 'Header is the mark plus page name; theme lives in Settings.', 'Med'],
+  ['L2', 'Library', '375', '“Drop an EPUB here” on a phone.', 'Import EPUB button everywhere; the drop hint shows only on wide screens.', 'Low'],
+  ['L3', 'Library', 'All', 'Project cards show no progress and no way to resume.', 'Cards show volumes translated with a bar, and a Continue strip opens the last volume.', 'Med'],
+  ['L4', 'Library', 'All', 'No search or sort.', 'Search by project name; sort by last opened.', 'Low'],
+  ['P1', 'Project', 'All', 'The glossary is a crowded modal with six suggest controls above the table.', 'Glossary is a project tab; Suggest terms opens a panel; Save glossary sits in a sticky bar that appears only with unsaved changes.', 'High'],
+  ['P2', 'Project', 'All', 'Delete sits on the cover next to the open target.', 'Volume actions are in a row menu, away from the click target.', 'Med'],
+  ['P3', 'Project', 'All', 'No progress until a volume is complete.', 'Each volume row shows a bar and percentage.', 'Med'],
+  ['P4', 'Project', 'All', 'Rename and delete are bare icons by the name.', 'Project menu (⋯) with labelled Rename and Delete.', 'Low'],
+  ['E1', 'Editor', '375', 'Five rows of mostly unlabelled controls fill about 40% of the screen.', 'Phone: one view switch at the top, one bottom bar (Chapters, Translate, More).', 'High'],
+  ['E2', 'Editor', '≤768', 'Source pane collapsed behind “Show” up to tablet width.', 'Side by side from 640 px; phone gets Translation / Source / Both.', 'Med'],
+  ['E3', 'Editor', '1280', 'Book title cut off by the theme toggle.', 'Breadcrumb shortens the project, keeps the volume.', 'Med'],
+  ['E4', 'Editor', '1280', 'Two progress indicators on their own row.', 'One status block in the chapter header: segments and book progress.', 'Med'],
+  ['E5', 'Editor', 'All', 'Retry, Copy and Clear stay visible with nothing translated.', 'Per-passage Retry appears only on failed passages.', 'Low'],
+  ['E6', 'Editor', 'All', 'Raw model ids in the picker.', 'Model chip shows names (Claude Sonnet 5.5).', 'Low'],
+  ['E7', 'Editor', 'All', 'Chapter rail shows character counts, not status.', 'Rail shows done / partial / failed / not started and counts.', 'Low'],
+  ['E8', 'Editor', 'All', 'No hint that translation keeps running after you leave.', 'Toast on leaving: “Chapter 1 keeps translating in the background.”', 'Med'],
+  ['R1', 'Reader', '375', 'Toolbar wraps, leaving Editor alone on a second row.', 'One row: back, chapter, contents, Aa. View modes live in Aa.', 'Med'],
+  ['R2', 'Reader', 'All', 'Untranslated chapter shows grey source with no explanation.', 'Notice says how much is translated, with Translate in editor.', 'High'],
+  ['R3', 'Reader', 'All', 'Contents repeats character counts.', 'Contents shows chapter titles and status only.', 'Low'],
+  ['H1', 'Admin', '375', 'Four-column invite table will squash on a phone (from source).', 'Not in this prototype; plan: stacked rows under 640 px.', 'Med']
+];
+const COVERAGE = [
+  ['Import an EPUB into a project, with suggested project and volume number', 'Redesigned'],
+  ['Fully translated badge, naming the language when not English', 'Redesigned'],
+  ['Glossary: suggest from one volume or all volumes, sample size, request estimate', 'Redesigned'],
+  ['Glossary conflicts with the rendering in force', 'Redesigned'],
+  ['Custom prompt with read-only fidelity and format rules', 'Redesigned'],
+  ['Rename project, Use translated title, delete project', 'Redesigned'],
+  ['Change volume number, move volume, delete volume', 'Redesigned'],
+  ['Provider, model, Live or Batch (−50%), target language', 'Redesigned'],
+  ['Translate chapter / all / title & contents; Continue, Retry N failed', 'Redesigned'],
+  ['Failed passage reasons, fatal error banner', 'Partly shown'],
+  ['Proofread: this chapter, not yet proofread, whole book; accept or reject', 'Redesigned'],
+  ['Reader: Translation, Interleaved, Side by side; Scroll or Paged; font, size, width, theme', 'Redesigned'],
+  ['Export EPUB (translation or bilingual) and TXT', 'Redesigned'],
+  ['Sign in (hosted)', 'Restyled'],
+  ['API keys (hosted), invite, reset password, admin', 'Not in prototype']
+];
+
+/* ---------- State ---------- */
+const S = { route: 'library', pid: 'tonari', ptab: 'volumes', ch: 'c2', look: 'blue', theme: 'system', width: 'fit', view: 'both', overlay: null, menu: null, toast: null, dirty: false, suggestFrom: 'all', size: 'large', running: false, reader: { view: 'translation', layout: 'scroll', font: 'serif', size: 19, width: 'medium' }, renamed: false, dismissed: false, empty: false, q: '', proofDone: {}, gSkip: {} };
+const scroll = document.getElementById('scroll');
+const layer = document.getElementById('layer');
+const frame = document.getElementById('frame');
+const stage = document.getElementById('stage');
+const narrow = () => frame.clientWidth < 640;
+const left = () => SUGGESTIONS.filter((_, i) => !S.proofDone[i]).length;
+const project = () => PROJECTS.find((p) => p.id === S.pid) || PROJECTS[0];
+const chapter = () => CHAPTERS.find((c) => c.id === S.ch);
+const counts = (c) => ({ done: c.segs.filter((s) => s.st === 'done').length, failed: c.segs.filter((s) => s.st === 'failed').length, total: c.segs.length });
+const chState = (c) => { const k = counts(c); if (k.done === k.total) return 'done'; if (k.failed) return 'failed'; if (k.done) return 'partial'; return 'none'; };
+const shown = (c) => (chState(c) === 'done' ? c.t : c.o);
+
+function statusIcon(c) {
+  const st = chState(c); const k = counts(c);
+  if (st === 'done') return `<svg class="st" viewBox="0 0 16 16" aria-label="Translated"><circle cx="8" cy="8" r="7" fill="var(--ok)"/><path d="m5 8.2 2 2 4-4.2" stroke="var(--surface)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`;
+  if (st === 'none') return `<svg class="st" viewBox="0 0 16 16" aria-label="Not started"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--line)" stroke-width="1.6"/></svg>`;
+  const f = k.done / k.total; const a = f * 2 * Math.PI; const x = 8 + 6.2 * Math.sin(a), y = 8 - 6.2 * Math.cos(a);
+  const col = st === 'failed' ? 'var(--danger)' : 'var(--accent)';
+  return `<svg class="st" viewBox="0 0 16 16" aria-label="${st === 'failed' ? 'Has failed passages' : 'Partly translated'}"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--line)" stroke-width="1.6"/><path d="M8 1.8 A6.2 6.2 0 ${f > .5 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}" fill="none" stroke="${col}" stroke-width="1.6"/>${st === 'failed' ? '<circle cx="8" cy="8" r="2" fill="var(--danger)"/>' : ''}</svg>`;
+}
+const cover = (p, sm, label) => `<div class="cover${sm ? ' sm' : ''}" style="--c1:${p.c1};--c2:${p.c2}" aria-hidden="true"><div class="vt">${esc(p.series)}</div><div class="seal">${label || `${p.vols} vol${p.vols > 1 ? 's' : ''}`}</div></div>`;
+const settingsBtn = () => `<button class="btn ghost icon" data-act="menu" data-menu="settings" aria-label="Settings" aria-haspopup="menu">${ic('settings')}</button>`;
+const markBtn = () => `<button class="mark" data-act="go" data-to="library" aria-label="Library">${ic('bookText')}</button>`;
+
+/* ---------- Screens ---------- */
+function library() {
+  const q = S.q.trim().toLowerCase();
+  const list = PROJECTS.filter((p) => !q || p.name.toLowerCase().includes(q) || p.series.includes(S.q.trim()));
+  const head = `<header class="top">${markBtn()}<div class="crumbs"><span class="cur">Library</span></div>${settingsBtn()}</header>`;
+  if (S.empty) return head + `<main class="page"><div class="empty">${ic('book', 'ic')}<h2>Your library is empty</h2><p class="meta">Import an EPUB to start a project. Every volume of a series goes in the same project.</p><p><button class="btn primary" data-act="import">${ic('upload')}Upload EPUB</button></p><p class="meta">Your library is private to your account. <button class="btn ghost" data-act="toggle-empty">Show sample library</button></p></div></main>`;
+  const p0 = PROJECTS[0];
+  return head + `<main class="page">
+    <div class="lib-head"><div class="grow"><div class="eyebrow num">${PROJECTS.length} projects · ${PROJECTS.reduce((a, p) => a + p.vols, 0)} volumes</div><h1 class="title">Library</h1></div>
+      <div class="search"><span>${ic('search')}</span><input class="field" id="lib-q" type="search" placeholder="Search projects" aria-label="Search projects" value="${esc(S.q)}"></div>
+      <button class="btn primary" data-act="import" aria-label="Upload EPUB">${ic('upload')}Upload<span class="hide-sm">&nbsp;EPUB</span></button></div>
+    <section class="resume" aria-label="Continue">
+      <div class="rmain"><div class="mini">${cover(p0, true)}</div>
+      <div style="min-width:0"><div class="eyebrow">Continue where you left off</div><div class="rname" title="${esc(p0.name)}">${esc(p0.name)}</div><div class="meta num">Vol. 9 · Chapter 1 · 34% translated</div></div></div>
+      <div class="racts"><button class="btn" data-act="go" data-to="reader">${ic('read')}Read</button><button class="btn primary" data-act="go" data-to="editor">${ic('pencil')}Translate</button></div>
+    </section>
+    <div class="grid" role="list">${list.map((p) => {
+      const full = p.done === p.vols;
+      return `<button class="pcard" role="listitem" data-act="open-project" data-id="${p.id}">${cover(p)}
+        <div><div class="name" title="${esc(p.name)}">${esc(p.name)}</div>
+        <div class="stat"><span class="sline num${full ? ' full' : ''}">${full ? `${ic('check')}Fully translated${p.lang !== 'English' ? ' · ' + p.lang : ''}` : p.done ? `${p.done} of ${p.vols} volumes translated` : `Not started · ${p.vols} volume${p.vols > 1 ? 's' : ''}`}</span><div class="bar${full ? ' ok' : ''}"><i style="width:${Math.round(p.done / p.vols * 100)}%"></i></div></div></div></button>`;
+    }).join('')}${list.length ? '' : '<p class="meta">No project matches that search.</p>'}</div>
+    <div class="drop-hint">${ic('upload')}<div><b style="color:var(--fg);font-weight:500">Drop an EPUB file here, or <button class="btn ghost" data-act="import" style="min-height:0;padding:0 2px;color:var(--accent);font-weight:500">choose one</button></b><div class="meta">Each one is added as a volume; you choose the project before it imports. <button class="btn ghost" data-act="toggle-empty" style="min-height:0;padding:0 4px;color:var(--accent)">See the empty library</button></div></div></div>
+  </main>`;
+}
+
+function projectPage() {
+  const p = project();
+  const name = p.id === 'kusuri' && S.renamed ? p.suggest : p.name;
+  const full = p.done === p.vols;
+  const tab = (id, label, n) => `<button role="tab" aria-selected="${S.ptab === id}" data-act="ptab" data-tab="${id}">${label}${n != null ? `<span class="count num">${n}</span>` : ''}</button>`;
+  let body = '';
+  if (S.ptab === 'volumes') body = volumesTab(p);
+  if (S.ptab === 'glossary') body = glossaryTab(p);
+  if (S.ptab === 'prompt') body = promptTab();
+  const offer = p.id === 'kusuri' && !S.renamed && !S.dismissed
+    ? `<div class="notice">${ic('lang')}<div class="txt">Volume 1 has a translated title: <b>${esc(p.suggest)}</b>. Rename the project to match?</div><button class="btn" data-act="dismiss">Not now</button><button class="btn primary" data-act="rename-translated">Rename project</button></div>` : '';
+  const gwarn = G().length === 0 && p.done < p.vols && !S.gSkip[p.id] && S.ptab !== 'glossary'
+    ? `<div class="notice warn">${ic('alert')}<div class="txt"><b style="font-weight:600">Set up the glossary before you translate.</b> This project has no glossary, so character names and terms can come out differently from chapter to chapter and volume to volume. Suggesting terms takes about a minute, and you review every entry before it’s saved.</div><button class="btn" data-act="gskip">Skip for now</button><button class="btn primary" data-act="gsetup">${ic('spark')}Suggest terms</button></div>` : '';
+  return `<header class="top">${markBtn()}<nav class="crumbs" aria-label="Breadcrumb"><a href="#library" data-act="go" data-to="library">Library</a><span class="sep">/</span><span class="cur">${esc(name)}</span></nav>${settingsBtn()}</header>
+  <main class="page">
+    <div class="p-head"><div><div class="eyebrow">Project · ${p.vols} volume${p.vols > 1 ? 's' : ''}${full ? '' : ` · ${p.done} translated`}</div><h1 class="title" style="margin-top:4px">${esc(name)}</h1>
+      <div class="orig" lang="ja">${esc(p.series)}</div>
+      ${full ? `<div style="margin-top:10px"><span class="chip ok">${ic('check')}Fully translated${p.lang !== 'English' ? ' · ' + p.lang : ''}</span></div>` : ''}</div>
+      <div style="display:flex;gap:6px"><button class="btn icon" data-act="menu" data-menu="project" aria-label="Project actions" aria-haspopup="menu">${ic('more')}</button></div></div>
+    ${gwarn}${offer}
+    <div class="tabs" role="tablist" aria-label="Project">${tab('volumes', 'Volumes', p.id === 'tonari' ? VOLUMES.length : p.vols)}${tab('glossary', 'Glossary', G().length)}${tab('prompt', 'Custom prompt')}</div>
+    ${body}
+  </main>`;
+}
+
+function volumesTab(p) {
+  const vols = p.id === 'tonari' ? VOLUMES : Array.from({ length: p.vols }, (_, i) => ({ n: i + 1, t: i < p.done ? (p.suggest || p.name) + ' ' + (i + 1) : null, o: p.series + ' ' + (i + 1), pct: i < p.done ? 100 : (i === p.done ? 18 : 0) }));
+  return `<div class="sectionbar"><span class="meta grow">Volumes are ordered by volume number. The glossary and custom prompt apply to all of them.</span><button class="btn" data-act="import">${ic('upload')}Upload volume</button></div>
+  <div class="vlist" role="list">${vols.map((v) => {
+    const st = v.pct === 100 ? `<span class="sline full">${ic('check')}Translated${p.lang !== 'English' ? ' · ' + p.lang : ''}</span>` : v.pct ? `<span class="sline num">${v.pct}% translated</span>` : '<span class="sline">Not started</span>';
+    return `<div class="vrow" role="listitem">
+      <button class="open" data-act="go" data-to="editor" aria-label="Open volume ${v.n}">${cover(p, true, 'Vol. ' + v.n)}</button>
+      <div class="vmain"><div class="vtop"><span class="vn num">Vol. ${v.n}</span>${st}</div>
+        <div class="t" ${v.t ? '' : 'lang="ja"'}>${esc(v.t || v.o)}</div>${v.t ? `<div class="o" lang="ja">${esc(v.o)}</div>` : ''}
+        ${v.pct && v.pct < 100 ? `<div class="bar"><i style="width:${v.pct}%"></i></div>` : ''}</div>
+      <div class="vstat">${st}${v.pct && v.pct < 100 ? `<div class="bar"><i style="width:${v.pct}%"></i></div>` : ''}</div>
+      <div class="acts"><button class="btn ghost wide-act" data-act="go" data-to="reader">${ic('read')}Read</button><button class="btn ghost icon" data-act="menu" data-menu="volume" data-n="${v.n}" aria-label="Volume ${v.n} actions" aria-haspopup="menu">${ic('more')}</button></div>
+    </div>`; }).join('')}</div>`;
+}
+
+function glossaryTab() {
+  const nv = vnums().length; const est = S.suggestFrom === 'all' ? { a: nv + ' volumes · ', r: S.size === 'volume' ? nv * 3 : nv, c: '~' + (nv * (S.size === 'volume' ? 112000 : S.size === 'large' ? 40000 : 12000)).toLocaleString('en') } : { a: '', r: S.size === 'volume' ? 3 : 1, c: S.size === 'volume' ? '~112,000' : S.size === 'large' ? '~40,000' : '~12,000' };
+  const suggest = S.overlay === 'suggest-inline' ? `<section class="gpanel" aria-label="Suggest terms">
+      <div style="display:flex;align-items:center;gap:8px"><h2 class="h2" style="flex:1">Suggest terms from the text</h2><button class="btn ghost icon" data-act="close-suggest" aria-label="Close">${ic('x')}</button></div>
+      <p class="meta" style="margin:0">A cheap model reads a sample and proposes names and terms the glossary lacks, following your custom prompt and existing renderings. You review them before anything is saved.</p>
+      <div class="row">
+        <div><label class="lab" for="g-from">Read from</label><select class="field" id="g-from" data-act="g-from"><option value="all" ${S.suggestFrom === 'all' ? 'selected' : ''}>All volumes</option>${vnums().map((n) => `<option value="${n}" ${S.suggestFrom == n ? 'selected' : ''}>Vol. ${n}</option>`).join('')}</select></div>
+        <div><label class="lab" for="g-model">Model</label><select class="field" id="g-model"><option>Claude Haiku 5.5</option><option>GPT-5 mini</option><option>Gemini Flash</option></select></div>
+      </div>
+      <div><div class="lab">Sample size</div><div class="segctl full" role="group" aria-label="Sample size">${[['standard', 'Standard'], ['large', 'Large'], ['volume', 'Entire volume']].map(([k, l]) => `<button aria-pressed="${S.size === k}" data-act="size" data-size="${k}">${l}</button>`).join('')}</div>
+        <div class="help num">${est.a}${est.r} request${est.r > 1 ? 's' : ''} · ${est.c} characters</div></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn primary" data-act="run-suggest">${ic('spark')}${S.suggestFrom === 'all' ? 'Suggest from all volumes' : 'Suggest from volume'}</button></div>
+    </section>` : '';
+  return `<div class="sectionbar"><div class="search grow" style="min-width:180px"><span>${ic('search')}</span><input class="field" type="search" placeholder="Search glossary" aria-label="Search glossary" style="width:100%"></div>
+      <button class="btn" data-act="open-suggest">${ic('spark')}Suggest terms</button><button class="btn" data-act="add-entry">${ic('plus')}Add entry</button></div>
+    ${suggest}
+    ${conflictBox()}
+    <div class="gtable" role="table" aria-label="Glossary entries">
+      <div class="grow3 head" role="row"><span>Source term</span><span>Rendering</span><span>Note</span><span></span></div>
+      ${G().length ? '' : `<div class="grow3" role="row" style="display:block;padding:20px 14px;color:var(--muted)">No glossary entries yet. Use <b>Suggest terms</b> to pull names and terms from the text, or add them yourself.</div>`}${G().map((g, i) => `<div class="grow3${g.isNew ? ' new' : ''}" role="row"><input class="src" lang="ja" value="${esc(g.s)}" aria-label="Source term" data-dirty placeholder="Source term"><input value="${esc(g.r)}" aria-label="Rendering" data-dirty placeholder="Rendering"><input value="${esc(g.n)}" aria-label="Note" data-dirty placeholder="Note (optional)"><button class="btn ghost icon" data-act="del-entry" data-i="${i}" aria-label="Delete entry">${ic('trash')}</button></div>`).join('')}
+    </div>
+    <p class="meta num">${G().length} of 2,000 entries. Edits apply from the next chapter; finished volumes aren’t retranslated.</p>
+    <div class="savebar" id="savebar" ${S.dirty ? '' : 'hidden'}><span class="grow">Unsaved glossary changes</span><button class="btn ghost" data-act="discard">Discard</button><button class="btn primary" data-act="save-glossary">Save glossary</button></div>`;
+}
+
+function conflictBox() {
+  if (S.pid !== 'tonari' || S.conflictDone) return '';
+  const opts = [{ r: 'the Angel', v: 'Vol. 7', force: true }, { r: 'Angel-sama', v: 'Vol. 2' }];
+  return `<section class="conflict" aria-labelledby="cf-h"><div style="display:flex;gap:8px;align-items:center">${ic('alert')}<b id="cf-h" style="font-weight:600">1 glossary conflict to settle</b></div>
+    <p style="margin:8px 0 12px">Your volumes used different renderings for <b lang="ja" style="font-family:'Noto Serif JP'">天使様</b>. Translations use <b>“the Angel”</b> until you pick one. Choose the rendering every volume should use from now on.</p>
+    <div class="cf-opts">${opts.map((o) => `<button class="cf-opt" data-act="settle" data-r="${o.r}"><span><b>“${o.r}”</b><span class="meta" style="display:block">Used in ${o.v}${o.force ? ' · in force now' : ''}</span></span><span class="btn${o.force ? '' : ' primary'}" aria-hidden="true">Use this</span></button>`).join('')}
+    <button class="cf-opt" data-act="settle-own"><span><b>Write a different rendering</b><span class="meta" style="display:block">Edit the entry in the table below</span></span><span class="btn" aria-hidden="true">Edit</span></button></div>
+    <p class="meta" style="margin:10px 0 0">Settling it doesn’t retranslate earlier chapters. Use Proofread on those volumes to catch the old rendering.</p></section>`;
+}
+function promptTab() {
+  return `<details class="rules"><summary>Rules every translation follows (can’t be edited)</summary><ul>
+      <li>Translate every sentence; don’t summarise, add or censor.</li><li>Keep numbered placeholders like ⟦1⟧ exactly where they belong.</li><li>Use the glossary rendering wherever a source term appears.</li><li>Return one passage per input passage, in order.</li></ul></details>
+    <label class="lab" for="prompt">Style guidance</label>
+    <textarea class="field" id="prompt" rows="9" data-dirty>Write natural, contemporary English for a young-adult audience. Keep Japanese honorifics (-san, -kun, -chan, -senpai) and family-name order as given in the glossary. Keep onomatopoeia only when it carries tone; otherwise translate its meaning. Preserve the narrator’s dry humour and short sentences.</textarea>
+    <div class="help">This is the prompt in force for every volume. It replaces the default style guidance; edit on top of it, or reset.</div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn" data-act="toast" data-msg="Reset to the default style guidance">Reset to default</button><span class="grow" style="flex:1"></span><button class="btn primary" data-act="toast" data-msg="Custom prompt saved. It applies from the next chapter.">Save custom prompt</button></div>`;
+}
+
+function editor() {
+  const c = chapter(); const k = counts(c); const st = chState(c);
+  const allDone = CHAPTERS.filter((x) => chState(x) === 'done').length;
+  const pending = k.total - k.done - k.failed;
+  let primary;
+  if (S.running) primary = `<button class="btn primary" data-act="stop">${ic('stop')}Stop · ${k.done}/${k.total}</button>`;
+  else if (st === 'done') primary = `<button class="btn primary" disabled>${ic('check')}Translated</button>`;
+  else if (pending > 0) primary = `<button class="btn primary" data-act="translate">${ic('lang')}${k.done ? 'Continue' : 'Translate chapter'}</button>`;
+  else primary = `<button class="btn primary" data-act="translate">${ic('refresh')}Retry ${k.failed} failed</button>`;
+  const rail = `<aside class="rail" aria-label="Chapters"><h3><span>Chapters</span><span class="num">${allDone} of ${CHAPTERS.length} done</span></h3>${CHAPTERS.map((x) => {
+    const kk = counts(x); const s = chState(x);
+    return `<button class="ch" data-act="chapter" data-id="${x.id}" aria-current="${x.id === S.ch}">${statusIcon(x)}<span style="min-width:0"><span class="t${s === 'done' || x.meta ? '' : ' src'}" ${s === 'done' || x.meta ? '' : 'lang="ja"'}>${esc(shown(x))}</span><span class="s num" style="display:block">${s === 'done' ? 'Translated' : s === 'none' ? `${kk.total} passages` : s === 'failed' ? `${kk.done}/${kk.total} · ${kk.failed} failed` : `${kk.done}/${kk.total} passages`}</span></span></button>`;
+  }).join('')}</aside>`;
+  const seg = (x, i) => {
+    let tr;
+    if (x.st === 'done') tr = `<div class="seg-tr"><span class="${x.fresh ? 'fresh' : ''}">${esc(x.t)}</span></div>`;
+    else if (x.st === 'failed') tr = `<div class="seg-tr failed"><b>Not translated.</b> The model returned the inline placeholders in a different order, so the passage was rejected. <div style="margin-top:8px"><button class="btn" data-act="retry-one" data-i="${i}">${ic('refresh')}Retry passage</button></div></div>`;
+    else if (x.st === 'working') tr = `<div class="seg-tr pending working">Translating…</div>`;
+    else tr = `<div class="seg-tr pending">Not translated yet</div>`;
+    return `<div class="seg-src" lang="ja">${esc(x.s)}</div>${tr}`;
+  };
+  const pct = Math.round(k.done / k.total * 100);
+  return `<div class="ed">
+    <header class="top">${markBtn()}<nav class="crumbs" aria-label="Breadcrumb"><a class="hide-sm" href="#library" data-act="go" data-to="library">Library</a><span class="sep hide-sm">/</span><a class="shrink" href="#project" data-act="go" data-to="project">${esc(project().name)}</a><span class="sep">/</span><span class="cur">Vol. 9</span></nav>
+      <button class="btn ghost" data-act="go" data-to="reader">${ic('read')}<span class="hide-sm">Read</span></button>${settingsBtn()}</header>
+    ${rail}
+    <div class="main" id="edmain">
+      <div class="toolbar">
+        <button class="modelchip" data-act="sheet" data-sheet="model" aria-label="Model and mode: Claude Sonnet 5.5, Live, English"><span class="dot"></span>Claude Sonnet 5.5<span class="m">· Live · English</span>${ic('down')}</button>
+        <span class="grow"></span>
+        <button class="btn ghost" data-act="sheet" data-sheet="proofread">${ic('spark')}Proofread${left() ? `<span class="chip accent num">${left()}</span>` : ''}</button>
+        <button class="btn ghost" data-act="menu" data-menu="export" aria-haspopup="menu">${ic('download')}Export${ic('down')}</button>
+        <div class="splitbtn">${primary.replace('class="btn primary"', 'class="btn primary"')}<button class="btn primary" data-act="menu" data-menu="translate" aria-label="More translate options" aria-haspopup="menu">${ic('down')}</button></div>
+      </div>
+      <div class="viewtabs"><div class="segctl full" role="group" aria-label="Show">${[['translation', 'Translation'], ['source', 'Source'], ['both', 'Both']].map(([kk, l]) => `<button aria-pressed="${S.view === kk}" data-act="view" data-v="${kk}">${l}</button>`).join('')}</div></div>
+      <div class="chhead"><div class="grow"><div class="eyebrow">Vol. 9 · ${CHAPTERS.indexOf(c) + 1} of ${CHAPTERS.length} in the contents</div><h2>${esc(st === 'done' ? c.t : c.o)}</h2>${st === 'done' ? `<div class="orig" lang="ja">${esc(c.o)}</div>` : ''}</div>
+        <div class="status" aria-live="polite"><div class="line num"><span>${S.running ? 'Translating…' : st === 'done' ? 'Chapter translated' : k.failed ? `${k.failed} passage failed` : 'This chapter'}</span><span>${k.done} of ${k.total} passages</span></div><div class="bar${st === 'done' ? ' ok' : ''}"><i style="width:${pct}%"></i></div><div class="line num"><span>Volume 9</span><span>${allDone} of ${CHAPTERS.length} chapters</span></div></div></div>
+      <div class="cols v-${S.view}"><div class="colhead"><div>${ic('book')}Source · Japanese</div><div>${ic('lang')}Translation · English</div></div>${c.segs.map(seg).join('')}</div>
+      <div class="edfoot"><button class="btn" data-act="prev-ch" ${CHAPTERS.indexOf(c) === 0 ? 'disabled' : ''}>${ic('left')}Previous chapter</button><button class="btn" data-act="next-ch" ${CHAPTERS.indexOf(c) === CHAPTERS.length - 1 ? 'disabled' : ''}>Next chapter${ic('right')}</button></div>
+    </div>
+    <div class="bottombar"><button class="btn" data-act="sheet" data-sheet="chapters">${ic('list')}Chapters</button>${primary}<button class="btn icon" data-act="sheet" data-sheet="more" aria-label="More">${ic('more')}</button></div>
+  </div>`;
+}
+
+function reader() {
+  const c = chapter(); const k = counts(c); const st = chState(c); const r = S.reader;
+  const art = ['wide'].includes(r.width) || r.view === 'sbs' ? 'wide' : '';
+  const measure = r.width === 'narrow' ? '32rem' : r.width === 'wide' ? '46rem' : '38rem';
+  let content = c.segs.map((x) => {
+    const tr = x.st === 'done' ? esc(x.t) : null;
+    if (r.view === 'interleaved') return `<div class="pair"><div class="o" lang="ja">${esc(x.s)}</div><p style="margin:0">${tr || `<span class="meta">Not translated yet</span>`}</p></div>`;
+    if (r.view === 'sbs') return `<div class="sbs"><p class="src" lang="ja" style="margin:0">${esc(x.s)}</p><p style="margin:0">${tr || '<span class="meta">Not translated yet</span>'}</p></div>`;
+    return tr ? `<p>${tr}</p>` : `<p class="src" lang="ja">${esc(x.s)}</p>`;
+  }).join('');
+  const note = st !== 'done' ? `<div class="notice warn" style="font-family:var(--ui);font-size:14px;line-height:1.45">${ic('alert')}<div class="txt">${k.done ? `${k.done} of ${k.total} passages are translated. The rest show the original Japanese.` : 'This chapter isn’t translated yet, so it shows the original Japanese.'}</div><button class="btn" data-act="go" data-to="editor">Translate in editor</button></div>` : '';
+  const idx = CHAPTERS.indexOf(c);
+  return `<div class="rd">
+    <header class="top">${markBtn()}<nav class="crumbs" aria-label="Breadcrumb"><a class="shrink" href="#project" data-act="go" data-to="project">${esc(project().name)}</a><span class="sep">/</span><span class="cur">${esc(shown(c))}</span></nav>
+      <button class="btn ghost icon" data-act="sheet" data-sheet="contents" aria-label="Contents">${ic('list')}</button>
+      <button class="btn ghost" data-act="sheet" data-sheet="aa" aria-label="Reading settings">${ic('type')}<span class="hide-sm">Aa</span></button>
+      <button class="btn ghost wide-only" data-act="go" data-to="editor">${ic('pencil')}Edit</button></header>
+    <div class="body" id="rbody"><article class="${art} ${r.font === 'sans' ? 'sans' : ''}" style="--rsize:${r.size}px;--measure:${measure}">${note}<h1 ${st === 'done' ? '' : 'lang="ja"'}>${esc(st === 'done' ? c.t : c.o)}</h1>${content}</article>
+      <div class="pager"><button class="btn" data-act="prev-ch" ${idx === 0 ? 'disabled' : ''}>${ic('left')}Previous</button><span class="meta num" style="align-self:center">${idx + 1} of ${CHAPTERS.length}</span><button class="btn" data-act="next-ch" ${idx === CHAPTERS.length - 1 ? 'disabled' : ''}>Next${ic('right')}</button></div></div>
+    <div class="rprog"><i style="width:${Math.round((idx + 1) / CHAPTERS.length * 100)}%"></i></div>
+  </div>`;
+}
+
+function signin() {
+  return `<div class="auth"><form data-form="signin"><div class="mark" aria-hidden="true">${ic('bookText')}</div><div><h1>Sign in</h1><p class="meta" style="margin:0">Access is by invitation only.</p></div>
+    <div><label class="lab" for="em">Email</label><input class="field" id="em" type="email" autocomplete="username" placeholder="you@example.com"></div>
+    <div><label class="lab" for="pw">Password</label><input class="field" id="pw" type="password" autocomplete="current-password"></div>
+    <button class="btn primary" type="submit">Sign in</button><p class="meta" style="margin:0">Forgot your password? Ask the person who invited you for a reset link.</p></form></div>`;
+}
+
+function findings() {
+  const sev = (s) => `<span class="chip ${s === 'High' ? 'danger' : s === 'Med' ? 'warn' : ''}">${s}</span>`;
+  return `<header class="top">${markBtn()}<div class="crumbs"><span class="cur">Findings &amp; changes</span></div>${settingsBtn()}</header>
+  <main class="page fd"><div class="eyebrow">UI review · measured at 375, 768 and 1280 px</div><h1 class="title" style="margin-top:4px">What was wrong, and what changed</h1>
+  <p class="lede">Each row is a problem found in the running app, and what this prototype does about it. Click a screen name to see it. The full list is also in <code>docs/design/ui-review.md</code>.</p>
+  <h2>Findings</h2>
+  <div class="ftable" role="table"><div class="frow head" role="row"><span>#</span><span class="w">Width</span><span>Problem</span><span class="fix">Prototype change</span><span>Severity</span></div>
+  ${FINDINGS.map(([id, scr, w, p, f, s]) => `<div class="frow" role="row"><span class="id">${id}</span><span class="w meta">${w}</span><span><a href="#${scr === 'All' || scr === 'Admin' ? 'library' : scr.toLowerCase()}" data-act="go" data-to="${scr === 'All' || scr === 'Admin' ? 'library' : scr.toLowerCase()}">${scr}</a> · ${esc(p)}</span><span class="fix">${esc(f)}</span><span>${sev(s)}</span></div>`).join('')}</div>
+  <h2>Feature coverage</h2><p class="lede">Checked against the README’s “Using it” section, so nothing is dropped by accident.</p>
+  <div class="cov">${COVERAGE.map(([f, s]) => `<div>${s === 'Not in prototype' ? ic('x') : s === 'Partly shown' ? ic('alert') : ic('check')}<span>${esc(f)}<br><span class="meta">${s}</span></span></div>`).join('')}</div>
+  <h2>Try these</h2><ul class="lede" style="display:grid;gap:6px">
+    <li>Switch <b>Width</b> to Phone and open the editor: one view switch at the top, one bottom bar.</li>
+    <li>In the editor, press <b>Continue</b> to watch passages fill in, then <b>Retry 1 failed</b>.</li>
+    <li>Open the project <b>薬屋のひとりごと</b> from the library to see the translated-title rename offer.</li>
+    <li>Open <b>Settings</b> (sliders icon) to change theme; blue is the chosen look; Indigo stays in the top bar for reference.</li></ul>
+  </main>`;
+}
+
+/* ---------- Overlays ---------- */
+function overlay() {
+  const o = S.overlay; if (!o || o === 'suggest-inline') return '';
+  const scrim = `<div class="scrim" data-act="close"></div>`;
+  const sheet = (title, body, foot, left) => `${scrim}<div class="sheet${left ? ' left' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header><h2>${title}</h2><button class="btn ghost icon" data-act="close" aria-label="Close">${ic('x')}</button></header><div class="sbody">${body}</div>${foot ? `<footer>${foot}</footer>` : ''}</div>`;
+  if (o === 'model') return sheet('Model and mode', `
+    <div><label class="lab" for="m-prov">Provider</label><select class="field" id="m-prov"><option>Anthropic</option><option>OpenAI</option><option>Google Gemini</option><option disabled>Offline test (no translation)</option></select></div>
+    <div><label class="lab" for="m-model">Model</label><select class="field" id="m-model"><option>Claude Sonnet 5.5</option><option>Claude Opus 5.5</option><option>Claude Haiku 5.5</option></select><div class="help">Key configured on this machine.</div></div>
+    <div><div class="lab">Mode</div><div class="segctl full" role="group" aria-label="Mode"><button aria-pressed="true">Live</button><button aria-pressed="false">${'Batch · −50%'}</button></div><div class="help">Batch costs half and returns within 24 hours.</div></div>
+    <div><label class="lab" for="m-lang">Translate into</label><select class="field" id="m-lang"><option>English</option><option>French</option><option>German</option><option>Spanish</option><option>Korean</option></select></div>
+    <div class="meta">Glossary (${G().length} entries) and custom prompt come from the project. <a href="#project" data-act="go" data-to="project" style="color:var(--accent)">Edit them</a></div>`, `<button class="btn primary" data-act="close">Done</button>`);
+  if (o === 'proofread') return sheet('Proofread', `
+    <div class="segctl full" role="group" aria-label="Scope"><button aria-pressed="true">This chapter</button><button aria-pressed="false" data-act="toast" data-msg="Proofreading 4 chapters sends their text again. Confirm to start.">Not yet proofread</button><button aria-pressed="false" data-act="toast" data-msg="Proofreading the whole book sends every chapter again. Confirm to start.">Whole book</button></div>
+    ${left() ? `<div class="meta">${left()} of ${SUGGESTIONS.length} suggestions left for Chapter 1. Nothing changes until you accept.</div>` : `<div class="notice" style="margin:0">${ic('check')}<div class="txt">All ${SUGGESTIONS.length} suggestions reviewed: ${SUGGESTIONS.filter((_, i) => S.proofDone[i] === 'a').length} accepted, ${SUGGESTIONS.filter((_, i) => S.proofDone[i] === 'r').length} rejected.</div></div>`}
+    ${SUGGESTIONS.map((g, i) => S.proofDone[i] ? `<div class="sugg meta">${S.proofDone[i] === 'a' ? 'Accepted' : 'Rejected'} · ${g.tag}</div>` : `<div class="sugg"><div style="display:flex;gap:8px;align-items:center"><span class="chip accent">${g.tag}</span><span class="meta">Passage ${g.seg + 1}</span></div><div class="diff">${esc(g.before.replace(g.del + g.after, ''))}<del>${esc(g.del)}</del><ins>${esc(g.ins)}</ins>${esc(g.after)}</div><div class="why">${esc(g.why)}</div><div style="display:flex;gap:8px"><button class="btn" data-act="proof" data-i="${i}" data-r="r">Reject</button><button class="btn primary" data-act="proof" data-i="${i}" data-r="a">Accept</button></div></div>`).join('')}`,
+    left() ? `<button class="btn" data-act="proof-all" data-r="r">Reject ${left() > 1 ? 'all ' + left() : '1'}</button><button class="btn primary" data-act="proof-all" data-r="a">Accept ${left() > 1 ? 'all ' + left() : '1'}</button>` : `<button class="btn primary" data-act="close">Done</button>`);
+  if (o === 'chapters' || o === 'contents') return sheet(o === 'chapters' ? 'Chapters' : 'Contents', CHAPTERS.map((x) => `<button class="ch" data-act="chapter" data-id="${x.id}" aria-current="${x.id === S.ch}" style="width:100%">${statusIcon(x)}<span class="t${chState(x) === 'done' || x.meta ? '' : ' src'}">${esc(shown(x))}</span></button>`).join(''), '', true);
+  if (o === 'more') return sheet('Volume 9', `
+    <button class="btn" style="justify-content:flex-start" data-act="sheet" data-sheet="model">${ic('lang')}Model and mode · Claude Sonnet 5.5</button>
+    <button class="btn" style="justify-content:flex-start" data-act="toast" data-msg="Translating every chapter, starting with Book title &amp; navigation">${ic('list')}Translate all chapters</button>
+    <button class="btn" style="justify-content:flex-start" data-act="toast" data-msg="Translating the book title and contents">${ic('type')}Translate title &amp; contents</button>
+    <button class="btn" style="justify-content:flex-start" data-act="sheet" data-sheet="proofread">${ic('spark')}Proofread${left() ? ` · ${left()} suggestion${left() > 1 ? 's' : ''}` : ''}</button>
+    <button class="btn" style="justify-content:flex-start" data-act="menu" data-menu="export">${ic('download')}Export</button>
+    <button class="btn" style="justify-content:flex-start" data-act="go" data-to="reader">${ic('read')}Read this volume</button>`);
+  if (o === 'aa') {
+    const r = S.reader;
+    const seg = (key, opts) => `<div class="segctl full" role="group">${opts.map(([k, l]) => `<button aria-pressed="${r[key] === k}" data-act="rset" data-k="${key}" data-v="${k}">${l}</button>`).join('')}</div>`;
+    return sheet('Reading settings', `
+      <div><div class="lab">Show</div>${seg('view', [['translation', 'Translation'], ['interleaved', 'Interleaved'], ['sbs', 'Side by side']])}</div>
+      <div><div class="lab">Layout</div>${seg('layout', [['scroll', 'Scroll'], ['paged', 'Paged']])}</div>
+      <div><div class="lab">Font</div>${seg('font', [['serif', 'Serif'], ['sans', 'Sans']])}</div>
+      <div><label class="lab" for="rsize">Size <span class="meta num">${r.size}px</span></label><input id="rsize" type="range" min="15" max="26" value="${r.size}" data-act="rsize" style="width:100%;accent-color:var(--accent)"></div>
+      <div><div class="lab">Width</div>${seg('width', [['narrow', 'Narrow'], ['medium', 'Medium'], ['wide', 'Wide']])}</div>
+      <div><div class="lab">Theme</div>${themeSwatches()}</div>`);
+  }
+  if (o === 'import') {
+    const ps = PROJECTS.filter((p) => p.vols > 0);
+    if (!S.file) return `${scrim}<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="imp-h"><div><h2 id="imp-h">Upload EPUB</h2><p class="meta" style="margin:6px 0 0">Each EPUB becomes one volume. You pick the project on the next step.</p></div>
+      <div class="picker" id="picker">${ic('upload')}<div><b style="font-weight:600">${narrow() ? 'Choose an EPUB file' : 'Drop an EPUB file here'}</b><div class="meta">${narrow() ? 'From Files, iCloud or Downloads' : 'or choose one from your computer'}</div></div>
+        <label class="btn primary" for="imp-file" style="cursor:pointer">Choose file</label><input id="imp-file" type="file" accept=".epub,application/epub+zip" hidden>
+        <button class="btn ghost" data-act="sample-file" style="color:var(--accent)">Use a sample file instead</button></div>
+      <div class="meta">Uploaded to your private library; only you can see it.</div>
+      <div class="acts"><button class="btn" data-act="close">Cancel</button></div></div>`;
+    return `${scrim}<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="imp-h"><div><h2 id="imp-h">Upload EPUB</h2></div>
+      <div class="fileline">${ic('book')}<span class="grow" lang="ja">${esc(S.file)}</span><button class="btn ghost" data-act="clear-file">Change</button></div>
+      <div><label class="lab" for="imp-p">Add to project</label><select class="field" id="imp-p"><option>薬屋のひとりごと (same series title)</option>${ps.filter((p) => p.id !== 'kusuri').map((p) => `<option>${esc(p.name)}</option>`).join('')}<option>New project…</option></select><div class="help">Suggested because the book’s series title matches.</div></div>
+      <div><label class="lab" for="imp-v">Volume number</label><input class="field" id="imp-v" inputmode="decimal" value="4" style="max-width:120px"><div class="help">Read from the title. Leave empty to make it the next volume; 2.5 works for side stories.</div></div>
+      <div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="upload-done">Add volume</button></div></div>`;
+  }
+  if (o === 'noglossary') return `${scrim}<div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="ng-h"><h2 id="ng-h">Translate without a glossary?</h2><p style="margin:0">${esc(project().name)} has no glossary yet. Names and recurring terms may be translated differently in each chapter, and fixing them later means retranslating or proofreading.</p><p class="meta" style="margin:0">Suggest terms reads a sample of the text and proposes entries for you to review. It takes about a minute.</p>
+      <div class="acts"><button class="btn" data-act="translate-anyway">Translate anyway</button><button class="btn primary" data-act="gsetup">${ic('spark')}Set up glossary</button></div></div>`;
+  if (o === 'delete-project') return `${scrim}<div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="del-h"><h2 id="del-h">Delete this project?</h2><p style="margin:0">This deletes all ${project().vols} volumes of <b>${esc(project().name)}</b>, their translations, the glossary and the custom prompt. It can’t be undone.</p>
+      <div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn danger solid" data-act="toast" data-msg="Project deleted">Delete project</button></div></div>`;
+  if (o === 'keys') return sheet('API keys', `<p class="meta" style="margin:0">Keys are encrypted and kept in this browser. They’re never sent to the server.</p>${['Anthropic', 'OpenAI', 'Google Gemini'].map((p, i) => `<div><label class="lab" for="k${i}">${p}</label><input class="field" id="k${i}" type="password" placeholder="${i === 0 ? 'Saved · ends in …4f2a' : 'Not set'}"></div>`).join('')}`, `<button class="btn primary" data-act="close">Save keys</button>`);
+  return '';
+}
+function themeSwatches() {
+  const sw = { light: '#f7f7f5', sepia: '#f1e7d3', dark: '#16181d', system: 'linear-gradient(135deg,#f7f7f5 50%,#16181d 50%)' };
+  return `<div class="swatches" role="group" aria-label="Theme">${['light', 'sepia', 'dark', 'system'].map((t) => `<button aria-pressed="${S.theme === t}" data-act="theme" data-t="${t}"><i style="background:${sw[t]}"></i>${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>`;
+}
+function menu() {
+  const m = S.menu; if (!m) return '';
+  const pos = `top:${m.y}px;${m.right != null ? `right:${m.right}px` : `left:${m.x}px`}`;
+  let items = '';
+  if (m.id === 'settings') items = `<div class="lbl">Theme</div>${themeSwatches()}<hr><button data-act="sheet" data-sheet="keys">${ic('key')}API keys <span class="k">Hosted</span></button><button data-act="toast" data-msg="Admin is unchanged in this prototype">${ic('user')}Admin</button><button data-act="go" data-to="signin">${ic('left')}Sign out</button><hr><button data-act="go" data-to="findings">${ic('list')}Findings &amp; changes</button>`;
+  if (m.id === 'project') items = `<button data-act="toast" data-msg="Rename opens an inline field in the title">${ic('pencil')}Rename project</button>${project().suggest && !S.renamed ? `<button data-act="rename-translated">${ic('lang')}Use translated title</button>` : ''}<button data-act="import">${ic('upload')}Upload volume</button><hr><button class="danger" data-act="overlay" data-o="delete-project">${ic('trash')}Delete project…</button>`;
+  if (m.id === 'volume') items = `<button data-act="go" data-to="editor">${ic('pencil')}Open editor</button><button data-act="go" data-to="reader">${ic('read')}Read</button><hr><button data-act="toast" data-msg="Volume number becomes editable in the row">${ic('type')}Change volume number</button><button data-act="toast" data-msg="Pick another project; glossary entries stay with this one">${ic('move')}Move to project…</button><hr><button class="danger" data-act="toast" data-msg="Asks to confirm before deleting Vol. ${m.n}">${ic('trash')}Delete volume…</button>`;
+  if (m.id === 'export') items = `<div class="lbl">Untranslated chapters stay in Japanese</div><button data-act="toast" data-msg="Exporting EPUB">${ic('book')}EPUB <span class="k">Translation</span></button><button data-act="toast" data-msg="Exporting bilingual EPUB">${ic('book')}EPUB <span class="k">Bilingual</span></button><button data-act="toast" data-msg="Exporting plain text">${ic('download')}Plain text (.txt)</button>`;
+  if (m.id === 'translate') items = `<button data-act="translate">${ic('lang')}This chapter</button><button data-act="toast" data-msg="Translating every chapter, starting with Book title &amp; navigation">${ic('list')}All chapters</button><button data-act="toast" data-msg="Translating the book title and contents">${ic('type')}Title &amp; contents only</button>`;
+  return `<div class="scrim" style="background:transparent" data-act="close"></div><div class="menu" role="menu" style="${pos}">${items}</div>`;
+}
+
+/* ---------- Render ---------- */
+function resolveTheme() { return S.theme === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : S.theme; }
+function render(keepScroll = true) {
+  frame.dataset.t = resolveTheme(); frame.dataset.look = S.look;
+  const st = keepScroll ? (document.getElementById('edmain') || document.getElementById('rbody') || scroll).scrollTop : 0;
+  const v = { library, project: projectPage, editor, reader, signin, findings }[S.route] || library;
+  scroll.innerHTML = v();
+  scroll.style.overflow = ['editor', 'reader'].includes(S.route) ? 'hidden' : 'auto';
+  layer.innerHTML = overlay() + menu() + (S.toast ? `<div class="toast" role="status">${ic('check')}${S.toast}</div>` : '');
+  const t = document.getElementById('edmain') || document.getElementById('rbody') || scroll; t.scrollTop = st;
+  document.getElementById('r-screen').value = S.route;
+  try { localStorage.setItem('et-proto', JSON.stringify({ look: S.look, theme: S.theme, width: S.width })); } catch (e) {}
+}
+function go(route) { S.route = route; S.overlay = null; S.menu = null; if (location.hash.slice(1) !== route) history.replaceState(null, '', '#' + route); render(false); }
+let toastT;
+function toast(msg) { S.toast = msg; S.menu = null; S.overlay = S.overlay === 'suggest-inline' ? S.overlay : null; render(); clearTimeout(toastT); toastT = setTimeout(() => { S.toast = null; render(); }, 2600); }
+
+let runT;
+function runTranslate() {
+  const c = chapter(); if (S.running) return;
+  c.segs.forEach((s) => { if (s.st === 'failed' && !c.segs.some((x) => x.st === 'pending')) s.st = 'pending'; });
+  S.running = true; S.menu = null; render();
+  const step = () => {
+    const w = c.segs.find((s) => s.st === 'working'); if (w) { w.st = 'done'; w.fresh = true; }
+    const n = c.segs.find((s) => s.st === 'pending');
+    if (!n || !S.running) { S.running = false; render(); if (chState(c) === 'done') toast(`${c.t} translated`); return; }
+    n.st = 'working'; render(); runT = setTimeout(step, 750);
+  };
+  step();
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.dataset.act;
+  if (el.tagName === 'A') e.preventDefault();
+  const frameRect = frame.getBoundingClientRect();
+  switch (a) {
+    case 'go': if (S.route === 'editor' && S.running && el.dataset.to !== 'editor') { const c = chapter(); go(el.dataset.to); toast(`${c.t.split(':')[0]} keeps translating in the background`); } else go(el.dataset.to); break;
+    case 'open-project': S.pid = el.dataset.id; S.ptab = 'volumes'; go('project'); break;
+    case 'ptab': S.ptab = el.dataset.tab; if (S.overlay === 'suggest-inline') S.overlay = null; render(false); break;
+    case 'menu': { const r = el.getBoundingClientRect(); const right = frameRect.right - r.right; S.menu = { id: el.dataset.menu, n: el.dataset.n, y: Math.min(r.bottom - frameRect.top + 6, frameRect.height - 340), right: Math.max(8, right) }; if (narrow() && el.dataset.menu === 'export' && S.overlay) S.overlay = null; render(); break; }
+    case 'sheet': S.menu = null; S.overlay = el.dataset.sheet; render(); break;
+    case 'overlay': S.menu = null; S.overlay = el.dataset.o; render(); break;
+    case 'close': S.overlay = S.overlay === 'suggest-inline' && !el.closest('.sheet,.dialog') && S.menu ? S.overlay : (S.menu ? S.overlay : null); S.menu = null; render(); break;
+    case 'import': S.menu = null; S.file = null; S.overlay = 'import'; render(); break;
+    case 'sample-file': S.file = '薬屋のひとりごと 4.epub'; render(); break;
+    case 'clear-file': S.file = null; render(); break;
+    case 'toast': toast(el.dataset.msg); break;
+    case 'theme': S.theme = el.dataset.t; render(); break;
+    case 'toggle-empty': S.empty = !S.empty; render(false); break;
+    case 'rename-translated': S.renamed = true; S.menu = null; toast('Project renamed to “The Apothecary Diaries”'); break;
+    case 'dismiss': S.dismissed = true; render(); break;
+    case 'open-suggest': S.overlay = 'suggest-inline'; render(); break;
+    case 'close-suggest': S.overlay = null; render(); break;
+    case 'size': S.size = el.dataset.size; render(); break;
+    case 'run-suggest': { const add = (SUGGEST_NEW[S.pid] || SUGGEST_NEW.kusuri).map((g) => ({ ...g, isNew: true })); GLOSS[S.pid] = [...add, ...G()]; S.overlay = null; S.dirty = true; toast(`${add.length} suggestions added from ${S.suggestFrom === 'all' ? vnums().length + ' volumes' : 'Vol. ' + S.suggestFrom}. Review them, then save.`); } break;
+    case 'add-entry': GLOSS[S.pid] = [{ s: '', r: '', n: '', isNew: true }, ...G()]; S.dirty = true; render(); scroll.querySelector('.grow3.new input')?.focus(); break;
+    case 'del-entry': G().splice(+el.dataset.i, 1); S.dirty = true; render(); break;
+    case 'discard': S.dirty = false; GLOSS[S.pid] = G().filter((g) => !g.isNew); render(); break;
+    case 'save-glossary': S.dirty = false; G().forEach((g) => delete g.isNew); toast('Glossary saved. It applies from the next chapter.'); break;
+    case 'chapter': S.ch = el.dataset.id; S.overlay = null; clearTimeout(runT); S.running = false; render(false); break;
+    case 'prev-ch': case 'next-ch': { const i = CHAPTERS.indexOf(chapter()) + (a === 'next-ch' ? 1 : -1); if (CHAPTERS[i]) { S.ch = CHAPTERS[i].id; clearTimeout(runT); S.running = false; render(false); } break; }
+    case 'translate': if (G().length === 0 && !S.gSkip[S.pid]) { S.menu = null; S.overlay = 'noglossary'; render(); } else runTranslate(); break;
+    case 'translate-anyway': S.gSkip[S.pid] = true; S.overlay = null; runTranslate(); break;
+    case 'gskip': S.gSkip[S.pid] = true; render(); break;
+    case 'gsetup': S.ptab = 'glossary'; S.suggestFrom = vnums().length > 1 ? 'all' : String(vnums()[0]); go('project'); S.overlay = 'suggest-inline'; render(false); break;
+    case 'upload-done': { const name = S.file.replace(/\.epub$/i, ''); S.pid = 'kusuri'; PROJECTS.find((x) => x.id === 'kusuri').vols = 4; S.ptab = 'volumes'; go('project'); toast(`Added “${name}” as Vol. 4`); break; }
+    case 'stop': S.running = false; clearTimeout(runT); chapter().segs.forEach((s) => { if (s.st === 'working') s.st = 'pending'; }); render(); break;
+    case 'retry-one': { const s = chapter().segs[+el.dataset.i]; s.st = 'working'; render(); setTimeout(() => { s.st = 'done'; s.fresh = true; render(); }, 800); break; }
+    case 'view': S.view = el.dataset.v; render(); break;
+    case 'rset': S.reader[el.dataset.k] = el.dataset.v; if (el.dataset.k === 'layout' && el.dataset.v === 'paged') toast('Paged layout: ← → or tap the edges to turn pages'); else render(); break;
+    case 'settle': { const g = G().find((x) => x.s === '天使様'); if (g) g.r = el.dataset.r; S.conflictDone = true; S.dirty = true; toast(`天使様 now renders as “${el.dataset.r}”. Save the glossary to apply it.`); break; }
+    case 'settle-own': { S.conflictDone = true; S.dirty = true; render(); const i = [...scroll.querySelectorAll('.grow3 .src')].find((x) => x.value === '天使様'); const r = i?.nextElementSibling; if (r) { r.focus(); r.select(); r.closest('.grow3').classList.add('new'); } break; }
+    case 'proof': S.proofDone[el.dataset.i] = el.dataset.r; if (el.dataset.r === 'a') { const g = SUGGESTIONS[+el.dataset.i]; const seg = CHAPTERS[2].segs[g.seg]; seg.t = seg.t.replace(g.del, g.ins); } render(); break;
+    case 'proof-all': SUGGESTIONS.forEach((g, i) => { if (!S.proofDone[i]) { S.proofDone[i] = el.dataset.r; if (el.dataset.r === 'a') { const seg = CHAPTERS[2].segs[g.seg]; seg.t = seg.t.replace(g.del, g.ins); } } }); render(); break;
+  }
+});
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'lib-q') { S.q = e.target.value; const pos = e.target.selectionStart; render(); const n = document.getElementById('lib-q'); n.focus(); n.setSelectionRange(pos, pos); }
+  if (e.target.matches('[data-dirty]') && !S.dirty) { S.dirty = true; const b = document.getElementById('savebar'); if (b) b.hidden = false; }
+  if (e.target.dataset.act === 'rsize') { S.reader.size = +e.target.value; const art = scroll.querySelector('.rd article'); if (art) art.style.setProperty('--rsize', S.reader.size + 'px'); const m = e.target.previousElementSibling?.querySelector('.meta'); if (m) m.textContent = S.reader.size + 'px'; }
+});
+document.addEventListener('change', (e) => {
+  if (e.target.dataset.act === 'g-from') { S.suggestFrom = e.target.value; render(); }
+  if (e.target.id === 'imp-file' && e.target.files[0]) { S.file = e.target.files[0].name; render(); }
+});
+['dragenter', 'dragover'].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); const p = document.getElementById('picker'); if (p) p.classList.add('over'); else if (S.route === 'library' || S.route === 'project') { S.file = null; S.overlay = 'import'; render(); } }));
+document.addEventListener('dragleave', (e) => { const p = document.getElementById('picker'); if (p && !p.contains(e.relatedTarget)) p.classList.remove('over'); });
+document.addEventListener('drop', (e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) { S.file = f.name; S.overlay = 'import'; render(); } });
+document.addEventListener('submit', (e) => { e.preventDefault(); go('library'); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && (S.overlay || S.menu)) { S.menu = null; S.overlay = null; render(); } });
+
+document.getElementById('r-screen').addEventListener('change', (e) => go(e.target.value));
+document.getElementById('r-width').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.width = b.dataset.w; applyChrome(); render(); });
+document.getElementById('r-look').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.look = b.dataset.look; applyChrome(); render(); });
+function applyChrome() {
+  stage.dataset.w = S.width;
+  document.querySelectorAll('#r-width button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.w === S.width));
+  document.querySelectorAll('#r-look button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.look === S.look));
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render());
+new ResizeObserver(() => { if (S.menu) { S.menu = null; render(); } }).observe(frame);
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== S.route && ['library', 'project', 'editor', 'reader', 'signin', 'findings'].includes(h)) go(h); });
+
+try { const saved = JSON.parse(localStorage.getItem('et-proto') || '{}'); Object.assign(S, { theme: saved.theme || S.theme, width: saved.width || S.width }); } catch (e) {}
+const h = location.hash.slice(1); if (['library', 'project', 'editor', 'reader', 'signin', 'findings'].includes(h)) S.route = h;
+applyChrome(); render(false);
+})();
+</script>

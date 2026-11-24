@@ -8,6 +8,7 @@
       "!**/routeTree.gen.ts",
       "!**/components/ui",
       "!**/*.md",
+      "!docs/design/prototype",
       "!**/pnpm-lock.yaml"
     ]
   },
