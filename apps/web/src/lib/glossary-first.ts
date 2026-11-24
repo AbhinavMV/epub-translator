@@ -1,5 +1,5 @@
 import type { ProjectDetail } from "@et/contracts";
-import { volumeProgress } from "./progress-status";
+import { volumeStatus } from "./progress-status";
 
 export function needsGlossaryFirst(
   project: Pick<ProjectDetail, "books" | "fullyTranslatedLang" | "mainLang">,
@@ -10,6 +10,6 @@ export function needsGlossaryFirst(
     !skipped &&
     glossarySize === 0 &&
     !project.fullyTranslatedLang &&
-    project.books.some((b) => !volumeProgress(b, project.mainLang).done)
+    project.books.some((b) => !volumeStatus(b, project.mainLang).done)
   );
 }

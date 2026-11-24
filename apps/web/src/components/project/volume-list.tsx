@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { VolumeNumberForm } from "@/components/volume-number-editor";
 import { useDeviceStores } from "@/lib/device-stores";
-import { volumeProgress } from "@/lib/progress-status";
+import { volumeStatus } from "@/lib/progress-status";
 import { cn } from "@/lib/utils";
 
 function useOpenReader() {
@@ -86,7 +86,7 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
   const labelId = useId();
   const [editing, setEditing] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
-  const status = volumeProgress(book, mainLang);
+  const status = volumeStatus(book, mainLang);
   const label = volumeLabel(book);
   const title = book.translatedTitle || book.title;
   const original = title !== book.title ? book.title : null;

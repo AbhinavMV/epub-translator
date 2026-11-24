@@ -2,7 +2,7 @@ import type { ProjectSummary } from "@et/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StatusLine } from "@/components/status-line";
-import { projectProgress, volumeProgress } from "@/lib/progress-status";
+import { projectStatus, volumeStatus } from "@/lib/progress-status";
 
 const project = (p: Partial<ProjectSummary>): ProjectSummary => ({
   id: "p1",
@@ -16,7 +16,7 @@ const project = (p: Partial<ProjectSummary>): ProjectSummary => ({
   ...p,
 });
 
-describe("projectProgress", () => {
+describe("projectStatus", () => {
   it.each([
     ["nothing translated", {}, "Not started · 4 volumes", 0, false],
     ["one volume", { volumeCount: 1 }, "Not started · 1 volume", 0, false],
@@ -44,11 +44,11 @@ describe("projectProgress", () => {
     ],
     ["an empty project is not fully translated", { volumeCount: 0 }, "No volumes", 0, false],
   ] as const)("%s", (_, overrides, text, ratio, done) => {
-    expect(projectProgress(project(overrides))).toEqual({ text, ratio, done });
+    expect(projectStatus(project(overrides))).toEqual({ text, ratio, done });
   });
 });
 
-describe("volumeProgress", () => {
+describe("volumeStatus", () => {
   it.each([
     ["no main language", null, null, "Not started", 0, false],
     ["nothing in the main language", 0, "en", "Not started", 0, false],
@@ -58,7 +58,7 @@ describe("volumeProgress", () => {
     ["complete in English", 100, "en", "Translated", 1, true],
     ["complete in French", 100, "fr", "Translated · French", 1, true],
   ] as const)("%s", (_, percent, mainLang, text, ratio, done) => {
-    expect(volumeProgress({ translatedPercent: percent }, mainLang)).toEqual({ text, ratio, done });
+    expect(volumeStatus({ translatedPercent: percent }, mainLang)).toEqual({ text, ratio, done });
   });
 });
 

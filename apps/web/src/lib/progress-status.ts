@@ -17,7 +17,7 @@ function withLanguage(text: string, lang: string | null): string {
 
 const volumes = (n: number) => `${n} volume${n === 1 ? "" : "s"}`;
 
-export function projectProgress(
+export function projectStatus(
   project: Pick<
     ProjectSummary,
     "volumeCount" | "translatedVolumeCount" | "fullyTranslatedLang" | "mainLang"
@@ -41,7 +41,7 @@ export function projectProgress(
   };
 }
 
-export function volumeProgress(
+export function volumeStatus(
   book: Pick<BookSummary, "translatedPercent">,
   mainLang: string | null,
 ): ProgressStatus {

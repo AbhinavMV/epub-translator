@@ -29,7 +29,7 @@ import {
 } from "@/components/upload/upload-dialog";
 import { needsGlossaryFirst } from "@/lib/glossary-first";
 import { useGlossarySkipped } from "@/lib/glossary-skip-store";
-import { projectProgress, volumeProgress } from "@/lib/progress-status";
+import { projectStatus, volumeStatus } from "@/lib/progress-status";
 import { useRenameOfferDismissal } from "@/lib/rename-offer-store";
 import { translatedProjectName } from "@/lib/translated-project-name";
 
@@ -203,9 +203,9 @@ function ProjectHead({
   const suggested = translatedProjectName(project.books);
   const translatedName = suggested && suggested !== project.name ? suggested : null;
   const translatedCount = project.books.filter(
-    (b) => volumeProgress(b, project.mainLang).done,
+    (b) => volumeStatus(b, project.mainLang).done,
   ).length;
-  const progress = projectProgress({
+  const progress = projectStatus({
     volumeCount: project.books.length,
     translatedVolumeCount: translatedCount,
     fullyTranslatedLang: project.fullyTranslatedLang,

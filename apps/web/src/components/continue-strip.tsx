@@ -9,7 +9,7 @@ import { CoverPlaceholder } from "@/components/cover-placeholder";
 import { Button } from "@/components/ui/button";
 import { useDeviceStores } from "@/lib/device-stores";
 import { type LastOpened, useLastOpened } from "@/lib/last-opened-store";
-import { volumeProgress } from "@/lib/progress-status";
+import { volumeStatus } from "@/lib/progress-status";
 
 export function ContinueStrip() {
   const last = useLastOpened();
@@ -34,7 +34,7 @@ function ContinueBook({ last }: { last: LastOpened }) {
   const details = [
     book.data.volumeNumber != null ? volumeLabel(book.data) : null,
     position >= 0 ? `Chapter ${position + 1}` : null,
-    volume && project.data ? volumeProgress(volume, project.data.mainLang).text : null,
+    volume && project.data ? volumeStatus(volume, project.data.mainLang).text : null,
   ].filter(Boolean);
   const name = project.data?.name ?? book.data.translatedTitle ?? book.data.title;
 
