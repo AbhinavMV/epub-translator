@@ -238,7 +238,6 @@ export function useSaveSettings(bookId: string) {
 type JobAction =
   | { kind: "translate"; chapterId: string; body: TranslateBody }
   | { kind: "translate-all"; body: TranslateBody }
-  | { kind: "retry"; chapterId: string; body: TranslateBody }
   | { kind: "clear"; chapterId: string }
   | { kind: "cancel" };
 
@@ -279,8 +278,6 @@ export function useJobAction(jobId: string | undefined) {
           return api.translateChapter(jobId, action.chapterId, action.body);
         case "translate-all":
           return api.translateAll(jobId, action.body);
-        case "retry":
-          return api.retryChapter(jobId, action.chapterId, action.body);
         case "clear":
           return api.clearChapter(jobId, action.chapterId);
         case "cancel":

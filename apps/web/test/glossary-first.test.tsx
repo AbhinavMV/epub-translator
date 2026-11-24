@@ -64,12 +64,8 @@ function spied(base: Api = createMockApi(NO_GLOSSARY)) {
     ...base,
     translateChapter: vi.fn(base.translateChapter),
     translateAll: vi.fn(base.translateAll),
-    retryChapter: vi.fn(base.retryChapter),
   };
-  const sent = () =>
-    api.translateChapter.mock.calls.length +
-    api.translateAll.mock.calls.length +
-    api.retryChapter.mock.calls.length;
+  const sent = () => api.translateChapter.mock.calls.length + api.translateAll.mock.calls.length;
   return { api, sent };
 }
 

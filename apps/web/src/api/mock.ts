@@ -790,10 +790,6 @@ export function createMockApi(seed: readonly ProjectSeed[] = MOCK_SEED): Api {
         ),
         60,
       ),
-    retryChapter(jobId, chapterId, body) {
-      clear(jobId, chapterId);
-      return delay(start(jobId, [chapterId], body.mode), 60);
-    },
     async clearChapter(jobId, chapterId) {
       clear(jobId, chapterId);
       return delay(jobs.get(jobId) ?? null, 60);
