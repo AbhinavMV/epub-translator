@@ -65,7 +65,12 @@ const upload = (fileName: string) => async (page: Page) => {
   });
 };
 
-const editorReady = (page: Page) => page.getByRole("progressbar", { name: "Chapters translated" });
+const editorReady = (page: Page) => page.getByRole("progressbar", { name: "Passages translated" });
+
+const openModelSheet = async (page: Page) => {
+  await page.getByRole("button", { name: /^Model and mode/ }).click();
+  await page.locator(OVERLAY.sheet).waitFor();
+};
 const readerReady = (page: Page) => page.locator(".reader-prose").first();
 
 const click = (target: (page: Page) => Locator) => async (page: Page) => {
@@ -170,7 +175,7 @@ export const SCREENS: readonly Screen[] = [
     ready: editorReady,
     open: click((page) => page.getByRole("button", { name: "Show", exact: true })),
     opened: (page) => page.getByRole("button", { name: "Hide", exact: true }),
-    reachable: (width) => width < 1024,
+    reachable: (width) => width < 640,
   },
   {
     name: "editor chapters sheet",
@@ -212,15 +217,34 @@ export const SCREENS: readonly Screen[] = [
     name: "export menu",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("button", { name: "Export options" }).last()),
+    open: click((page) => page.getByRole("button", { name: "Export", exact: true })),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
+  },
+  {
+    name: "translate menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: "More translate options" })),
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+  },
+  {
+    name: "model sheet",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: openModelSheet,
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
   },
   {
     name: "provider select",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("combobox", { name: "Provider" })),
+    open: async (page) => {
+      if (!(await page.locator(OVERLAY.sheet).isVisible())) await openModelSheet(page);
+      await page.getByRole("combobox", { name: "Provider" }).click();
+    },
     opened: scoped(OVERLAY.select),
     scope: OVERLAY.select,
   },
@@ -228,7 +252,10 @@ export const SCREENS: readonly Screen[] = [
     name: "model select",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("combobox", { name: "Model" })),
+    open: async (page) => {
+      if (!(await page.locator(OVERLAY.sheet).isVisible())) await openModelSheet(page);
+      await page.getByRole("combobox", { name: "Model" }).click();
+    },
     opened: scoped(OVERLAY.select),
     scope: OVERLAY.select,
   },
@@ -236,7 +263,10 @@ export const SCREENS: readonly Screen[] = [
     name: "target language select",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("combobox", { name: "Target language" })),
+    open: async (page) => {
+      if (!(await page.locator(OVERLAY.sheet).isVisible())) await openModelSheet(page);
+      await page.getByRole("combobox", { name: "Target language" }).click();
+    },
     opened: scoped(OVERLAY.select),
     scope: OVERLAY.select,
   },

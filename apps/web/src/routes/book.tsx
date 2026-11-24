@@ -19,13 +19,17 @@ import {
 import { useJobEvents } from "@/api/use-job-events";
 import { useProofreadRun } from "@/api/use-proofread-run";
 import { ChapterRail } from "@/components/chapter-rail";
+import { ChapterPager } from "@/components/editor/chapter-pager";
+import { ChapterStatusBlock } from "@/components/editor/chapter-status-block";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { resolveSelection, type Selection } from "@/components/editor/model-selection";
+import { ModelSheet } from "@/components/editor/model-sheet";
 import { EditorPanes } from "@/components/editor/panes";
 import { ProofreadMenu } from "@/components/editor/proofread-menu";
 import { ProofreadBar, ProofreadSheet } from "@/components/editor/proofread-review";
 import { EditorToolbar } from "@/components/editor/toolbar";
 import { TranslationError } from "@/components/editor/translation-error";
+import { useLeaveNotice } from "@/components/editor/use-leave-notice";
 import {
   Sheet,
   SheetContent,
@@ -35,12 +39,7 @@ import {
 } from "@/components/ui/sheet";
 import { useHosted } from "@/keys/hosted-context";
 import { contentsFirst } from "@/lib/chapter-order";
-import {
-  hasAnyTranslation,
-  isBusy,
-  progressFor,
-  translatedChapterCount,
-} from "@/lib/chapter-status";
+import { chapterStatus, hasAnyTranslation, isBusy, progressFor } from "@/lib/chapter-status";
 import { useRecordLastOpened } from "@/lib/last-opened-store";
 import { effectiveMode, loadMode, saveMode } from "@/lib/translate-mode";
 import { useBatchPolling, useHostedSync } from "@/translate/use-hosted-sync";
@@ -86,6 +85,15 @@ export function BookPage() {
   };
   const saveSettings = useSaveSettings(bookId);
   const action = useJobAction(jobId);
+  /** Every translation the editor starts goes through here; `null` means all chapters. */
+  const startTranslation = (target: string | null | undefined) => {
+    if (!body || target === undefined) return;
+    action.mutate(
+      target === null
+        ? { kind: "translate-all", body }
+        : { kind: "translate", chapterId: target, body },
+    );
+  };
 
   const [railOpen, setRailOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -147,6 +155,22 @@ export function BookPage() {
     return map;
   }, [chapter.data]);
   const providerLabel = providers.data?.find((p) => p.id === selection?.provider)?.label;
+  const chaptersDone = chapters.filter(
+    (c) => chapterStatus(progressFor(job.data, c.id), c.segmentCount).state === "done",
+  ).length;
+  const activeChapter = chapters.find((c) => c.id === chapterId);
+  const chapterTitle =
+    chapterId === CONTENTS_CHAPTER_ID
+      ? "Book title & navigation"
+      : ((chapterId && job.data?.titles.chapters[chapterId]) ?? activeChapter?.title);
+
+  useLeaveNotice(
+    busy && chapterTitle
+      ? `${chapterTitle} keeps translating in the background`
+      : busyElsewhere > 0
+        ? "Translation keeps running in the background"
+        : null,
+  );
 
   const { running, done: proofreadDone, error: proofreadError } = proofreadRun.state;
   const wasRunning = useRef(false);
@@ -216,37 +240,7 @@ export function BookPage() {
         translatedTitle={job.data?.titles.book}
         chapterId={chapterId}
         jobId={jobId}
-        providers={providers.data}
-        selection={selection}
-        onSelection={onSelection}
-        mode={effectiveMode(mode, batchAvailable)}
-        batchAvailable={batchAvailable}
-        onMode={onMode}
-        targetLang={targetLang}
-        onTargetLang={setTargetLang}
         onOpenRail={() => setRailOpen(true)}
-        proofread={
-          <ProofreadMenu
-            scope={{
-              chapterId,
-              chapterTranslated: (chapterProgress?.done ?? 0) > 0,
-              chapterProofread: Boolean(chapterId && proofreadIds.has(chapterId)),
-              unproofread: translatedIds.filter((id) => !proofreadIds.has(id)),
-              translated: translatedIds,
-            }}
-            run={proofreadRun.state}
-            disabledHint={
-              !selection || !jobId
-                ? noProviderHint
-                : translatedIds.length === 0
-                  ? "Translate a chapter first"
-                  : null
-            }
-            modelLabel={`${providerLabel ?? selection?.provider ?? "the AI"} (${selection?.model ?? ""})`}
-            onStart={(ids) => selection && void proofreadRun.start(ids, selection)}
-            onStop={proofreadRun.stop}
-          />
-        }
       />
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-72 shrink-0 flex-col border-r bg-card/40 md:flex">
@@ -266,28 +260,50 @@ export function BookPage() {
         </Sheet>
         <main className="flex min-w-0 flex-1 flex-col">
           <EditorToolbar
+            model={
+              <ModelSheet
+                providers={providers.data}
+                selection={selection}
+                onSelection={onSelection}
+                mode={effectiveMode(mode, batchAvailable)}
+                batchAvailable={batchAvailable}
+                onMode={onMode}
+                targetLang={targetLang}
+                onTargetLang={setTargetLang}
+              />
+            }
+            proofread={
+              <ProofreadMenu
+                waiting={pendingHere.size}
+                scope={{
+                  chapterId,
+                  chapterTranslated: (chapterProgress?.done ?? 0) > 0,
+                  chapterProofread: Boolean(chapterId && proofreadIds.has(chapterId)),
+                  unproofread: translatedIds.filter((id) => !proofreadIds.has(id)),
+                  translated: translatedIds,
+                }}
+                run={proofreadRun.state}
+                disabledHint={
+                  !selection || !jobId
+                    ? noProviderHint
+                    : translatedIds.length === 0
+                      ? "Translate a chapter first"
+                      : null
+                }
+                modelLabel={`${providerLabel ?? selection?.provider ?? "the AI"} (${selection?.model ?? ""})`}
+                onStart={(ids) => selection && void proofreadRun.start(ids, selection)}
+                onStop={proofreadRun.stop}
+              />
+            }
             chapterProgress={chapterProgress}
-            busyCount={busyElsewhere}
-            translatedChapters={translatedChapterCount(job.data)}
-            totalChapters={chapters.length}
             canTranslate={Boolean(selection && jobId && chapterId)}
             noProviderHint={noProviderHint}
             starting={action.isPending && action.variables?.kind !== "clear"}
-            hasPrev={chapterIndex > 0}
-            hasNext={chapterIndex >= 0 && chapterIndex < chapters.length - 1}
             hasTranslation={hasAnyTranslation(job.data)}
-            onTranslate={() =>
-              body && chapterId && action.mutate({ kind: "translate", chapterId, body })
-            }
-            onTranslateAll={() => body && action.mutate({ kind: "translate-all", body })}
-            onTranslateTitles={() =>
-              body && action.mutate({ kind: "translate", chapterId: CONTENTS_CHAPTER_ID, body })
-            }
+            onTranslate={() => startTranslation(chapterId)}
+            onTranslateAll={() => startTranslation(null)}
+            onTranslateTitles={() => startTranslation(CONTENTS_CHAPTER_ID)}
             titlesBusy={isBusy(progressFor(job.data, CONTENTS_CHAPTER_ID)?.status)}
-            onPrev={() => goTo(chapters[chapterIndex - 1]?.id)}
-            onNext={() => goTo(chapters[chapterIndex + 1]?.id)}
-            onCancel={() => action.mutate({ kind: "cancel" })}
-            {...(hosted ? { onCheckBatch: checkBatch } : {})}
             epubHref={jobId ? api.exportUrl(jobId, "epub") : undefined}
             bilingualEpubHref={jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined}
             txtHref={jobId ? api.exportUrl(jobId, "txt") : undefined}
@@ -332,6 +348,16 @@ export function BookPage() {
             onJump={jumpTo}
           />
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background">
+            <ChapterStatusBlock
+              title={chapterTitle}
+              progress={chapterProgress}
+              segmentCount={activeChapter?.segmentCount ?? 0}
+              chaptersDone={chaptersDone}
+              totalChapters={chapters.length}
+              busyElsewhere={busyElsewhere}
+              onCancel={() => action.mutate({ kind: "cancel" })}
+              {...(hosted ? { onCheckBatch: checkBatch } : {})}
+            />
             <EditorPanes
               view={chapter.data}
               loading={chapter.isPending || book.isPending || workspace.isPending}
@@ -342,14 +368,21 @@ export function BookPage() {
               hasMore={chapter.hasMore}
               loadingMore={chapter.loadingMore}
               onLoadMore={chapter.loadMore}
-              canRetry={Boolean(
-                selection && chapterId && (chapterProgress?.done ?? 0) > 0 && !busy,
-              )}
-              onRetry={() => body && chapterId && action.mutate({ kind: "retry", chapterId, body })}
+              canRetry={Boolean(selection && jobId && chapterId) && !busy}
+              failedCount={chapterProgress?.failed}
+              onRetryFailed={() => startTranslation(chapterId)}
               onClear={() => chapterId && action.mutate({ kind: "clear", chapterId })}
               suggested={pendingHere}
               onSuggestion={openSuggestion}
             />
+            {!chapter.hasMore && (
+              <ChapterPager
+                hasPrev={chapterIndex > 0}
+                hasNext={chapterIndex >= 0 && chapterIndex < chapters.length - 1}
+                onPrev={() => goTo(chapters[chapterIndex - 1]?.id)}
+                onNext={() => goTo(chapters[chapterIndex + 1]?.id)}
+              />
+            )}
           </div>
         </main>
       </div>

@@ -35,7 +35,10 @@ export function ProofreadMenu({
   modelLabel,
   onStart,
   onStop,
+  waiting = 0,
 }: {
+  /** Suggestions in the open chapter still to accept or reject. */
+  waiting?: number;
   scope: ProofreadScope;
   run: ProofreadRunState;
   disabledHint: string | null;
@@ -58,9 +61,24 @@ export function ProofreadMenu({
   }
 
   const trigger = (
-    <Button variant="outline" size="sm" disabled={disabledHint !== null}>
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={disabledHint !== null}
+      title="Proofread"
+      aria-label={
+        waiting > 0
+          ? `Proofread, ${waiting} suggestion${waiting === 1 ? "" : "s"} waiting`
+          : "Proofread"
+      }
+    >
       <SpellCheck />
-      <span className="hidden sm:inline">Proofread</span>
+      <span className="max-xl:hidden">Proofread</span>
+      {waiting > 0 && (
+        <span className="rounded-full bg-primary/15 px-1.5 text-xs font-medium text-primary tabular-nums">
+          {waiting}
+        </span>
+      )}
       <ChevronDown className="opacity-60" />
     </Button>
   );

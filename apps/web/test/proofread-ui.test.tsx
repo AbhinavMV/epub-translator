@@ -68,6 +68,13 @@ describe("ProofreadMenu", () => {
     expect(onStop).toHaveBeenCalled();
   });
 
+  it("shows how many suggestions are waiting in the open chapter", () => {
+    menu({ waiting: 3 });
+    expect(
+      screen.getByRole("button", { name: "Proofread, 3 suggestions waiting" }),
+    ).toHaveTextContent("3");
+  });
+
   it("is disabled with a reason when it cannot run", () => {
     menu({ disabledHint: "Translate a chapter first" });
     expect(screen.getByRole("button", { name: /proofread/i })).toBeDisabled();
