@@ -87,7 +87,9 @@ export function LibraryPage() {
               </div>
               <Button aria-label="Upload EPUB" onClick={() => upload.open()}>
                 <Upload aria-hidden />
-                Upload<span className="hidden sm:inline">EPUB</span>
+                <span>
+                  Upload<span className="hidden sm:inline"> EPUB</span>
+                </span>
               </Button>
             </div>
 

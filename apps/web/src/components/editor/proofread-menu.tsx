@@ -39,9 +39,7 @@ export function ProofreadMenu({
   labelled = false,
   className,
 }: {
-  /** Suggestions in the open chapter still to accept or reject. */
   waiting?: number;
-  /** Always show the label, not only on wide screens (the phone editor's More sheet). */
   labelled?: boolean;
   className?: string;
   scope: ProofreadScope;
@@ -112,7 +110,7 @@ export function ProofreadMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-2rem)]">
           <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
             AI checks the translation against the original. You review every change.
           </DropdownMenuLabel>
