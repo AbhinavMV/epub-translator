@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiProvider } from "@/api/api-context";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DEFAULT_PREFS, prefsStore } from "@/lib/reader-settings-store";
+import { createDeviceStores, type DeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { ReaderPage } from "@/routes/reader";
 
 class NoopObserver {
@@ -22,11 +22,12 @@ class NoopObserver {
   disconnect() {}
 }
 
+let stores: DeviceStores;
 beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", NoopObserver);
   globalThis.ResizeObserver ??= NoopObserver as unknown as typeof ResizeObserver;
   Element.prototype.scrollTo ??= () => {};
-  prefsStore.set(DEFAULT_PREFS);
+  stores = createDeviceStores(null);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -62,9 +63,11 @@ function renderReader(path: string) {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ApiProvider api={createMockApi()}>
-        <TooltipProvider>
-          <RouterProvider router={router} />
-        </TooltipProvider>
+        <DeviceStoresProvider stores={stores}>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </DeviceStoresProvider>
       </ApiProvider>
     </QueryClientProvider>,
   );
@@ -128,7 +131,7 @@ describe("Aa sheet", () => {
     await user.click(screen.getByRole("button", { name: "Reader settings" }));
     const sheet = await screen.findByRole("dialog", { name: "Reader settings" });
     await user.click(within(sheet).getByRole("radio", { name: "Interleaved" }));
-    expect(prefsStore.get().viewMode).toBe("interleaved");
+    expect(stores.prefs.get().viewMode).toBe("interleaved");
     expect(await screen.findByText(/朝の教室には/)).toBeInTheDocument();
   });
 });

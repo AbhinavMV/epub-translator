@@ -15,10 +15,13 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lastOpenedStore } from "@/lib/last-opened-store";
+import { createDeviceStores, type DeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { LibraryPage } from "@/routes/library";
 
-beforeEach(() => lastOpenedStore.clear());
+let stores: DeviceStores;
+beforeEach(() => {
+  stores = createDeviceStores(null);
+});
 
 function renderLibrary(overrides: Partial<Api> = {}) {
   const api = { ...createMockApi(), ...overrides };
@@ -50,9 +53,11 @@ function renderLibrary(overrides: Partial<Api> = {}) {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ApiProvider api={api}>
-        <TooltipProvider>
-          <RouterProvider router={router} />
-        </TooltipProvider>
+        <DeviceStoresProvider stores={stores}>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </DeviceStoresProvider>
       </ApiProvider>
     </QueryClientProvider>,
   );
@@ -162,7 +167,7 @@ describe("continue where you left off", () => {
   });
 
   it("reopens the last book and chapter to read or translate", async () => {
-    lastOpenedStore.record({ bookId: "witch-2", chapterId: "c2" });
+    stores.lastOpened.record({ bookId: "witch-2", chapterId: "c2" });
     renderLibrary();
     const strip = await screen.findByRole("region", { name: "Continue" });
     expect(await within(strip).findByText("魔女の旅々")).toBeInTheDocument();
@@ -178,10 +183,10 @@ describe("continue where you left off", () => {
   });
 
   it("forgets a book that is no longer in the library", async () => {
-    lastOpenedStore.record({ bookId: "gone", chapterId: "c1" });
+    stores.lastOpened.record({ bookId: "gone", chapterId: "c1" });
     renderLibrary();
     await card(/魔女の旅々/);
-    await waitFor(() => expect(lastOpenedStore.get()).toBeNull());
+    await waitFor(() => expect(stores.lastOpened.get()).toBeNull());
     expect(screen.queryByRole("region", { name: "Continue" })).not.toBeInTheDocument();
   });
 });

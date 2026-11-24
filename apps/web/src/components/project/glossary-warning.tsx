@@ -1,6 +1,6 @@
 import { Sparkles, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
+import { useDeviceStores } from "@/lib/device-stores";
 
 export function GlossaryWarning({
   projectId,
@@ -9,6 +9,7 @@ export function GlossaryWarning({
   projectId: string;
   onSuggest: () => void;
 }) {
+  const { glossarySkip } = useDeviceStores();
   return (
     <section
       aria-label="No glossary yet"
@@ -22,7 +23,7 @@ export function GlossaryWarning({
         before it’s saved.
       </p>
       <div className="col-span-full flex flex-wrap gap-2 max-sm:[&>*]:flex-1">
-        <Button variant="outline" size="sm" onClick={() => glossarySkipStore.skip(projectId)}>
+        <Button variant="outline" size="sm" onClick={() => glossarySkip.skip(projectId)}>
           Skip for now
         </Button>
         <Button size="sm" onClick={onSuggest}>

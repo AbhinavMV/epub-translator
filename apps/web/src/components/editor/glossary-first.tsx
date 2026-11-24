@@ -14,8 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDeviceStores } from "@/lib/device-stores";
 import { needsGlossaryFirst } from "@/lib/glossary-first";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
 
 /**
  * Holds a translation until the reader chooses Translate anyway or Set up glossary, when the
@@ -26,12 +26,13 @@ export function useGlossaryFirst(projectId: string | null | undefined) {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { glossarySkip } = useDeviceStores();
   const project = useProject(projectId);
   useProjectSettings(projectId ?? undefined);
   const [held, setHeld] = useState<{ run: () => void; unreadable: boolean } | null>(null);
 
   const guard = async (run: () => void) => {
-    if (!projectId || glossarySkipStore.isSkipped(projectId)) return run();
+    if (!projectId || glossarySkip.isSkipped(projectId)) return run();
     let ask: boolean;
     try {
       const [settings, detail] = await Promise.all([
@@ -44,11 +45,7 @@ export function useGlossaryFirst(projectId: string | null | undefined) {
           queryFn: () => api.getProject(projectId),
         }),
       ]);
-      ask = needsGlossaryFirst(
-        detail,
-        settings.glossary.length,
-        glossarySkipStore.isSkipped(projectId),
-      );
+      ask = needsGlossaryFirst(detail, settings.glossary.length, glossarySkip.isSkipped(projectId));
     } catch {
       setHeld({ run, unreadable: true });
       return;
@@ -84,7 +81,7 @@ export function useGlossaryFirst(projectId: string | null | undefined) {
             variant="outline"
             onClick={() => {
               setHeld(null);
-              if (projectId && held && !held.unreadable) glossarySkipStore.skip(projectId);
+              if (projectId && held && !held.unreadable) glossarySkip.skip(projectId);
               held?.run();
             }}
           >

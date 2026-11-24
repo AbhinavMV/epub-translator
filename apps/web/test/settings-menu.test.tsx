@@ -1,21 +1,28 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { SettingsMenu } from "@/components/settings-menu";
-import { prefsStore } from "@/lib/reader-settings-store";
+import { createDeviceStores, type DeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 
-afterEach(() => prefsStore.set({ theme: "light" }));
+let stores: DeviceStores;
+beforeEach(() => {
+  stores = createDeviceStores(null);
+});
 
 async function openMenu() {
   const user = userEvent.setup();
-  render(<SettingsMenu />);
+  render(
+    <DeviceStoresProvider stores={stores}>
+      <SettingsMenu />
+    </DeviceStoresProvider>,
+  );
   await user.click(screen.getByRole("button", { name: "Settings" }));
   return user;
 }
 
 describe("Settings menu", () => {
   it("offers the four themes by name, with the current one checked", async () => {
-    prefsStore.set({ theme: "dark" });
+    stores.prefs.set({ theme: "dark" });
     await openMenu();
     for (const name of ["Light", "Sepia", "Dark", "System"]) {
       expect(screen.getByRole("menuitemradio", { name })).toBeInTheDocument();
@@ -29,7 +36,7 @@ describe("Settings menu", () => {
   it("switches the theme", async () => {
     const user = await openMenu();
     await user.click(screen.getByRole("menuitemradio", { name: "System" }));
-    expect(prefsStore.get().theme).toBe("system");
+    expect(stores.prefs.get().theme).toBe("system");
   });
 
   it("shows no account items when the app runs locally", async () => {

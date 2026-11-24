@@ -14,7 +14,7 @@ import { ApiProvider } from "@/api/api-context";
 import { createMockApi } from "@/api/mock";
 import { MOCK_SEED, type ProjectSeed } from "@/api/mock-seed";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
+import { createDeviceStores, type DeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { ProjectPage, parseProjectSearch } from "@/routes/project";
 
 globalThis.ResizeObserver ??= class {
@@ -68,9 +68,11 @@ function renderProject(path: string) {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ApiProvider api={createMockApi(SEED)}>
-        <TooltipProvider>
-          <RouterProvider router={router} />
-        </TooltipProvider>
+        <DeviceStoresProvider stores={stores}>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </DeviceStoresProvider>
       </ApiProvider>
     </QueryClientProvider>,
   );
@@ -86,7 +88,10 @@ const noWarning = async () => {
   expect(screen.queryByRole("region", { name: "No glossary yet" })).toBeNull();
 };
 
-beforeEach(() => glossarySkipStore.clear());
+let stores: DeviceStores;
+beforeEach(() => {
+  stores = createDeviceStores(null);
+});
 
 describe("glossary warning on the project page", () => {
   it("warns about a project with no glossary and untranslated volumes", async () => {
@@ -117,12 +122,12 @@ describe("glossary warning on the project page", () => {
     renderProject("/projects/project-long");
     await user.click(within(await warning()).getByRole("button", { name: "Skip for now" }));
     expect(screen.queryByRole("region", { name: "No glossary yet" })).toBeNull();
-    expect(glossarySkipStore.isSkipped("project-long")).toBe(true);
-    expect(glossarySkipStore.isSkipped("project-angel")).toBe(false);
+    expect(stores.glossarySkip.isSkipped("project-long")).toBe(true);
+    expect(stores.glossarySkip.isSkipped("project-angel")).toBe(false);
   });
 
   it("stays hidden on a later visit after Skip for now", async () => {
-    glossarySkipStore.skip("project-long");
+    stores.glossarySkip.skip("project-long");
     renderProject("/projects/project-long");
     await noWarning();
   });

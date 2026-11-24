@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createPrefsStore, DEFAULT_PREFS, type StorageLike } from "@/lib/reader-settings-store";
+import { createPrefsStore, DEFAULT_PREFS } from "@/lib/reader-settings-store";
+import type { StorageLike } from "@/lib/storage";
 
 const throwing: StorageLike = {
   getItem() {

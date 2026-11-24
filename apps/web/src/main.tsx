@@ -12,7 +12,9 @@ import { AuthProvider } from "@/auth/auth-context";
 import { authedFetch, type FetchFn } from "@/auth/authed-fetch";
 import { type Hosted, HostedProvider } from "@/keys/hosted-context";
 import { UnlockDialog } from "@/keys/keys-dialog";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { createQueryClient } from "@/lib/query-client";
+import { browserStorage } from "@/lib/storage";
 import { isHostedConfig } from "@/translate/hosted-config";
 import { createWorkApi } from "@/translate/work-api";
 import type { AppServices } from "./app-services";
@@ -70,10 +72,12 @@ function mount(root: HTMLElement, { api, client, authFetch, adminApi, hosted }: 
   const queryClient = createQueryClient();
   const app = (
     <ApiProvider api={api}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        {hosted ? <UnlockDialog /> : null}
-      </QueryClientProvider>
+      <DeviceStoresProvider stores={createDeviceStores(browserStorage())}>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+          {hosted ? <UnlockDialog /> : null}
+        </QueryClientProvider>
+      </DeviceStoresProvider>
     </ApiProvider>
   );
   createRoot(root).render(

@@ -5,10 +5,10 @@ import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import type { ProjectSeed } from "@/api/mock-seed";
 import type { Vault } from "@/keys/vault";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
+
 import { createHostedApi } from "@/translate/hosted-api";
 import type { ClientRuntime } from "@/translate/runtime";
-import { renderAt, setUpRouteTests } from "./route-harness";
+import { deviceStores, renderAt, setUpRouteTests } from "./route-harness";
 
 setUpRouteTests();
 
@@ -274,14 +274,14 @@ describe("glossary-first guard in the editor", () => {
     renderAt("/books/plain-1?chapter=c3", api);
     await user.click(await toolbarButton("Translate chapter"));
     await translateAnyway(user);
-    expect(glossarySkipStore.isSkipped("project-plain")).toBe(true);
+    expect(deviceStores().glossarySkip.isSkipped("project-plain")).toBe(true);
     await pickFromTranslateMenu(user, "All chapters");
     await waitFor(() => expect(api.translateAll).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull();
   });
 
   it("translates straight away once the project was skipped", async () => {
-    glossarySkipStore.skip("project-plain");
+    deviceStores().glossarySkip.skip("project-plain");
     const user = userEvent.setup();
     const { api } = spied();
     renderAt("/books/plain-1?chapter=c3", api);
@@ -321,7 +321,7 @@ describe("glossary-first guard in the editor", () => {
     expect(dialog).toHaveTextContent("could not be loaded");
     await user.click(within(dialog).getByRole("button", { name: "Translate anyway" }));
     await waitFor(() => expect(sent()).toBe(1));
-    expect(glossarySkipStore.isSkipped("project-named")).toBe(false);
+    expect(deviceStores().glossarySkip.isSkipped("project-named")).toBe(false);
   });
 
   it("sends nothing and remembers nothing when the prompt is dismissed", async () => {
@@ -333,7 +333,7 @@ describe("glossary-first guard in the editor", () => {
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull());
     expect(sent()).toBe(0);
-    expect(glossarySkipStore.isSkipped("project-plain")).toBe(false);
+    expect(deviceStores().glossarySkip.isSkipped("project-plain")).toBe(false);
   });
 
   it("Set up glossary opens the project's Glossary tab with Suggest terms, sending nothing", async () => {
@@ -347,7 +347,7 @@ describe("glossary-first guard in the editor", () => {
     expect(router.state.location.pathname).toBe("/projects/project-plain");
     expect(router.state.location.search).toMatchObject({ tab: "glossary", suggest: true });
     expect(sent()).toBe(0);
-    expect(glossarySkipStore.isSkipped("project-plain")).toBe(false);
+    expect(deviceStores().glossarySkip.isSkipped("project-plain")).toBe(false);
   });
 
   it("holds a translation started before the glossary has loaded", async () => {

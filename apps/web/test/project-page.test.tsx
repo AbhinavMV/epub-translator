@@ -15,6 +15,7 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createDeviceStores, type DeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { ProjectPage, parseProjectTab } from "@/routes/project";
 
 globalThis.ResizeObserver ??= class {
@@ -22,6 +23,8 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+let stores: DeviceStores;
 
 function renderAt(path: string, overrides: Partial<Api>) {
   const api = { ...createMockApi(), ...overrides };
@@ -53,7 +56,9 @@ function renderAt(path: string, overrides: Partial<Api>) {
     >
       <ApiProvider api={api}>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={stores}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,
@@ -91,7 +96,9 @@ const detail: ProjectDetail = {
 
 const row = (label: string) => screen.getByRole("listitem", { name: label });
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  stores = createDeviceStores(null);
+});
 
 describe("project tabs", () => {
   it("opens on Volumes and keeps the chosen tab in the URL", async () => {
@@ -254,6 +261,6 @@ describe("project menu", () => {
     const notice = await screen.findByRole("region", { name: "Rename offer" });
     await userEvent.click(within(notice).getByRole("button", { name: "Not now" }));
     expect(screen.queryByRole("region", { name: "Rename offer" })).not.toBeInTheDocument();
-    expect(localStorage.getItem("et.renameOfferDismissed")).toContain("Wandering Witch");
+    expect(stores.renameOffer.isDismissed("p1", "Wandering Witch")).toBe(true);
   });
 });

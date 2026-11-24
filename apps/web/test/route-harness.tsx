@@ -13,8 +13,7 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
-import { lastOpenedStore } from "@/lib/last-opened-store";
+import { createDeviceStores, type DeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { BookPage } from "@/routes/book";
 import { parseProjectSearch } from "@/routes/project";
 import { ReaderPage } from "@/routes/reader";
@@ -25,14 +24,18 @@ class NoopObserver {
   disconnect() {}
 }
 
+let current: DeviceStores = createDeviceStores(null);
+
+/** This test's device stores; `renderAt` renders with them. Fresh for every test. */
+export const deviceStores = () => current;
+
 /** Stubs the browser APIs the editor and reader need under jsdom; call once per test file. */
 export function setUpRouteTests() {
   beforeEach(() => {
     vi.stubGlobal("IntersectionObserver", NoopObserver);
     globalThis.ResizeObserver ??= NoopObserver as unknown as typeof ResizeObserver;
     Element.prototype.scrollTo ??= () => {};
-    lastOpenedStore.clear();
-    glossarySkipStore.clear();
+    current = createDeviceStores(null);
   });
   afterEach(() => vi.unstubAllGlobals());
 }
@@ -74,9 +77,11 @@ export function renderAt(path: string, api: Api = createMockApi()) {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ApiProvider api={api}>
-        <TooltipProvider>
-          <RouterProvider router={router} />
-        </TooltipProvider>
+        <DeviceStoresProvider stores={current}>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </DeviceStoresProvider>
       </ApiProvider>
     </QueryClientProvider>,
   );

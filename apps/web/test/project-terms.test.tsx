@@ -24,6 +24,7 @@ import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { ProjectPage } from "@/routes/project";
 
 globalThis.ResizeObserver ??= class {
@@ -56,7 +57,9 @@ function renderAt(path: string, overrides: Partial<Api>, bookPage: () => ReactNo
     >
       <ApiProvider api={api}>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={createDeviceStores(null)}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,

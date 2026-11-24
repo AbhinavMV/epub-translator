@@ -7,7 +7,8 @@ import { useBook, useProject } from "@/api/queries";
 import { volumeLabel } from "@/components/app-header";
 import { CoverPlaceholder } from "@/components/cover-placeholder";
 import { Button } from "@/components/ui/button";
-import { type LastOpened, lastOpenedStore, useLastOpened } from "@/lib/last-opened-store";
+import { useDeviceStores } from "@/lib/device-stores";
+import { type LastOpened, useLastOpened } from "@/lib/last-opened-store";
 import { volumeProgress } from "@/lib/progress-status";
 
 export function ContinueStrip() {
@@ -19,11 +20,12 @@ function ContinueBook({ last }: { last: LastOpened }) {
   const book = useBook(last.bookId);
   const project = useProject(book.data?.projectId);
   const [coverFailed, setCoverFailed] = useState(false);
+  const { lastOpened } = useDeviceStores();
 
   const missing = book.error instanceof ApiRequestError && book.error.status === 404;
   useEffect(() => {
-    if (missing) lastOpenedStore.clear();
-  }, [missing]);
+    if (missing) lastOpened.clear();
+  }, [missing, lastOpened]);
 
   if (!book.data) return null;
   const chapters = book.data.chapters.filter((c) => c.id !== CONTENTS_CHAPTER_ID);
