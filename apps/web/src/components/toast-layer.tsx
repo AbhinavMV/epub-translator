@@ -27,7 +27,6 @@ export function ToastLayer({ theme, children }: { theme: "light" | "dark"; child
   );
 }
 
-/** Keeps toasts above the element in `ref` while `active`, so they never cover it. */
 export function useToastClearance(ref: RefObject<HTMLElement | null>, active: boolean) {
   const setClearance = useContext(ClearanceContext);
   useEffect(() => {
@@ -38,6 +37,7 @@ export function useToastClearance(ref: RefObject<HTMLElement | null>, active: bo
     measure();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     observer?.observe(el);
+    if (el.parentElement) observer?.observe(el.parentElement);
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, { capture: true, passive: true });
     return () => {

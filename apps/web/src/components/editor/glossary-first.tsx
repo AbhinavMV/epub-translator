@@ -66,7 +66,7 @@ export function useGlossaryFirst(projectId: string | null | undefined) {
           <DialogTitle>Translate without a glossary?</DialogTitle>
           <DialogDescription className="[overflow-wrap:anywhere]">
             {held?.unreadable
-              ? `The glossary for ${project.data?.name ?? "this project"} could not be loaded, so its entries may not be used.`
+              ? `The glossary for ${project.data?.name ?? "this project"} could not be loaded, so it can’t be checked before translating.`
               : `${project.data?.name ?? "This project"} has no glossary yet.`}{" "}
             Names and recurring terms may be translated differently in each chapter, and fixing them
             later means retranslating or proofreading.

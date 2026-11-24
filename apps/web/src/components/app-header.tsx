@@ -69,28 +69,34 @@ const SEPARATOR = "shrink-0 px-0.5 text-border";
 
 function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
   const label = labelOf(crumb);
-  const props = {
-    className,
-    title: label,
-    "data-overflow": "clip" as const,
-    activeOptions: { exact: true },
-  };
+  const props = { className, title: label, "data-overflow": "clip" as const };
+  const exact = { exact: true };
   switch (crumb.kind) {
     case "library":
       return (
-        <Link to="/" {...props}>
+        <Link to="/" activeOptions={exact} {...props}>
           {label}
         </Link>
       );
     case "project":
       return (
-        <Link to="/projects/$projectId" params={{ projectId: crumb.projectId }} {...props}>
+        <Link
+          to="/projects/$projectId"
+          params={{ projectId: crumb.projectId }}
+          activeOptions={exact}
+          {...props}
+        >
           {label}
         </Link>
       );
     case "book":
       return (
-        <Link to="/books/$bookId" params={{ bookId: crumb.bookId }} {...props}>
+        <Link
+          to="/books/$bookId"
+          params={{ bookId: crumb.bookId }}
+          activeOptions={exact}
+          {...props}
+        >
           {label}
         </Link>
       );
