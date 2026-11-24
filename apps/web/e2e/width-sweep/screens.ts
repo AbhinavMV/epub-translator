@@ -88,10 +88,50 @@ const upload = (fileName: string) => async (page: Page) => {
 
 const editorReady = (page: Page) => page.getByRole("progressbar", { name: "Passages translated" });
 
-const openModelSheet = async (page: Page) => {
-  await page.getByRole("button", { name: /^Model and mode/ }).click();
-  await page.locator(OVERLAY.sheet).waitFor();
+const phone = (width: number) => width < 640;
+const wide = (width: number) => width >= 640;
+
+const moreSheet = (page: Page) => page.getByRole("dialog", { name: /^Vol\. / });
+
+const openMore = async (page: Page) => {
+  if (await moreSheet(page).isVisible()) return;
+  await page
+    .getByRole("group", { name: "Chapter actions" })
+    .getByRole("button", { name: "More" })
+    .click();
+  await moreSheet(page).waitFor();
 };
+
+const openModelSheet = async (page: Page) => {
+  const chip = page.getByRole("button", { name: /^Model and mode:/ });
+  if (await chip.isVisible()) await chip.click();
+  else {
+    await openMore(page);
+    await moreSheet(page)
+      .getByRole("button", { name: /^Model and mode/ })
+      .click();
+  }
+  await page.getByRole("dialog", { name: "Model and mode" }).waitFor();
+};
+
+/** Opens the proofread panel from the bar above the text, or from More on a phone. */
+const openProofreadSheet = async (page: Page) => {
+  if (await page.getByRole("group", { name: "Chapter actions" }).isVisible()) {
+    await openMore(page);
+    await moreSheet(page)
+      .getByRole("button", { name: /^(Review \d+ suggestions?|Show proofread results)$/ })
+      .click();
+  } else {
+    await page
+      .getByRole("button", { name: /^(Review|Show)$/ })
+      .filter({ visible: true })
+      .first()
+      .click();
+  }
+};
+
+const viewSwitch = (label: string) => (page: Page) =>
+  page.getByRole("group", { name: "Show" }).getByRole("button", { name: label });
 const readerReady = (page: Page) => page.locator(".reader-prose").first();
 
 const click = (target: (page: Page) => Locator) => async (page: Page) => {
@@ -269,28 +309,56 @@ export const SCREENS: readonly Screen[] = [
   { name: "editor untranslated", path: "/books/angel-3?chapter=c1", ready: editorReady },
   { name: "editor long title", path: "/books/long-2?chapter=c1", ready: editorReady },
   {
-    name: "editor source shown",
+    name: "editor view translation",
+    path: "/books/angel-2-5?chapter=c2",
+    ready: editorReady,
+    open: click(viewSwitch("Translation")),
+    opened: (page) => viewSwitch("Translation")(page).and(page.locator('[aria-pressed="true"]')),
+    reachable: phone,
+  },
+  {
+    name: "editor view source",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("button", { name: "Show", exact: true })),
-    opened: (page) => page.getByRole("button", { name: "Hide", exact: true }),
-    reachable: (width) => width < 640,
+    open: click(viewSwitch("Source")),
+    opened: (page) => viewSwitch("Source")(page).and(page.locator('[aria-pressed="true"]')),
+    reachable: phone,
   },
   {
     name: "editor chapters sheet",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("button", { name: "Open chapters" })),
+    open: click((page) =>
+      page.getByRole("button", { name: /^(Open chapters|Chapters)$/ }).filter({ visible: true }),
+    ),
     opened: scoped(OVERLAY.sheet),
     scope: OVERLAY.sheet,
     reachable: (width) => width < 768,
   },
   {
+    name: "editor more sheet",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: openMore,
+    opened: moreSheet,
+    scope: OVERLAY.sheet,
+    reachable: phone,
+  },
+  {
+    name: "editor more sheet long title",
+    path: "/books/long-2?chapter=c1",
+    ready: editorReady,
+    open: openMore,
+    opened: moreSheet,
+    scope: OVERLAY.sheet,
+    reachable: phone,
+  },
+  {
     name: "proofread sheet",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("button", { name: /^(Review|Show)$/ }).first()),
-    opened: scoped(OVERLAY.sheet),
+    open: openProofreadSheet,
+    opened: (page) => page.getByRole("dialog", { name: /proofread/i }),
     scope: OVERLAY.sheet,
   },
   {
@@ -298,11 +366,8 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
     open: async (page) => {
-      await page
-        .getByRole("button", { name: /^(Review|Show)$/ })
-        .first()
-        .click();
-      const sheet = page.locator(OVERLAY.sheet);
+      await openProofreadSheet(page);
+      const sheet = page.getByRole("dialog", { name: /proofread/i });
       await sheet
         .getByText(/suggestions? (left|reviewed)/)
         .first()
@@ -320,6 +385,21 @@ export const SCREENS: readonly Screen[] = [
     open: async (page) => iconButton(page, "spell-check").click(),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
+    reachable: wide,
+  },
+  {
+    name: "editor more proofread menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => {
+      await openMore(page);
+      await moreSheet(page)
+        .getByRole("button", { name: /^Proofread/ })
+        .click();
+    },
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+    reachable: phone,
   },
   {
     name: "proofread confirm dialog",
@@ -331,14 +411,45 @@ export const SCREENS: readonly Screen[] = [
     },
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
+    reachable: wide,
+  },
+  {
+    name: "editor more proofread confirm dialog",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => {
+      await openMore(page);
+      await moreSheet(page)
+        .getByRole("button", { name: /^Proofread/ })
+        .click();
+      await page.getByRole("menuitem", { name: /^Whole book/ }).click();
+    },
+    opened: (page) => page.getByRole("dialog", { name: /^Proofread \d+ chapters?\?/ }),
+    scope: OVERLAY.dialog,
+    reachable: phone,
   },
   {
     name: "export menu",
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
-    open: click((page) => page.getByRole("button", { name: "Export", exact: true })),
+    open: click((page) =>
+      page.getByRole("button", { name: "Export", exact: true }).filter({ visible: true }),
+    ),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
+    reachable: wide,
+  },
+  {
+    name: "editor more export menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: async (page) => {
+      await openMore(page);
+      await moreSheet(page).getByRole("button", { name: "Export", exact: true }).click();
+    },
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+    reachable: phone,
   },
   {
     name: "translate menu",
@@ -347,6 +458,7 @@ export const SCREENS: readonly Screen[] = [
     open: click((page) => page.getByRole("button", { name: "More translate options" })),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
+    reachable: wide,
   },
   {
     name: "model sheet",

@@ -53,7 +53,11 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
      - Above the text, one status block shows the chapter title, passages translated in this chapter and chapters translated in the volume, plus any running translation or batch with **Check batch** (hosted) and a stop button that clears the queue.
      - Source and translation sit side by side from 640 px wide. **Previous chapter** and **Next chapter** are at the end of each chapter.
      - Leaving the editor while a chapter translates shows a notice that it keeps translating in the background.
-     - The chapter list shows each chapter's status (translated, partly translated, has failed passages, or not started) with its passage count. A chapter shows its translated title once one exists, otherwise its original title. On a phone, **Open chapters** opens the list as a sheet.
+     - The chapter list shows each chapter's status (translated, partly translated, has failed passages, or not started) with its passage count. A chapter shows its translated title once one exists, otherwise its original title. It sits beside the text from 768 px; from 640 to 767 px **Open chapters** in the header opens it as a sheet.
+   - **On a phone (under 640 px):**
+     - The editor is one column. The toolbar is hidden and the only control above the text is a **Translation / Source / Both** switch (Both by default, the original shown muted above each passage).
+     - A bottom bar, clear of the home indicator, holds **Chapters** (the chapter list as a sheet), the chapter's **Translate** button (same states as on wider screens) and **More**.
+     - **More** holds **Model and mode**, **Translate all chapters**, **Translate title & contents**, **Proofread** (with the count of suggestions waiting, plus **Review N suggestions**), **Export**, **Copy translation**, **Clear translation** and **Read this volume**.
    - **When something fails:**
      - A failed passage says why, for example that the model declined it and under which policy category, and has a **Retry** button. There is no way to resend one passage alone: Retry resends every failed passage in the chapter (and translates any passage not yet translated), so with several failed it reads **Retry N failed**. To retranslate a whole chapter, **Clear** it and translate it again.
      - Errors that stop a chapter (bad key, rate limits) appear in a banner with a fix hint. A fatal error also stops the rest of that job's queue.

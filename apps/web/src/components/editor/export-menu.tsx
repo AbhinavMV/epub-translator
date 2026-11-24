@@ -17,6 +17,8 @@ export function ExportMenu({
   onExport,
   disabled,
   hint,
+  labelled = false,
+  className,
 }: {
   translationHref: string | undefined;
   bilingualHref: string | undefined;
@@ -24,11 +26,21 @@ export function ExportMenu({
   onExport?: ((href: string) => void) | undefined;
   disabled: boolean;
   hint: string;
+  /** Always show the label, not only on wide screens. */
+  labelled?: boolean;
+  className?: string;
 }) {
   const trigger = (off: boolean) => (
-    <Button variant="ghost" size="sm" disabled={off} aria-label="Export" title="Export">
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={off}
+      aria-label="Export"
+      title="Export"
+      className={className}
+    >
       <Download />
-      <span className="max-xl:hidden">Export</span>
+      <span className={labelled ? undefined : "max-xl:hidden"}>Export</span>
       <ChevronDown className="opacity-60" />
     </Button>
   );
@@ -38,7 +50,7 @@ export function ExportMenu({
       <Tooltip>
         <TooltipTrigger asChild>
           {/* biome-ignore lint/a11y/noNoninteractiveTabindex: disabled buttons cannot take focus; the tooltip needs a focusable wrapper */}
-          <span tabIndex={0} className="inline-flex">
+          <span tabIndex={0} className={labelled ? "flex" : "inline-flex"}>
             {trigger(true)}
           </span>
         </TooltipTrigger>
