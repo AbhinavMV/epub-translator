@@ -47,12 +47,17 @@ const iconButton = (page: Page, icon: string) =>
 
 const scoped = (selector: string) => (page: Page) => page.locator(selector).first();
 
-const glossaryLoaded = (page: Page) =>
+const glossaryReady = (page: Page) => page.getByText(/ of 2,000 entries\./).first();
+
+const suggestPanelLoaded = (page: Page) =>
   page
-    .locator(OVERLAY.dialog)
+    .getByRole("region", { name: "Suggest terms" })
     .filter({ hasText: /\d+ requests? ·/ })
     .filter({ hasText: "Anthropic" })
     .filter({ hasText: "claude-haiku-5-5" });
+
+const openSuggestPanel = (page: Page) =>
+  page.getByRole("button", { name: "Suggest terms", exact: true }).click();
 
 const openApiKeys = async (page: Page) => {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -179,12 +184,33 @@ export const SCREENS: readonly Screen[] = [
   {
     name: "project glossary tab",
     path: "/projects/project-angel?tab=glossary",
-    ready: heading(ANGEL),
+    ready: glossaryReady,
   },
   {
     name: "project glossary tab empty",
     path: "/projects/project-long?tab=glossary",
-    ready: heading(LONG_SERIES),
+    ready: glossaryReady,
+  },
+  {
+    name: "glossary suggest panel",
+    path: "/projects/project-angel?tab=glossary",
+    ready: glossaryReady,
+    open: openSuggestPanel,
+    opened: suggestPanelLoaded,
+  },
+  {
+    name: "glossary suggest panel empty",
+    path: "/projects/project-long?tab=glossary",
+    ready: glossaryReady,
+    open: openSuggestPanel,
+    opened: suggestPanelLoaded,
+  },
+  {
+    name: "glossary unsaved changes",
+    path: "/projects/project-angel?tab=glossary",
+    ready: glossaryReady,
+    open: (page) => page.getByRole("button", { name: /“Shiina Mahiru”/ }).click(),
+    opened: (page) => page.getByRole("region", { name: "Unsaved glossary changes" }),
   },
   {
     name: "project prompt tab",
@@ -204,22 +230,6 @@ export const SCREENS: readonly Screen[] = [
     ready: heading(LONG_SERIES),
     open: volumeAction("Change volume number"),
     opened: (page) => page.getByRole("spinbutton").first(),
-  },
-  {
-    name: "glossary dialog",
-    path: "/projects/project-angel?tab=glossary",
-    ready: heading(ANGEL),
-    open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
-    opened: glossaryLoaded,
-    scope: OVERLAY.dialog,
-  },
-  {
-    name: "glossary dialog empty",
-    path: "/projects/project-long?tab=glossary",
-    ready: heading(LONG_SERIES),
-    open: click((page) => page.getByRole("button", { name: /^Glossary/ })),
-    opened: glossaryLoaded,
-    scope: OVERLAY.dialog,
   },
   {
     name: "custom prompt dialog",

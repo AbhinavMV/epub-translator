@@ -621,10 +621,11 @@ export function createMockApi(seed: readonly ProjectSeed[] = MOCK_SEED): Api {
     async saveProjectTerms(id, terms) {
       if (!projects.has(id)) throw new Error("Project not found");
       const next = {
-        glossaryConflicts: [],
-        ...projectSettings.get(id),
         customPrompt: terms.customPrompt,
         glossary: terms.glossary,
+        glossaryConflicts: (projectSettings.get(id)?.glossaryConflicts ?? []).filter((c) =>
+          terms.glossary.some((e) => e.source === c.source && e.target === c.inForce.target),
+        ),
       };
       projectSettings.set(id, next);
       return delay(structuredClone(next));
