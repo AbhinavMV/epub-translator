@@ -119,60 +119,6 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
     review: "E6",
   },
   {
-    screen: "project long title",
-    offender:
-      'overflows: div > a > div > h3[data-slot="tooltip-trigger"] "The Reincarnated Princess Who Only Wante…"',
-    widths: [280, 1920],
-    review: "E3",
-  },
-  {
-    screen: "project long title",
-    offender:
-      'overflows: div > a > div > p "とても長いペンネームを持つ作家・イラストレーター共同名義"',
-    widths: [280, 1920],
-    review: "sweep: long titles and labels overflow volume cards",
-  },
-  {
-    screen: "project rename",
-    offender:
-      'overflows: div > a > div > h3[data-slot="tooltip-trigger"] "The Reincarnated Princess Who Only Wante…"',
-    widths: [280, 1920],
-    review: "E3",
-  },
-  {
-    screen: "project rename",
-    offender:
-      'overflows: div > a > div > p "とても長いペンネームを持つ作家・イラストレーター共同名義"',
-    widths: [280, 1920],
-    review: "sweep: long titles and labels overflow volume cards",
-  },
-  {
-    screen: "project volume number",
-    offender:
-      'overflows: div > a > div > h3[data-slot="tooltip-trigger"] "The Reincarnated Princess Who Only Wante…"',
-    widths: [280, 1920],
-    review: "E3",
-  },
-  {
-    screen: "project volume number",
-    offender:
-      'overflows: div > a > div > p "とても長いペンネームを持つ作家・イラストレーター共同名義"',
-    widths: [280, 1920],
-    review: "sweep: long titles and labels overflow volume cards",
-  },
-  {
-    screen: "project volume number",
-    offender: 'overflows: section > div > div > div "Save Move"',
-    widths: [280, 639],
-    review: "sweep: long titles and labels overflow volume cards",
-  },
-  {
-    screen: "project witch",
-    offender: 'overflows: div > a > div > div "Translated · French"',
-    widths: [280, 639],
-    review: "sweep: long titles and labels overflow volume cards",
-  },
-  {
     screen: "reader settings",
     offender:
       'past-viewport: div > div[data-slot="popover-content"][role="dialog"] "FontSerifSansSystemSize19pxLine height1.…"',
