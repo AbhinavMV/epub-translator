@@ -27,6 +27,7 @@ import {
   usePageDrop,
   useUploadDialog,
 } from "@/components/upload/upload-dialog";
+import { needsGlossaryFirst } from "@/lib/glossary-first";
 import { useGlossarySkipped } from "@/lib/glossary-skip-store";
 import { projectProgress, volumeProgress } from "@/lib/progress-status";
 import { useRenameOfferDismissal } from "@/lib/rename-offer-store";
@@ -259,11 +260,9 @@ export function ProjectPage() {
   const detail = project.data;
   const warnNoGlossary =
     tab !== "glossary" &&
-    !glossarySkipped &&
-    settings.data?.glossary.length === 0 &&
+    settings.data !== undefined &&
     detail !== undefined &&
-    !detail.fullyTranslatedLang &&
-    detail.books.some((b) => !volumeProgress(b, detail.mainLang).done);
+    needsGlossaryFirst(detail, settings.data.glossary.length, glossarySkipped);
 
   const selectTab = (value: string) =>
     void navigate({

@@ -39,6 +39,24 @@ const NO_GLOSSARY: ProjectSeed[] = [
     glossary: [{ source: "ホロ", target: "Holo" }],
     volumes: [{ id: "named-1", title: "名前のある物語 1", volumeNumber: 1 }],
   },
+  {
+    id: "project-done",
+    name: "終わった物語",
+    volumes: [
+      {
+        id: "done-1",
+        title: "終わった物語 1",
+        volumeNumber: 1,
+        translations: [
+          {
+            lang: "en",
+            bookTitle: "A Finished Story",
+            chapters: { c1: "done", c2: "done", c3: "done" },
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function spied(base: Api = createMockApi(NO_GLOSSARY)) {
@@ -283,6 +301,31 @@ describe("glossary-first guard in the editor", () => {
     await user.click(await toolbarButton("Translate chapter"));
     await waitFor(() => expect(api.translateChapter).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull();
+  });
+
+  it("does not ask when every volume is already translated", async () => {
+    const user = userEvent.setup();
+    const { api } = spied();
+    renderAt("/books/done-1?chapter=c1", api);
+    await pickFromTranslateMenu(user, "All chapters");
+    await waitFor(() => expect(api.translateAll).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull();
+  });
+
+  it("asks instead of translating when the glossary cannot be loaded", async () => {
+    const user = userEvent.setup();
+    const base = createMockApi(NO_GLOSSARY);
+    const { api, sent } = spied({
+      ...base,
+      getProjectSettings: () => Promise.reject(new Error("offline")),
+    });
+    renderAt("/books/named-1?chapter=c1", api);
+    await user.click(await toolbarButton("Translate chapter"));
+    const dialog = await expectPromptHolds(sent);
+    expect(dialog).toHaveTextContent("could not be loaded");
+    await user.click(within(dialog).getByRole("button", { name: "Translate anyway" }));
+    await waitFor(() => expect(sent()).toBe(1));
+    expect(glossarySkipStore.isSkipped("project-named")).toBe(false);
   });
 
   it("sends nothing and remembers nothing when the prompt is dismissed", async () => {
