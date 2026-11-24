@@ -11,7 +11,7 @@ One work published as a sequence of volumes, such as a single light novel series
 _Avoid_: Series, collection, group
 
 **Book**:
-One imported EPUB file, which is one volume of a project.
+One uploaded EPUB file, which is one volume of a project.
 _Avoid_: Epub, file
 
 **Volume number**:

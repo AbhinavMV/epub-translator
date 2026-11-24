@@ -126,30 +126,6 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
     review: "E6",
   },
   {
-    screen: "hosted library",
-    offender: 'overflows: section > div > a > div "狼と香辛料1 volumeFully translated"',
-    widths: [280, 639],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "hosted library",
-    offender: 'overflows: section > div > a > div "魔女の旅々2 volumesFully translated · French"',
-    widths: [280, 1023],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "library",
-    offender: 'overflows: section > div > a > div "狼と香辛料1 volumeFully translated"',
-    widths: [280, 639],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "library",
-    offender: 'overflows: section > div > a > div "魔女の旅々2 volumesFully translated · French"',
-    widths: [280, 1023],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
     screen: "project long title",
     offender:
       'overflows: div > a > div > h3[data-slot="tooltip-trigger"] "The Reincarnated Princess Who Only Wante…"',
