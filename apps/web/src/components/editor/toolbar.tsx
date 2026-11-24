@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBusy } from "@/lib/chapter-status";
+import { cn } from "@/lib/utils";
 
 export type TranslateActionKind = "translate" | "continue" | "retry" | "done" | "busy";
 
@@ -52,6 +53,55 @@ const ICON: Record<TranslateActionKind, ReactNode> = {
   busy: <Loader2 className="animate-spin" />,
 };
 
+/** The chapter's Translate button, labelled by `translateAction`; `wrap` lets the label wrap. */
+export function TranslateButton({
+  chapterProgress,
+  canTranslate,
+  noProviderHint,
+  starting,
+  onTranslate,
+  wrap = false,
+  className,
+}: {
+  chapterProgress: ChapterProgress | undefined;
+  canTranslate: boolean;
+  noProviderHint: string;
+  starting: boolean;
+  onTranslate: () => void;
+  wrap?: boolean;
+  className?: string;
+}) {
+  const action = translateAction(chapterProgress);
+  const blocked = action.kind === "busy" || action.kind === "done";
+  const main = (
+    <Button
+      size="sm"
+      className={cn(
+        "min-w-0",
+        wrap && "h-auto min-h-9 py-1.5 whitespace-normal coarse:h-auto coarse:min-h-11",
+        className,
+      )}
+      onClick={onTranslate}
+      disabled={!canTranslate || starting || blocked}
+    >
+      {starting && !blocked ? <Loader2 className="animate-spin" /> : ICON[action.kind]}
+      <span className={wrap ? "min-w-0 break-words" : "truncate"}>{action.label}</span>
+    </Button>
+  );
+  if (canTranslate) return main;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {/* biome-ignore lint/a11y/noNoninteractiveTabindex: disabled buttons cannot take focus; the tooltip needs a focusable wrapper */}
+        <span tabIndex={0} className={cn("inline-flex min-w-0", className)}>
+          {main}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{noProviderHint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function TranslateSplitButton({
   chapterProgress,
   canTranslate,
@@ -73,33 +123,16 @@ function TranslateSplitButton({
 }) {
   const action = translateAction(chapterProgress);
   const blocked = action.kind === "busy" || action.kind === "done";
-  const main = (
-    <Button
-      size="sm"
-      className="min-w-0 rounded-r-none"
-      onClick={onTranslate}
-      disabled={!canTranslate || starting || blocked}
-    >
-      {starting && !blocked ? <Loader2 className="animate-spin" /> : ICON[action.kind]}
-      <span className="truncate">{action.label}</span>
-    </Button>
-  );
-
   return (
     <div className="inline-flex min-w-0">
-      {canTranslate ? (
-        main
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {/* biome-ignore lint/a11y/noNoninteractiveTabindex: disabled buttons cannot take focus; the tooltip needs a focusable wrapper */}
-            <span tabIndex={0} className="inline-flex min-w-0">
-              {main}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{noProviderHint}</TooltipContent>
-        </Tooltip>
-      )}
+      <TranslateButton
+        chapterProgress={chapterProgress}
+        canTranslate={canTranslate}
+        noProviderHint={noProviderHint}
+        starting={starting}
+        onTranslate={onTranslate}
+        className="rounded-r-none"
+      />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -164,7 +197,7 @@ export function EditorToolbar({
   onExport?: ((href: string) => void) | undefined;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5 sm:px-5">
+    <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5 max-sm:hidden sm:px-5">
       <div className="flex min-w-0 max-w-full">{model}</div>
       <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
         {proofread}

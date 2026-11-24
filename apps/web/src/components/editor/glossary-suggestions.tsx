@@ -1,6 +1,6 @@
 import type { GlossaryEntry, GlossarySamplePlan, ProviderInfo, SampleSize } from "@et/contracts";
 import { Loader2, Sparkles, Square } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { useGlossaryPlans } from "@/api/queries";
 import { chunkSteps, totalPlan } from "@/api/suggestion-run";
 import { useSuggestionRun } from "@/api/use-suggestion-run";
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 import type { Selection } from "./model-selection";
 
 const number = new Intl.NumberFormat("en-US");
@@ -107,12 +108,76 @@ export function GlossarySuggestions({
         : "Suggesting…";
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
-      {controls}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
+    <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
+        {controls}
+        <SuggestField label="Model">
+          {(id) => (
+            <Select
+              value={model}
+              onValueChange={(next) =>
+                provider && setModelOverride({ provider: provider.id, model: next })
+              }
+              disabled={!provider || run.running}
+            >
+              <SelectTrigger id={id} className={cn(FIELD_TRIGGER, "font-mono text-xs")}>
+                <SelectValue placeholder="Model" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m} value={m} className="font-mono text-xs">
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </SuggestField>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <span className="text-sm font-medium">Sample size</span>
+        <ToggleGroup
+          type="single"
           variant="outline"
-          size="sm"
+          value={size}
+          onValueChange={(v) => v && setSize(v as SampleSize)}
+          disabled={run.running}
+          aria-label="Sample size"
+          className="w-full"
+        >
+          {SAMPLE_SIZES.map((s) => (
+            <ToggleGroupItem
+              key={s.value}
+              value={s.value}
+              className="h-auto min-h-9 min-w-0 flex-1 px-2 py-1.5 whitespace-normal"
+            >
+              {s.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <p className="min-h-4 text-xs text-muted-foreground tabular-nums">
+          {plans ? planLabel(plans.length, totalPlan(plans)) : ""}
+        </p>
+      </div>
+      {run.error && (
+        <p role="alert" className="text-sm break-words text-destructive">
+          {run.error}
+        </p>
+      )}
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        {usage && (
+          <span className="mr-auto font-mono text-xs text-muted-foreground">
+            {number.format(usage.inputTokens)} in · {number.format(usage.outputTokens)} out
+          </span>
+        )}
+        {run.running && (
+          <Button variant="ghost" onClick={stop}>
+            <Square />
+            Stop
+          </Button>
+        )}
+        <Button
+          className="h-auto min-h-9 whitespace-normal"
           disabled={!provider || !model || !plans || run.running}
           onClick={begin}
         >
@@ -123,76 +188,23 @@ export function GlossarySuggestions({
               ? "Suggest from all volumes"
               : "Suggest from volume"}
         </Button>
-        {run.running && (
-          <Button variant="ghost" size="sm" onClick={stop}>
-            <Square />
-            Stop
-          </Button>
-        )}
-        <Select
-          value={model}
-          onValueChange={(next) =>
-            provider && setModelOverride({ provider: provider.id, model: next })
-          }
-          disabled={!provider || run.running}
-        >
-          <SelectTrigger size="sm" className="w-[11rem] font-mono text-xs" aria-label="Model">
-            <SelectValue placeholder="Model" />
-          </SelectTrigger>
-          <SelectContent>
-            {models.map((m) => (
-              <SelectItem key={m} value={m} className="font-mono text-xs">
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {usage && (
-          <span className="font-mono text-xs text-muted-foreground">
-            {number.format(usage.inputTokens)} in · {number.format(usage.outputTokens)} out
-          </span>
-        )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
-          value={size}
-          onValueChange={(v) => v && setSize(v as SampleSize)}
-          disabled={run.running}
-          aria-label="Sample size"
-        >
-          {SAMPLE_SIZES.map((s) => (
-            <ToggleGroupItem key={s.value} value={s.value} className="px-2 text-xs">
-              {s.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {plans && (
-          <span className="text-xs text-muted-foreground">
-            {planLabel(plans.length, totalPlan(plans))}
-          </span>
-        )}
-      </div>
-      {run.error && (
-        <p role="alert" className="text-xs text-destructive">
-          {run.error}
-        </p>
-      )}
       {suggestions.length > 0 && (
-        <>
-          <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto text-sm">
+        <div className="flex min-w-0 flex-col gap-2 border-t pt-3">
+          <ul
+            aria-label="Suggested terms"
+            className="flex max-h-60 min-w-0 flex-col gap-1 overflow-y-auto text-sm"
+          >
             {suggestions.map((s, i) => (
               <li key={s.source}>
-                <label className="flex cursor-pointer items-start gap-2">
+                <label className="flex min-w-0 cursor-pointer items-start gap-2 py-0.5">
                   <input
                     type="checkbox"
                     className="mt-1"
                     checked={!unchecked.has(i)}
                     onChange={() => toggle(i)}
                   />
-                  <span>
+                  <span className="min-w-0 break-words">
                     <span className="font-medium">{s.source}</span> → {s.target}
                     {s.note && <span className="text-muted-foreground"> ({s.note})</span>}
                   </span>
@@ -200,11 +212,31 @@ export function GlossarySuggestions({
               </li>
             ))}
           </ul>
-          <Button size="sm" className="self-start" disabled={selectedCount === 0} onClick={add}>
+          <Button className="self-start" disabled={selectedCount === 0} onClick={add}>
             Add selected ({selectedCount})
           </Button>
-        </>
+        </div>
       )}
+    </div>
+  );
+}
+
+export const FIELD_TRIGGER = "w-full min-w-0";
+
+export function SuggestField({
+  label,
+  children,
+}: {
+  label: string;
+  children: (id: string) => ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      {children(id)}
     </div>
   );
 }

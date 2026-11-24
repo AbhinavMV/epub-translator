@@ -36,9 +36,14 @@ export function ProofreadMenu({
   onStart,
   onStop,
   waiting = 0,
+  labelled = false,
+  className,
 }: {
   /** Suggestions in the open chapter still to accept or reject. */
   waiting?: number;
+  /** Always show the label, not only on wide screens (the phone editor's More sheet). */
+  labelled?: boolean;
+  className?: string;
   scope: ProofreadScope;
   run: ProofreadRunState;
   disabledHint: string | null;
@@ -50,7 +55,13 @@ export function ProofreadMenu({
 
   if (run.running) {
     return (
-      <Button variant="outline" size="sm" onClick={onStop} aria-label="Stop proofreading">
+      <Button
+        variant="outline"
+        size="sm"
+        className={className}
+        onClick={onStop}
+        aria-label="Stop proofreading"
+      >
         <Loader2 className="animate-spin" />
         <span>
           Proofreading {Math.min(run.done + 1, run.total)}/{run.total}
@@ -66,6 +77,7 @@ export function ProofreadMenu({
       size="sm"
       disabled={disabledHint !== null}
       title="Proofread"
+      className={className}
       aria-label={
         waiting > 0
           ? `Proofread, ${waiting} suggestion${waiting === 1 ? "" : "s"} waiting`
@@ -73,7 +85,7 @@ export function ProofreadMenu({
       }
     >
       <SpellCheck />
-      <span className="max-xl:hidden">Proofread</span>
+      <span className={labelled ? undefined : "max-xl:hidden"}>Proofread</span>
       {waiting > 0 && (
         <span className="rounded-full bg-primary/15 px-1.5 text-xs font-medium text-primary tabular-nums">
           {waiting}

@@ -122,18 +122,20 @@ function projectApi(
 }
 
 describe("project glossary and custom prompt", () => {
-  it("shows the glossary size and its unresolved conflicts", async () => {
+  it("shows the glossary entries and its unresolved conflicts in the tab", async () => {
     renderAt("/projects/p1?tab=glossary", projectApi());
     const section = await screen.findByRole("tabpanel", { name: /Glossary/ });
-    expect(await within(section).findByText(/1 glossary entry,/)).toBeInTheDocument();
-    expect(within(section).getByText(/1 glossary conflict/)).toBeInTheDocument();
+    expect(await within(section).findByDisplayValue("Elaina")).toBeInTheDocument();
+    expect(within(section).getByText(/1 of 2,000 entries/)).toBeInTheDocument();
+    expect(
+      within(section).getByRole("region", { name: "1 glossary conflict to settle" }),
+    ).toBeInTheDocument();
   });
 
   it("saves glossary edits to the project, keeping its prompt", async () => {
     const api = projectApi();
     renderAt("/projects/p1?tab=glossary", api);
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await userEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Add entry" }));
     const sources = screen.getAllByRole("textbox", { name: "Source term" });
     const targets = screen.getAllByRole("textbox", { name: "Rendering" });
     await userEvent.type(sources.at(-1) as HTMLElement, "サヤ");
@@ -239,9 +241,8 @@ describe("project glossary and custom prompt", () => {
   it("locks the volume picker while suggestions are running", async () => {
     const api = { ...projectApi(), suggestGlossary: () => new Promise<never>(() => {}) };
     renderAt("/projects/p1?tab=glossary", api);
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await screen.findByText(/1 request/);
-    const picker = screen.getByRole("combobox", { name: "Volume to sample" });
+    await openSuggest();
+    const picker = screen.getByRole("combobox", { name: "Read from" });
     expect(picker).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Suggest from volume" }));
     await waitFor(() => expect(picker).toBeDisabled());
@@ -254,8 +255,7 @@ describe("project glossary and custom prompt", () => {
     }));
     const api = { ...projectApi(), suggestGlossary };
     renderAt("/projects/p1?tab=glossary", api);
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await screen.findByText(/1 request/);
+    await openSuggest();
     await userEvent.click(await screen.findByRole("button", { name: "Suggest from volume" }));
     expect(suggestGlossary).toHaveBeenCalledWith(
       "v2",
@@ -267,12 +267,19 @@ describe("project glossary and custom prompt", () => {
     expect(api.saveProjectTerms).toHaveBeenCalledWith("p1", {
       customPrompt: "Keep honorifics.",
       glossary: [
-        { source: "イレイナ", target: "Elaina" },
         { source: "サヤ", target: "Saya" },
+        { source: "イレイナ", target: "Elaina" },
       ],
     });
   });
 });
+
+async function openSuggest() {
+  await userEvent.click(await screen.findByRole("button", { name: "Suggest terms" }));
+  const panel = screen.getByRole("region", { name: "Suggest terms" });
+  await within(panel).findByText(/\d+ requests? ·/);
+  return panel;
+}
 
 describe("suggesting from all volumes", () => {
   const plans: Record<string, { requests: number; chars: number }> = {
@@ -297,8 +304,8 @@ describe("suggesting from all volumes", () => {
   }
 
   async function chooseAllVolumes() {
-    await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
-    await userEvent.click(screen.getByRole("combobox", { name: "Volume to sample" }));
+    await openSuggest();
+    await userEvent.click(screen.getByRole("combobox", { name: "Read from" }));
     await userEvent.click(await screen.findByRole("option", { name: "All volumes" }));
   }
 
@@ -328,7 +335,7 @@ describe("suggesting from all volumes", () => {
     }));
     renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await within(screen.getByRole("dialog")).findByText(/3 volumes/);
+    await within(screen.getByRole("region", { name: "Suggest terms" })).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
@@ -352,7 +359,7 @@ describe("suggesting from all volumes", () => {
     );
     renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await within(screen.getByRole("dialog")).findByText(/3 volumes/);
+    await within(screen.getByRole("region", { name: "Suggest terms" })).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
     expect(await screen.findByText("Suggesting… volume 2 of 3")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
@@ -371,7 +378,7 @@ describe("suggesting from all volumes", () => {
     });
     renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await within(screen.getByRole("dialog")).findByText(/3 volumes/);
+    await within(screen.getByRole("region", { name: "Suggest terms" })).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Rate limited");
