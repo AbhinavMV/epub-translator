@@ -27,7 +27,7 @@ export function EditorHeader({
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="max-sm:hidden md:hidden"
           aria-label="Open chapters"
           onClick={onOpenRail}
         >

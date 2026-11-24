@@ -1,6 +1,7 @@
 import { type BookSettings, CONTENTS_CHAPTER_ID, type TranslateMode } from "@et/contracts";
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
+import { BookOpen } from "lucide-react";
+import { type ComponentProps, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useApi } from "@/api/api-context";
 import {
@@ -18,22 +19,30 @@ import {
 } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
 import { useProofreadRun } from "@/api/use-proofread-run";
+import { volumeLabel } from "@/components/app-header";
 import { ChapterRailPanel, ChapterSheet } from "@/components/chapter-rail";
 import { ChapterPager } from "@/components/editor/chapter-pager";
 import { ChapterStatusBlock } from "@/components/editor/chapter-status-block";
 import { EditorHeader } from "@/components/editor/editor-header";
+import { ExportMenu } from "@/components/editor/export-menu";
 import { resolveSelection, type Selection } from "@/components/editor/model-selection";
 import { ModelSheet } from "@/components/editor/model-sheet";
-import { EditorPanes } from "@/components/editor/panes";
+import { MORE_ITEM, MoreSheet } from "@/components/editor/more-sheet";
+import { copyText, EditorPanes } from "@/components/editor/panes";
+import { PhoneBar } from "@/components/editor/phone-bar";
 import { ProofreadMenu } from "@/components/editor/proofread-menu";
 import { ProofreadBar, ProofreadSheet } from "@/components/editor/proofread-review";
-import { EditorToolbar } from "@/components/editor/toolbar";
+import { EditorToolbar, TranslateButton } from "@/components/editor/toolbar";
 import { TranslationError } from "@/components/editor/translation-error";
 import { useLeaveNotice } from "@/components/editor/use-leave-notice";
+import { type EditorView, ViewSwitch } from "@/components/editor/view-switch";
+import { Button } from "@/components/ui/button";
 import { useHosted } from "@/keys/hosted-context";
 import { contentsFirst } from "@/lib/chapter-order";
 import { chapterStatus, hasAnyTranslation, isBusy, progressFor } from "@/lib/chapter-status";
 import { useRecordLastOpened } from "@/lib/last-opened-store";
+import { modelName } from "@/lib/model-name";
+import { chapterText } from "@/lib/text";
 import { effectiveMode, loadMode, saveMode } from "@/lib/translate-mode";
 import { useBatchPolling, useHostedSync } from "@/translate/use-hosted-sync";
 
@@ -90,6 +99,9 @@ export function BookPage() {
 
   const [railOpen, setRailOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [phoneView, setPhoneView] = useState<EditorView>("both");
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset scroll when the chapter changes
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -224,6 +236,46 @@ export function BookPage() {
     sourceLang: book.data?.sourceLang,
   };
 
+  const proofreadProps: Omit<ComponentProps<typeof ProofreadMenu>, "labelled" | "className"> = {
+    waiting: pendingHere.size,
+    scope: {
+      chapterId,
+      chapterTranslated: (chapterProgress?.done ?? 0) > 0,
+      chapterProofread: Boolean(chapterId && proofreadIds.has(chapterId)),
+      unproofread: translatedIds.filter((id) => !proofreadIds.has(id)),
+      translated: translatedIds,
+    },
+    run: proofreadRun.state,
+    disabledHint:
+      !selection || !jobId
+        ? noProviderHint
+        : translatedIds.length === 0
+          ? "Translate a chapter first"
+          : null,
+    modelLabel: `${providerLabel ?? selection?.provider ?? "the AI"} (${selection?.model ?? ""})`,
+    onStart: (ids) => selection && void proofreadRun.start(ids, selection),
+    onStop: proofreadRun.stop,
+  };
+  const exportProps: Omit<ComponentProps<typeof ExportMenu>, "labelled" | "className"> = {
+    translationHref: jobId ? api.exportUrl(jobId, "epub") : undefined,
+    bilingualHref: jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined,
+    txtHref: jobId ? api.exportUrl(jobId, "txt") : undefined,
+    onExport: api.signedExports
+      ? (href) => {
+          api.openExport(href).catch(() => toast.error("Could not prepare the export"));
+        }
+      : undefined,
+    disabled: !hasAnyTranslation(job.data),
+    hint: "Translate a chapter first",
+  };
+  const canTranslate = Boolean(selection && jobId && chapterId);
+  const starting = action.isPending && action.variables?.kind !== "clear";
+  const titlesBusy = isBusy(progressFor(job.data, CONTENTS_CHAPTER_ID)?.status);
+  const chapterTranslated = (chapterProgress?.done ?? 0) > 0;
+  const clearChapter = () => chapterId && action.mutate({ kind: "clear", chapterId });
+  const reviewTotal = proofread.data?.suggestions.length ?? 0;
+  const translationText = chapter.data ? chapterText(chapter.data, "target") : "";
+
   return (
     <div className="flex h-dvh flex-col">
       <EditorHeader
@@ -249,53 +301,29 @@ export function BookPage() {
                 onMode={onMode}
                 targetLang={targetLang}
                 onTargetLang={setTargetLang}
+                open={modelOpen}
+                onOpenChange={setModelOpen}
               />
             }
-            proofread={
-              <ProofreadMenu
-                waiting={pendingHere.size}
-                scope={{
-                  chapterId,
-                  chapterTranslated: (chapterProgress?.done ?? 0) > 0,
-                  chapterProofread: Boolean(chapterId && proofreadIds.has(chapterId)),
-                  unproofread: translatedIds.filter((id) => !proofreadIds.has(id)),
-                  translated: translatedIds,
-                }}
-                run={proofreadRun.state}
-                disabledHint={
-                  !selection || !jobId
-                    ? noProviderHint
-                    : translatedIds.length === 0
-                      ? "Translate a chapter first"
-                      : null
-                }
-                modelLabel={`${providerLabel ?? selection?.provider ?? "the AI"} (${selection?.model ?? ""})`}
-                onStart={(ids) => selection && void proofreadRun.start(ids, selection)}
-                onStop={proofreadRun.stop}
-              />
-            }
+            proofread={<ProofreadMenu {...proofreadProps} />}
             chapterProgress={chapterProgress}
-            canTranslate={Boolean(selection && jobId && chapterId)}
+            canTranslate={canTranslate}
             noProviderHint={noProviderHint}
-            starting={action.isPending && action.variables?.kind !== "clear"}
-            hasTranslation={hasAnyTranslation(job.data)}
+            starting={starting}
+            hasTranslation={!exportProps.disabled}
             onTranslate={() => startTranslation(chapterId)}
             onTranslateAll={() => startTranslation(null)}
             onTranslateTitles={() => startTranslation(CONTENTS_CHAPTER_ID)}
-            titlesBusy={isBusy(progressFor(job.data, CONTENTS_CHAPTER_ID)?.status)}
-            epubHref={jobId ? api.exportUrl(jobId, "epub") : undefined}
-            bilingualEpubHref={jobId ? api.exportUrl(jobId, "epub", "bilingual") : undefined}
-            txtHref={jobId ? api.exportUrl(jobId, "txt") : undefined}
-            onExport={
-              api.signedExports
-                ? (href) => {
-                    api.openExport(href).catch(() => toast.error("Could not prepare the export"));
-                  }
-                : undefined
-            }
+            titlesBusy={titlesBusy}
+            epubHref={exportProps.translationHref}
+            bilingualEpubHref={exportProps.bilingualHref}
+            txtHref={exportProps.txtHref}
+            onExport={exportProps.onExport}
           />
           <TranslationError chapterError={chapterProgress?.error} jobError={job.data?.error} />
-          <ProofreadBar proofread={proofread.data} onOpen={() => setReviewOpen(true)} />
+          <div className="max-sm:hidden">
+            <ProofreadBar proofread={proofread.data} onOpen={() => setReviewOpen(true)} />
+          </div>
           <ProofreadSheet
             open={reviewOpen}
             onOpenChange={setReviewOpen}
@@ -327,6 +355,11 @@ export function BookPage() {
             onJump={jumpTo}
           />
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background">
+            <ViewSwitch
+              view={phoneView}
+              onChange={setPhoneView}
+              className="sticky top-0 z-20 sm:hidden"
+            />
             <ChapterStatusBlock
               title={chapterTitle}
               progress={chapterProgress}
@@ -343,16 +376,17 @@ export function BookPage() {
               busy={busy}
               sourceLang={(book.data?.sourceLang ?? "src").slice(0, 2)}
               targetLang={targetLang}
-              hasTranslation={(chapterProgress?.done ?? 0) > 0}
+              hasTranslation={chapterTranslated}
               hasMore={chapter.hasMore}
               loadingMore={chapter.loadingMore}
               onLoadMore={chapter.loadMore}
-              canRetry={Boolean(selection && jobId && chapterId) && !busy}
+              canRetry={canTranslate && !busy}
               failedCount={chapterProgress?.failed}
               onRetryFailed={() => startTranslation(chapterId)}
-              onClear={() => chapterId && action.mutate({ kind: "clear", chapterId })}
+              onClear={clearChapter}
               suggested={pendingHere}
               onSuggestion={openSuggestion}
+              phoneView={phoneView}
             />
             {!chapter.hasMore && (
               <ChapterPager
@@ -363,6 +397,62 @@ export function BookPage() {
               />
             )}
           </div>
+          <PhoneBar
+            onChapters={() => setRailOpen(true)}
+            onMore={() => setMoreOpen(true)}
+            translate={
+              <TranslateButton
+                wrap
+                chapterProgress={chapterProgress}
+                canTranslate={canTranslate}
+                noProviderHint={noProviderHint}
+                starting={starting}
+                onTranslate={() => startTranslation(chapterId)}
+              />
+            }
+          />
+          <MoreSheet
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
+            title={book.data ? volumeLabel(book.data) : "More"}
+            modelLabel={selection ? modelName(selection.model) : "Choose a model"}
+            onModel={() => setModelOpen(true)}
+            translateDisabled={!canTranslate || starting}
+            titlesDisabled={!canTranslate || starting || titlesBusy}
+            onTranslateAll={() => startTranslation(null)}
+            onTranslateTitles={() => startTranslation(CONTENTS_CHAPTER_ID)}
+            proofread={<ProofreadMenu {...proofreadProps} labelled className={MORE_ITEM} />}
+            review={
+              reviewTotal > 0
+                ? {
+                    label:
+                      pendingHere.size > 0
+                        ? `Review ${pendingHere.size} suggestion${pendingHere.size === 1 ? "" : "s"}`
+                        : "Show proofread results",
+                    onOpen: () => setReviewOpen(true),
+                  }
+                : null
+            }
+            exportMenu={<ExportMenu {...exportProps} labelled className={MORE_ITEM} />}
+            read={
+              chapterId ? (
+                <Button variant="ghost" className={MORE_ITEM} asChild>
+                  <Link
+                    to="/books/$bookId/read/$chapterId"
+                    params={{ bookId, chapterId }}
+                    search={{ job: jobId }}
+                  >
+                    <BookOpen />
+                    Read this volume
+                  </Link>
+                </Button>
+              ) : null
+            }
+            onCopy={
+              translationText ? () => void copyText(translationText, "Translation") : undefined
+            }
+            onClear={chapterTranslated && !busy ? clearChapter : undefined}
+          />
         </main>
       </div>
     </div>
