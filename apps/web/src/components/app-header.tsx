@@ -61,6 +61,8 @@ function labelOf(crumb: Crumb): string {
 const LINK =
   "block min-w-0 truncate rounded-md px-1.5 py-2 leading-5 text-muted-foreground coarse:py-3 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring";
 
+const SEPARATOR = "shrink-0 px-0.5 text-border";
+
 function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
   const label = labelOf(crumb);
   const props = { className, title: label, "data-overflow": "clip" as const };
@@ -89,44 +91,50 @@ function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
 }
 
 export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
-  const last = crumbs.length - 1;
+  const current = crumbs.at(-1);
+  const above = crumbs.slice(0, -1);
+  if (!current) return <nav aria-label="Breadcrumb" className="min-w-0 flex-1" />;
+  const label = labelOf(current);
+  // On a phone the Library level gives way when there are deeper levels to show.
+  const libraryHidden = above[0]?.kind === "library" && above.length > 1;
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
-      {crumbs.map((crumb, i) => {
-        const current = i === last;
-        // On a phone the Library level gives way when there are deeper levels to show.
-        const phoneHidden = crumb.kind === "library" && !current && last >= 2;
-        const afterHidden = i === 1 && crumbs[0]?.kind === "library" && last >= 2;
-        const label = labelOf(crumb);
-        return (
-          <Fragment key={`${crumb.kind}-${label}`}>
-            {i > 0 && (
-              <span
-                aria-hidden
-                className={cn("shrink-0 px-0.5 text-border", afterHidden && "max-sm:hidden")}
-              >
-                /
-              </span>
-            )}
-            {current ? (
-              <span
-                aria-current="page"
-                title={crumb.kind === "current" && crumb.hint ? crumb.hint : label}
-                data-overflow="clip"
-                lang={crumb.kind === "current" ? crumb.lang : undefined}
-                className="block min-w-0 shrink truncate px-1.5 py-2 leading-5 font-medium text-foreground"
-              >
-                {label}
-              </span>
-            ) : (
-              <CrumbLink
-                crumb={crumb}
-                className={cn(LINK, "shrink-[4]", phoneHidden && "max-sm:hidden")}
-              />
-            )}
-          </Fragment>
-        );
-      })}
+      {above.length > 0 && (
+        // Starts from zero width and grows only into space the current page leaves, so the
+        // levels above clip first and the current page clips only when it alone is too wide.
+        <span className="flex max-w-fit min-w-8 grow basis-0 items-center">
+          {above.map((crumb, i) => {
+            const phoneHidden = libraryHidden && i <= 1;
+            return (
+              <Fragment key={`${crumb.kind}-${labelOf(crumb)}`}>
+                {i > 0 && (
+                  <span aria-hidden className={cn(SEPARATOR, phoneHidden && "max-sm:hidden")}>
+                    /
+                  </span>
+                )}
+                <CrumbLink
+                  crumb={crumb}
+                  className={cn(LINK, i === 0 && phoneHidden && "max-sm:hidden")}
+                />
+              </Fragment>
+            );
+          })}
+        </span>
+      )}
+      {above.length > 0 && (
+        <span aria-hidden className={SEPARATOR}>
+          /
+        </span>
+      )}
+      <span
+        aria-current="page"
+        title={current.kind === "current" && current.hint ? current.hint : label}
+        data-overflow="clip"
+        lang={current.kind === "current" ? current.lang : undefined}
+        className="block min-w-0 truncate px-1.5 py-2 leading-5 font-medium text-foreground"
+      >
+        {label}
+      </span>
     </nav>
   );
 }
