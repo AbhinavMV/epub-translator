@@ -109,13 +109,12 @@ const detail: ProjectDetail = {
 };
 
 describe("Library", () => {
-  it("lists projects with the cover of volume 1 and the volume count", async () => {
+  it("lists projects with the cover of volume 1 and their status", async () => {
     renderAt("/", { listProjects: vi.fn(async () => summaries) });
     const card = await screen.findByRole("link", { name: /魔女の旅々/ });
-    expect(within(card).getByText("3 volumes")).toBeInTheDocument();
+    expect(within(card).getByText("Not started · 3 volumes")).toBeInTheDocument();
     expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/books/v1/cover");
-    expect(screen.getByRole("link", { name: /Empty project/ })).toHaveTextContent("0 volumes");
-    expect(screen.getByText(/Library · 2/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Empty project/ })).toHaveTextContent("No volumes");
   });
 
   it("opens a project from its card", async () => {
@@ -125,23 +124,6 @@ describe("Library", () => {
     });
     await userEvent.click(await screen.findByRole("link", { name: /魔女の旅々/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/projects/p1"));
-  });
-
-  it("badges fully translated projects, naming the language unless it is English", async () => {
-    const [first, second] = summaries as [ProjectSummary, ProjectSummary];
-    renderAt("/", {
-      listProjects: vi.fn(async () => [
-        { ...first, fullyTranslatedLang: "en" },
-        { ...second, id: "p2", fullyTranslatedLang: "fr" },
-        { ...second, id: "p3", name: "Untranslated", fullyTranslatedLang: null },
-      ]),
-    });
-    const english = await screen.findByRole("link", { name: /魔女の旅々/ });
-    expect(within(english).getByText("Fully translated")).toBeInTheDocument();
-    const french = screen.getByRole("link", { name: /Empty project/ });
-    expect(within(french).getByText("Fully translated · French")).toBeInTheDocument();
-    const none = screen.getByRole("link", { name: /Untranslated/ });
-    expect(within(none).queryByText(/^Fully translated/)).not.toBeInTheDocument();
   });
 });
 

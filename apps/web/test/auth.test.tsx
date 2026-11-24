@@ -130,6 +130,16 @@ describe("sign-in", () => {
     await screen.findByLabelText("Email");
     expect(screen.queryByText(/sign up|register|create account/i)).toBeNull();
   });
+
+  it("titles the page and says where reset links come from", async () => {
+    renderApp({
+      path: "/signin",
+      client: new FakeAuthClient(null),
+      routes: { "/signin": SignInPage },
+    });
+    expect(await screen.findByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByText(/Ask the person who invited you for a reset link/)).toBeInTheDocument();
+  });
 });
 
 describe("authedFetch", () => {
