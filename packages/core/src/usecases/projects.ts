@@ -4,10 +4,11 @@ import { compareVolumes, type Project, unnumberedVolumeNumber } from "../domain/
 import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
 import {
-  type FullyTranslatedDeps,
+  type ProjectProgressDeps,
+  type ProjectProgressSummary,
   projectProgress,
   type VolumeProgress,
-} from "./fully-translated.ts";
+} from "./project-progress.ts";
 
 export interface ProjectWithBooks {
   project: Project;
@@ -42,33 +43,24 @@ export async function requireProject(
 }
 
 export interface ProjectOverview extends ProjectWithBooks {
-  /** The target language every volume is completely translated into, if any. */
-  fullyTranslatedLang: string | null;
-  /** Per volume id, the preferred target language that volume is completely translated into. */
-  volumeLangs: Map<string, string | null>;
-  mainLang: string | null;
-  translatedVolumeCount: number;
-  volumePercents: Map<string, number | null>;
+  progress: ProjectProgressSummary;
+  /** Per volume id. */
+  volumes: Map<string, VolumeProgress>;
 }
 
-type OverviewDeps = ProjectDeps & FullyTranslatedDeps;
+type OverviewDeps = ProjectDeps & ProjectProgressDeps;
 
 async function overview(deps: OverviewDeps, entry: ProjectWithBooks): Promise<ProjectOverview> {
-  const progress = await projectProgress(deps, entry.books);
-  const perBook = <T>(pick: (v: VolumeProgress) => T) =>
-    new Map(
-      entry.books.map((b, i) => {
-        const v = progress.volumes[i];
-        return [b.id, v ? pick(v) : null] as const;
-      }),
-    );
+  const { volumes, ...progress } = await projectProgress(deps, entry.books);
   return {
     ...entry,
-    fullyTranslatedLang: progress.fullyTranslatedLang,
-    mainLang: progress.mainLang,
-    translatedVolumeCount: progress.translatedVolumeCount,
-    volumeLangs: perBook((v) => v.completeLangs[0] ?? null),
-    volumePercents: perBook((v) => v.translatedPercent),
+    progress,
+    volumes: new Map(
+      entry.books.flatMap((b, i) => {
+        const v = volumes[i];
+        return v ? [[b.id, v] as const] : [];
+      }),
+    ),
   };
 }
 
