@@ -2,7 +2,8 @@ import type { ProjectSummary } from "@et/contracts";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { CoverPlaceholder } from "@/components/cover-placeholder";
-import { FullyTranslatedBadge } from "@/components/fully-translated-badge";
+import { StatusLine } from "@/components/status-line";
+import { projectProgress } from "@/lib/progress-status";
 
 export function ProjectCard({ project }: { project: ProjectSummary }) {
   const [coverFailed, setCoverFailed] = useState(false);
@@ -10,9 +11,9 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
     <Link
       to="/projects/$projectId"
       params={{ projectId: project.id }}
-      className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow outline-none hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring"
+      className="group flex h-full min-w-0 flex-col gap-2.5 rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
     >
-      <div className="aspect-[2/3] w-full overflow-hidden bg-muted">
+      <div className="aspect-[2/3] w-full overflow-hidden rounded-r-lg rounded-l-sm bg-muted shadow-sm transition-[transform,box-shadow] group-hover:-translate-y-0.5 group-hover:shadow-md">
         {project.coverUrl && !coverFailed ? (
           <img
             src={project.coverUrl}
@@ -25,14 +26,14 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
           <CoverPlaceholder title={project.name} />
         )}
       </div>
-      <div className="flex flex-col gap-1 p-3">
-        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm leading-tight font-semibold">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <h3
+          title={project.name}
+          className="line-clamp-2 min-h-[2lh] text-sm leading-snug font-semibold break-words"
+        >
           {project.name}
         </h3>
-        <p className="font-mono text-xs text-muted-foreground">
-          {project.volumeCount === 1 ? "1 volume" : `${project.volumeCount} volumes`}
-        </p>
-        <FullyTranslatedBadge lang={project.fullyTranslatedLang} />
+        <StatusLine status={projectProgress(project)} className="mt-auto" />
       </div>
     </Link>
   );
