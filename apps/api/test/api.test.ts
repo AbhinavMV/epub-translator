@@ -220,8 +220,85 @@ describe("projects api", () => {
         volumeCount: 1,
         coverUrl: `/api/books/${book.id}/cover`,
         fullyTranslatedLang: null,
+        mainLang: null,
+        translatedVolumeCount: 0,
       },
     ]);
+  });
+
+  it("reports the main language and progress in it across volumes and languages", async () => {
+    const { app, services } = setup();
+    const one = BookSummarySchema.parse(await (await upload(app)).json());
+    const two = BookSummarySchema.parse(
+      await (await upload(app, new Uint8Array([...EPUB_MAGIC, 2]))).json(),
+    );
+    const projectId = one.projectId ?? "";
+    expect(two.projectId).toBe(projectId);
+    await services.repos.projects.create({ id: "empty", name: "Empty", createdAt: "2026-01-01" });
+    const job = async (bookId: string, lang: string) =>
+      JobSummarySchema.parse(
+        await (await app.request(`/api/books/${bookId}/workspace?targetLang=${lang}`)).json(),
+      ).id;
+    const oneFr = await job(one.id, "fr");
+    const twoEs = await job(two.id, "es");
+    const twoFr = await job(two.id, "fr");
+    const progress = async () => {
+      const list = z
+        .array(ProjectSummarySchema)
+        .parse(await (await app.request("/api/projects")).json());
+      const detail = ProjectDetailSchema.parse(
+        await (await app.request(`/api/projects/${projectId}`)).json(),
+      );
+      const summary = list.find((p) => p.id === projectId);
+      const percent = (id: string) => detail.books.find((b) => b.id === id)?.translatedPercent;
+      return {
+        mainLang: [summary?.mainLang, detail.mainLang],
+        translatedVolumeCount: summary?.translatedVolumeCount,
+        fullyTranslatedLang: summary?.fullyTranslatedLang,
+        percents: [percent(one.id), percent(two.id)],
+      };
+    };
+    const put = (jobId: string, segmentId: string, status: "done" | "flagged" = "done") =>
+      services.repos.translations.put(jobId, segmentId, { text: "t", status });
+
+    expect(await progress()).toEqual({
+      mainLang: [null, null],
+      translatedVolumeCount: 0,
+      fullyTranslatedLang: null,
+      percents: [null, null],
+    });
+
+    await put(oneFr, "a.xhtml#0");
+    await put(twoEs, "a.xhtml#0");
+    expect(await progress()).toEqual({
+      mainLang: ["es", "es"],
+      translatedVolumeCount: 0,
+      fullyTranslatedLang: null,
+      percents: [0, 50],
+    });
+
+    await put(oneFr, "a.xhtml#1", "flagged");
+    expect(await progress()).toEqual({
+      mainLang: ["fr", "fr"],
+      translatedVolumeCount: 1,
+      fullyTranslatedLang: null,
+      percents: [100, 0],
+    });
+
+    await put(twoFr, "a.xhtml#0");
+    await put(twoFr, "a.xhtml#1");
+    expect(await progress()).toEqual({
+      mainLang: ["fr", "fr"],
+      translatedVolumeCount: 2,
+      fullyTranslatedLang: "fr",
+      percents: [100, 100],
+    });
+
+    const empty = z
+      .array(ProjectSummarySchema)
+      .parse(await (await app.request("/api/projects")).json())
+      .find((p) => p.id === "empty");
+    expect(empty).toMatchObject({ volumeCount: 0, mainLang: null, translatedVolumeCount: 0 });
   });
 
   it("reports a project fully translated once every segment is done or flagged", async () => {

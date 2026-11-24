@@ -3,7 +3,11 @@ import { NotFoundError } from "../domain/errors.ts";
 import { compareVolumes, type Project, unnumberedVolumeNumber } from "../domain/project.ts";
 import { parseVolumeTitle } from "../domain/volume-title.ts";
 import type { BookRepository, ProjectRepository } from "../ports/stores.ts";
-import { commonLanguage, completeLanguages, type FullyTranslatedDeps } from "./fully-translated.ts";
+import {
+  type FullyTranslatedDeps,
+  projectProgress,
+  type VolumeProgress,
+} from "./fully-translated.ts";
 
 export interface ProjectWithBooks {
   project: Project;
@@ -42,16 +46,30 @@ export interface ProjectOverview extends ProjectWithBooks {
   fullyTranslatedLang: string | null;
   /** Per volume id, the preferred target language that volume is completely translated into. */
   volumeLangs: Map<string, string | null>;
+  mainLang: string | null;
+  translatedVolumeCount: number;
+  /** Per volume id, the percentage translated into the main language. */
+  volumePercents: Map<string, number | null>;
 }
 
 type OverviewDeps = ProjectDeps & FullyTranslatedDeps;
 
 async function overview(deps: OverviewDeps, entry: ProjectWithBooks): Promise<ProjectOverview> {
-  const perVolume = await completeLanguages(deps, entry.books);
+  const progress = await projectProgress(deps, entry.books);
+  const perBook = <T>(pick: (v: VolumeProgress) => T) =>
+    new Map(
+      entry.books.map((b, i) => {
+        const v = progress.volumes[i];
+        return [b.id, v ? pick(v) : null] as const;
+      }),
+    );
   return {
     ...entry,
-    fullyTranslatedLang: commonLanguage(perVolume),
-    volumeLangs: new Map(entry.books.map((b, i) => [b.id, perVolume[i]?.[0] ?? null])),
+    fullyTranslatedLang: progress.fullyTranslatedLang,
+    mainLang: progress.mainLang,
+    translatedVolumeCount: progress.translatedVolumeCount,
+    volumeLangs: perBook((v) => v.completeLangs[0] ?? null),
+    volumePercents: perBook((v) => v.translatedPercent),
   };
 }
 

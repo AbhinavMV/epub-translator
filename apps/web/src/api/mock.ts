@@ -422,27 +422,60 @@ export function createMockApi(): Api {
     const complete = (lang: string) => volumes.every((b) => isComplete(b, lang));
     return volumes.length > 0 ? (allLangs().find(complete) ?? null) : null;
   };
+  const best = (b: BookSummary, lang: string) =>
+    Math.max(
+      0,
+      ...[...jobs.values()]
+        .filter((j) => j.bookId === b.id && j.targetLang === lang)
+        .map(translated),
+    );
+  const mainLang = (projectId: string) => {
+    const volumes = booksOf(projectId);
+    const ranked = allLangs()
+      .map((lang) => ({
+        lang,
+        complete: volumes.filter((b) => isComplete(b, lang)).length,
+        started: volumes.filter((b) => isComplete(b, lang) || best(b, lang) > 0).length,
+      }))
+      .filter(({ started }) => started > 0)
+      .sort((a, b) => b.complete - a.complete || b.started - a.started);
+    return ranked[0]?.lang ?? null;
+  };
+  const translatedPercent = (b: BookSummary, lang: string | null) => {
+    if (!lang) return null;
+    if (isComplete(b, lang)) return 100;
+    return b.segmentCount ? Math.min(99, Math.floor((best(b, lang) * 100) / b.segmentCount)) : 0;
+  };
 
   const api: Api = {
     listProjects: () =>
       delay(
         [...projects.values()].map((p) => {
-          const first = booksOf(p.id)[0];
+          const volumes = booksOf(p.id);
+          const main = mainLang(p.id);
           return {
             ...p,
-            volumeCount: booksOf(p.id).length,
-            coverUrl: first?.coverUrl ?? null,
+            volumeCount: volumes.length,
+            coverUrl: volumes[0]?.coverUrl ?? null,
             fullyTranslatedLang: fullyTranslatedLang(p.id),
+            mainLang: main,
+            translatedVolumeCount: main ? volumes.filter((b) => isComplete(b, main)).length : 0,
           };
         }),
       ),
     async getProject(id): Promise<ProjectDetail> {
       const project = projects.get(id);
       if (!project) throw new Error("Project not found");
+      const main = mainLang(id);
       return delay({
         ...project,
-        books: booksOf(id).map((b) => ({ ...b, translatedLang: volumeLang(b) })),
+        books: booksOf(id).map((b) => ({
+          ...b,
+          translatedLang: volumeLang(b),
+          translatedPercent: translatedPercent(b, main),
+        })),
         fullyTranslatedLang: fullyTranslatedLang(id),
+        mainLang: main,
       });
     },
     async renameProject(id, name) {

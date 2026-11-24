@@ -83,6 +83,7 @@ const detail: ProjectDetail = {
   createdAt: "2026-10-02T00:00:00.000Z",
   books: [book("v1", 1), book("v2", 2)],
   fullyTranslatedLang: null,
+  mainLang: null,
 };
 
 const providers: ProviderInfo[] = [

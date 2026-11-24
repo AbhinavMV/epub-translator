@@ -72,11 +72,19 @@ describe("project overviews", () => {
       await deps.translations.put("j1", s.id, { text: "t", status: "done" });
     }
     const [overview] = await listProjectOverviews(deps);
-    expect(overview).toMatchObject({ books: [book], fullyTranslatedLang: "fr" });
+    expect(overview).toMatchObject({
+      books: [book],
+      fullyTranslatedLang: "fr",
+      mainLang: "fr",
+      translatedVolumeCount: 1,
+    });
     expect(await projectOverview(deps, book.projectId ?? "")).toMatchObject({
       project: overview?.project,
       fullyTranslatedLang: "fr",
+      mainLang: "fr",
+      translatedVolumeCount: 1,
       volumeLangs: new Map([[book.id, "fr"]]),
+      volumePercents: new Map([[book.id, 100]]),
     });
     await expect(projectOverview(deps, "missing")).rejects.toBeInstanceOf(NotFoundError);
   });

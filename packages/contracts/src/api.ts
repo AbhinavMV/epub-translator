@@ -77,6 +77,7 @@ export const BookSummarySchema = z.object({
   projectId: z.string().nullable().optional(),
   volumeNumber: z.number().nullable().optional(),
   translatedLang: z.string().nullable().optional(),
+  translatedPercent: z.number().nullable().optional(),
 });
 export type BookSummary = z.infer<typeof BookSummarySchema>;
 
@@ -91,12 +92,15 @@ export const ProjectSummarySchema = ProjectSchema.extend({
   volumeCount: z.number(),
   coverUrl: z.string().nullable(),
   fullyTranslatedLang: z.string().nullable(),
+  mainLang: z.string().nullable(),
+  translatedVolumeCount: z.number(),
 });
 export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
 
 export const ProjectDetailSchema = ProjectSchema.extend({
   books: z.array(BookSummarySchema),
   fullyTranslatedLang: z.string().nullable(),
+  mainLang: z.string().nullable(),
 });
 export type ProjectDetail = z.infer<typeof ProjectDetailSchema>;
 
