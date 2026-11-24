@@ -97,7 +97,7 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
       className={cn(
         "grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 border-t py-2.5 pr-1 pl-3 first:border-t-0 hover:bg-secondary/40",
         "sm:grid-cols-[3rem_minmax(0,1fr)_minmax(8rem,11rem)_auto] sm:gap-x-4 sm:px-3.5 sm:py-3",
-        "lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-2 lg:gap-y-1 lg:border-t-0 lg:p-0 lg:hover:bg-transparent",
+        "lg:grid-cols-[minmax(0,1fr)_auto] lg:content-start lg:items-start lg:gap-x-2 lg:gap-y-1 lg:border-t-0 lg:p-0 lg:hover:bg-transparent",
       )}
     >
       <Link
@@ -180,7 +180,7 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
         />
       ) : null}
 
-      <div className="col-start-4 row-span-3 row-start-1 flex items-center gap-1 lg:col-start-2 lg:row-span-2 lg:row-start-4">
+      <div className="col-start-4 row-span-3 row-start-1 flex items-center gap-1 lg:col-start-2 lg:row-span-1 lg:row-start-4">
         <VolumeActions book={book} label={label} onEditNumber={() => setEditing(true)} />
       </div>
     </li>
