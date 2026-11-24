@@ -66,6 +66,7 @@ const detail = (books: BookSummary[]): ProjectDetail => ({
   createdAt: "2026-10-02T00:00:00.000Z",
   books,
   fullyTranslatedLang: null,
+  mainLang: null,
 });
 
 const threeBooks = detail([
@@ -75,7 +76,7 @@ const threeBooks = detail([
 ]);
 
 const summaries: ProjectSummary[] = [
-  { ...detail([]), volumeCount: 3, coverUrl: null },
+  { ...detail([]), volumeCount: 3, coverUrl: null, translatedVolumeCount: 0 },
   {
     id: "p2",
     name: "Wandering Witch",
@@ -83,6 +84,8 @@ const summaries: ProjectSummary[] = [
     volumeCount: 1,
     coverUrl: null,
     fullyTranslatedLang: null,
+    mainLang: null,
+    translatedVolumeCount: 0,
   },
 ];
 

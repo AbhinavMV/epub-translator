@@ -49,5 +49,5 @@ The rendering of a book's own title, taken from its English translation. With it
 A project in which every volume has a complete translation into the same target language. Flagged segments count as translated; proofreading is not required.
 
 **Main language**:
-The target language a project's progress is counted in: the one the most volumes have a translation into, with ties going to the language listed first among the target languages. A project with no translations has none. A volume counts as translated, and its percentage is measured, only in the main language, so a project is fully translated exactly when every volume is translated.
+The target language a project's progress is counted in: the one the most volumes are completely translated into; on a tie, the one the most volumes have any translated passage in; on a further tie, the language listed first among the target languages. A project with no translated passage in any language has none. A volume counts as translated, and its percentage is measured, only in the main language, so a project is fully translated exactly when it has volumes and every one is translated.
 _Avoid_: Primary language, default language

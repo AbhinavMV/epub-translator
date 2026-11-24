@@ -29,6 +29,8 @@ export function projectSummary({
   project,
   books,
   fullyTranslatedLang,
+  mainLang,
+  translatedVolumeCount,
 }: ProjectOverview): ProjectSummary {
   const first = books[0];
   return {
@@ -36,6 +38,8 @@ export function projectSummary({
     volumeCount: books.length,
     coverUrl: first ? coverUrl(first) : null,
     fullyTranslatedLang,
+    mainLang,
+    translatedVolumeCount,
   };
 }
 

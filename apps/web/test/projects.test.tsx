@@ -1,4 +1,10 @@
-import type { BookSummary, ProjectDetail, ProjectSummary } from "@et/contracts";
+import {
+  type BookSummary,
+  type ProjectDetail,
+  ProjectDetailSchema,
+  type ProjectSummary,
+  ProjectSummarySchema,
+} from "@et/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -60,6 +66,8 @@ const summaries: ProjectSummary[] = [
     volumeCount: 3,
     coverUrl: "/api/books/v1/cover",
     fullyTranslatedLang: null,
+    mainLang: null,
+    translatedVolumeCount: 0,
   },
   {
     id: "p2",
@@ -68,6 +76,8 @@ const summaries: ProjectSummary[] = [
     volumeCount: 0,
     coverUrl: null,
     fullyTranslatedLang: null,
+    mainLang: null,
+    translatedVolumeCount: 0,
   },
 ];
 
@@ -95,6 +105,7 @@ const detail: ProjectDetail = {
     book("v25", "魔女の旅々 2.5", 2.5),
   ],
   fullyTranslatedLang: null,
+  mainLang: null,
 };
 
 describe("Library", () => {
@@ -284,5 +295,20 @@ describe("Use translated title", () => {
     expect(screen.getByRole("textbox", { name: "Project name" })).toHaveValue(
       "The Journey of Elaina",
     );
+  });
+});
+
+describe("mock api", () => {
+  it("serves projects with a main language and progress the contracts accept", async () => {
+    const api = createMockApi();
+    const list = ProjectSummarySchema.array().parse(await api.listProjects());
+    for (const summary of list) {
+      expect(summary.translatedVolumeCount).toBeLessThanOrEqual(summary.volumeCount);
+      const detail = ProjectDetailSchema.parse(await api.getProject(summary.id));
+      expect(detail.mainLang).toBe(summary.mainLang);
+      for (const b of detail.books) {
+        expect(b.translatedPercent === null).toBe(detail.mainLang === null);
+      }
+    }
   });
 });
