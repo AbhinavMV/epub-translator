@@ -2,9 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ChapterRail } from "@/components/chapter-rail";
+import { ChapterStatusBlock } from "@/components/editor/chapter-status-block";
 import { ModeToggle } from "@/components/editor/mode-toggle";
-import { EditorToolbar } from "@/components/editor/toolbar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { isBusy, STATUS_LABEL } from "@/lib/chapter-status";
 import { makeJob } from "./fixtures";
 
@@ -56,33 +55,22 @@ describe("submitted chapter state", () => {
     expect(screen.getByRole("img", { name: "Submitted · waiting for batch" })).toBeInTheDocument();
   });
 
-  it("explains the wait in the toolbar", () => {
+  it("explains the wait in the status block and checks the batch on request", async () => {
+    const onCheckBatch = vi.fn();
     render(
-      <TooltipProvider>
-        <EditorToolbar
-          chapterProgress={submitted}
-          busyCount={0}
-          translatedChapters={0}
-          totalChapters={2}
-          canTranslate
-          noProviderHint=""
-          starting={false}
-          titlesBusy={false}
-          hasPrev={false}
-          hasNext
-          hasTranslation={false}
-          onTranslate={() => {}}
-          onTranslateAll={() => {}}
-          onTranslateTitles={() => {}}
-          onPrev={() => {}}
-          onNext={() => {}}
-          onCancel={() => {}}
-          epubHref={undefined}
-          txtHref={undefined}
-          bilingualEpubHref={undefined}
-        />
-      </TooltipProvider>,
+      <ChapterStatusBlock
+        title="One"
+        progress={submitted}
+        segmentCount={4}
+        chaptersDone={0}
+        totalChapters={2}
+        busyElsewhere={0}
+        onCancel={() => {}}
+        onCheckBatch={onCheckBatch}
+      />,
     );
     expect(screen.getByRole("status")).toHaveTextContent("Submitted · waiting for batch");
+    await userEvent.click(screen.getByRole("button", { name: "Check batch" }));
+    expect(onCheckBatch).toHaveBeenCalledOnce();
   });
 });

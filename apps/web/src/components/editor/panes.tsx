@@ -35,12 +35,14 @@ function TargetCell({
   firstPending,
   language,
   onSuggestion,
+  retry,
 }: {
   block: SegmentBlock;
   busy: boolean;
   firstPending: boolean;
   language: LanguageAttrs | undefined;
   onSuggestion: (() => void) | undefined;
+  retry: { label: string; disabled: boolean; onClick: () => void };
 }) {
   const flagged = block.status === "flagged";
   const pending = block.targetHtml === null;
@@ -50,7 +52,8 @@ function TargetCell({
       data-flagged={flagged ? "" : undefined}
       title={flagged ? "Formatting couldn't be preserved" : undefined}
       className={cn(
-        "min-w-0 px-5 py-3 lg:border-l",
+        "min-w-0 px-5 py-3 sm:border-l",
+        block.status === "failed" && !busy && "bg-destructive/5",
         pending && "segment-pending",
         flagged && "segment-flagged",
       )}
@@ -73,11 +76,15 @@ function TargetCell({
           <Skeleton className="h-3 w-3/5" />
         </div>
       ) : block.status === "failed" ? (
-        <div className="text-sm text-destructive">
-          <p>{block.note ?? "This passage could not be translated."}</p>
-          <p className="text-destructive/75">
-            Use Translate chapter again to retry only failed passages, or pick another model.
+        <div className="space-y-2 font-sans text-sm">
+          <p>
+            <span className="font-semibold text-destructive">Not translated.</span>{" "}
+            {block.note ?? "This passage could not be translated."}
           </p>
+          <Button variant="outline" size="sm" disabled={retry.disabled} onClick={retry.onClick}>
+            <RotateCcw />
+            {retry.label}
+          </Button>
         </div>
       ) : firstPending ? (
         <p className="text-sm text-muted-foreground italic">Translation will appear here…</p>
@@ -94,10 +101,11 @@ export function EditorPanes({
   targetLang,
   hasTranslation,
   canRetry,
+  failedCount,
   hasMore = false,
   loadingMore = false,
   onLoadMore,
-  onRetry,
+  onRetryFailed,
   onClear,
   suggested,
   onSuggestion,
@@ -109,10 +117,12 @@ export function EditorPanes({
   targetLang: string;
   hasTranslation: boolean;
   canRetry: boolean;
+  /** Failed passages in the whole chapter; defaults to those loaded so far. */
+  failedCount?: number;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
-  onRetry: () => void;
+  onRetryFailed: () => void;
   onClear: () => void;
   suggested?: ReadonlySet<string>;
   onSuggestion?: (segmentId: string) => void;
@@ -130,10 +140,19 @@ export function EditorPanes({
   const firstPendingId = view?.blocks.find(
     (b): b is SegmentBlock => b.kind === "segment" && b.targetHtml === null,
   )?.id;
+  const failed =
+    failedCount ??
+    view?.blocks.filter((b) => b.kind === "segment" && b.status === "failed").length ??
+    0;
+  const retry = {
+    label: failed > 1 ? `Retry ${failed} failed` : "Retry passage",
+    disabled: !canRetry || busy,
+    onClick: onRetryFailed,
+  };
 
   return (
     <div className="editor-text min-w-0">
-      <div className="sticky top-0 z-10 grid grid-cols-1 border-b bg-card/90 backdrop-blur lg:grid-cols-2">
+      <div className="sticky top-0 z-10 grid grid-cols-1 border-b bg-card/90 backdrop-blur sm:grid-cols-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2">
           <LangTag code={sourceLang} />
           <span className="text-sm font-medium">Source</span>
@@ -144,7 +163,7 @@ export function EditorPanes({
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden"
+              className="sm:hidden"
               aria-expanded={showSource}
               onClick={() => setShowSource((v) => !v)}
             >
@@ -161,27 +180,34 @@ export function EditorPanes({
             </Button>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-5 py-2 lg:border-t-0 lg:border-l">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-5 py-2 sm:border-t-0 sm:border-l">
           <LangTag code={targetLang} />
           <span className="text-sm font-medium">Translation</span>
           <span className="font-mono text-xs text-muted-foreground">
             {formatCount(stats.targetChars)} chars
           </span>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="sm" disabled={!canRetry} onClick={onRetry}>
-              <RotateCcw /> <span className="hidden sm:inline">Retry</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={!stats.target}
-              onClick={() => copy(stats.target, "Translation")}
-            >
-              <Copy /> <span className="hidden sm:inline">Copy</span>
-            </Button>
-            <Button variant="ghost" size="sm" disabled={!hasTranslation || busy} onClick={onClear}>
-              <Eraser /> <span className="hidden sm:inline">Clear</span>
-            </Button>
+            {stats.target ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Copy translation"
+                onClick={() => copy(stats.target, "Translation")}
+              >
+                <Copy /> <span className="max-lg:hidden">Copy</span>
+              </Button>
+            ) : null}
+            {hasTranslation ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Clear translation"
+                disabled={busy}
+                onClick={onClear}
+              >
+                <Eraser /> <span className="max-lg:hidden">Clear</span>
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -203,12 +229,12 @@ export function EditorPanes({
             <div
               key={block.id}
               data-segment-id={block.id}
-              className="grid scroll-mt-14 grid-cols-1 border-b border-border/50 transition-colors data-[flash]:bg-primary/10 lg:grid-cols-2"
+              className="grid scroll-mt-14 grid-cols-1 border-b border-border/50 transition-colors data-[flash]:bg-primary/10 sm:grid-cols-2"
             >
               <div
                 className={cn(
                   "min-w-0 px-5 py-3 text-foreground/90",
-                  !showSource && "hidden lg:block",
+                  !showSource && "hidden sm:block",
                 )}
               >
                 <Html html={block.sourceHtml} />
@@ -218,6 +244,7 @@ export function EditorPanes({
                 busy={busy}
                 firstPending={block.id === firstPendingId}
                 language={targetLanguage}
+                retry={retry}
                 onSuggestion={
                   suggested?.has(block.id) && onSuggestion
                     ? () => onSuggestion(block.id)

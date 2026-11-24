@@ -45,16 +45,19 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
    - Change a volume's number, move a volume to another project (it carries no glossary entries with it), or delete a volume. Deleting the project deletes all its volumes and their translations.
 3. **Editor:**
    - **Choosing how to translate:**
-     - Pick a provider and model, and choose **Live** or **Batch**. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. The project in the breadcrumb opens the book's project to edit its glossary and custom prompt, and **Read** opens the reader at the current chapter.
+     - The model chip in the toolbar shows the model, mode and target language (for example "Claude Sonnet 5.5 · Live · English"). It opens a sheet to pick the provider, model, **Live** or **Batch**, and the language to translate into. Batch uses the provider's batch API: it costs 50% less and returns results within 24 h. The project in the breadcrumb opens the book's project to edit its glossary and custom prompt, and **Read** opens the reader at the current chapter.
    - **Translating:**
-     - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail), so translated titles appear early. **Translate title & contents** does just that part.
-     - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
+     - The **Translate** button translates the current chapter. Its menu has **All chapters**, which does every chapter starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail) so translated titles appear early, and **Title & contents**, which does just that part.
+     - The button follows the chapter: **Translate chapter**, **Continue** (passages left), **Retry N failed** (only failed passages left; re-sends just those), **Try again** (the chapter stopped with an error) or **Translated**.
+     - Above the text, one status block shows the chapter title, passages translated in this chapter and chapters translated in the volume, plus any running translation or batch with **Check batch** (hosted) and a stop button that clears the queue.
+     - Source and translation sit side by side from 640 px wide. **Previous chapter** and **Next chapter** are at the end of each chapter.
+     - Leaving the editor while a chapter translates shows a notice that it keeps translating in the background.
      - The chapter list shows each chapter's status (translated, partly translated, has failed passages, or not started) with its passage count. A chapter shows its translated title once one exists, otherwise its original title. On a phone, **Open chapters** opens the list as a sheet.
    - **When something fails:**
-     - A failed passage says why, for example that the model declined it and under which policy category.
+     - A failed passage says why, for example that the model declined it and under which policy category, and has a **Retry** button. There is no way to resend one passage alone: Retry resends every failed passage in the chapter (and translates any passage not yet translated), so with several failed it reads **Retry N failed**. To retranslate a whole chapter, **Clear** it and translate it again.
      - Errors that stop a chapter (bad key, rate limits) appear in a banner with a fix hint. A fatal error also stops the rest of that job's queue.
    - **Proofreading:**
-     - **Proofread** checks this chapter, the chapters not yet proofread, or the whole book. Chapters run one at a time and carry names forward so they stay consistent. Multi-chapter runs ask first, because each sends the chapter text again.
+     - **Proofread** shows how many of this chapter's suggestions are waiting. It checks this chapter, the chapters not yet proofread, or the whole book. Chapters run one at a time and carry names forward so they stay consistent. Multi-chapter runs ask first, because each sends the chapter text again.
      - Suggestions are tagged accuracy, consistency, terminology or fluency, and show as word diffs with a reason. Accept or reject them one by one or all at once.
      - Edits are vetted before they are shown (inline placeholders must still match the source). A suggestion whose paragraph changed since proofreading is marked outdated rather than applied.
 4. **Reader:**
@@ -63,8 +66,7 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
    - Layouts: **Scroll** or **Paged** (←/→, Space, tap or swipe).
    - Settings: font, size, width and theme (the same theme as the Settings menu).
 5. **Export:**
-   - **Export EPUB** (translation only or **Bilingual**) downloads the book with translated metadata. The originals are kept as `alternate-script` entries.
-   - **Export TXT** gives plain text.
+   - The editor's **Export** menu has **EPUB · Translation**, **EPUB · Bilingual** and **Plain text (.txt)**. The EPUBs carry translated metadata, with the originals kept as `alternate-script` entries.
    - Untranslated chapters stay in the source language.
 
 ## Hosted mode
