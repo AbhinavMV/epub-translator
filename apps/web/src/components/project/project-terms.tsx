@@ -7,17 +7,33 @@ import { ProjectGlossarySuggestions } from "./project-glossary-suggestions";
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function ProjectTermsSection({
+function useProjectTerms(projectId: string) {
+  const settings = useProjectSettings(projectId);
+  const save = useSaveProjectTerms(projectId);
+  const data = settings.data;
+
+  const persist = (patch: Partial<ProjectTerms>, failure: string) => {
+    if (!data) return Promise.resolve();
+    return save
+      .mutateAsync({ customPrompt: data.customPrompt, glossary: data.glossary, ...patch })
+      .catch((error: unknown) => {
+        toast.error(failure);
+        throw error;
+      });
+  };
+
+  return { data, saving: save.isPending, persist };
+}
+
+export function ProjectGlossaryPanel({
   projectId,
   books,
 }: {
   projectId: string;
   books: BookSummary[];
 }) {
-  const settings = useProjectSettings(projectId);
-  const save = useSaveProjectTerms(projectId);
+  const { data, saving, persist } = useProjectTerms(projectId);
   const resolveConflict = useResolveGlossaryConflict(projectId);
-  const data = settings.data;
 
   const volumeLabel = (rendering: GlossaryRendering) => {
     if (rendering.volumeNumber !== null) return `Volume ${rendering.volumeNumber}`;
@@ -33,28 +49,16 @@ export function ProjectTermsSection({
         throw error;
       });
 
-  const persist = (patch: Partial<ProjectTerms>, failure: string) => {
-    if (!data) return Promise.resolve();
-    return save
-      .mutateAsync({ customPrompt: data.customPrompt, glossary: data.glossary, ...patch })
-      .catch((error: unknown) => {
-        toast.error(failure);
-        throw error;
-      });
-  };
-
   return (
-    <section aria-labelledby="terms-heading" className="flex flex-col gap-3">
-      <h2
-        id="terms-heading"
-        className="font-mono text-xs tracking-widest text-muted-foreground uppercase"
-      >
-        Glossary and custom prompt
-      </h2>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        Every volume of this project is translated with the same glossary, so names and terms stay
+        the same throughout.
+      </p>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <GlossaryDialog
           glossary={data?.glossary}
-          saving={save.isPending}
+          saving={saving}
           onSave={(glossary) => persist({ glossary }, "Could not save the glossary")}
           suggestions={(add) => <ProjectGlossarySuggestions books={books} onAdd={add} />}
           conflicts={
@@ -63,14 +67,8 @@ export function ProjectTermsSection({
               : undefined
           }
         />
-        <PromptDialog
-          value={data?.customPrompt}
-          disabled={!data}
-          saving={save.isPending}
-          onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}
-        />
         {data ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="min-w-0 text-sm text-muted-foreground">
             {count(data.glossary.length, "glossary entry", "glossary entries")}, used by every
             volume
             {data.glossaryConflicts.length > 0
@@ -79,6 +77,31 @@ export function ProjectTermsSection({
           </p>
         ) : null}
       </div>
-    </section>
+    </div>
+  );
+}
+
+export function ProjectPromptPanel({ projectId }: { projectId: string }) {
+  const { data, saving, persist } = useProjectTerms(projectId);
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        Style guidance sent with every translation request in this project, on top of the fixed
+        rules.
+      </p>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <PromptDialog
+          value={data?.customPrompt}
+          disabled={!data}
+          saving={saving}
+          onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}
+        />
+        {data ? (
+          <p className="min-w-0 text-sm text-muted-foreground">
+            {data.customPrompt ? "Custom prompt set" : "Using the default style guidance"}
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
-import { ProjectTermsSection } from "@/components/project/project-terms";
+import { ProjectGlossaryPanel } from "@/components/project/project-terms";
 
 globalThis.ResizeObserver ??= class {
   observe() {}
@@ -59,7 +59,7 @@ function renderSection(overrides: Partial<Api>) {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ApiProvider api={api}>
-        <ProjectTermsSection projectId="p1" books={[book("v1", 1), book("v2", 2)]} />
+        <ProjectGlossaryPanel projectId="p1" books={[book("v1", 1), book("v2", 2)]} />
       </ApiProvider>
     </QueryClientProvider>,
   );

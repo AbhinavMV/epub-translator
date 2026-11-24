@@ -123,15 +123,15 @@ function projectApi(
 
 describe("project glossary and custom prompt", () => {
   it("shows the glossary size and its unresolved conflicts", async () => {
-    renderAt("/projects/p1", projectApi());
-    const section = await screen.findByRole("region", { name: "Glossary and custom prompt" });
+    renderAt("/projects/p1?tab=glossary", projectApi());
+    const section = await screen.findByRole("tabpanel", { name: /Glossary/ });
     expect(await within(section).findByText(/1 glossary entry,/)).toBeInTheDocument();
     expect(within(section).getByText(/1 glossary conflict/)).toBeInTheDocument();
   });
 
   it("saves glossary edits to the project, keeping its prompt", async () => {
     const api = projectApi();
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
     await userEvent.click(screen.getByRole("button", { name: "Add entry" }));
     const sources = screen.getAllByRole("textbox", { name: "Source term" });
@@ -150,7 +150,7 @@ describe("project glossary and custom prompt", () => {
 
   it("saves the custom prompt to the project, keeping its glossary", async () => {
     const api = projectApi();
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=prompt", api);
     await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     const box = screen.getByRole("textbox", { name: "Custom prompt" });
     await userEvent.clear(box);
@@ -163,7 +163,7 @@ describe("project glossary and custom prompt", () => {
   });
 
   it("shows the fixed rules without naming a language, since every target shares them", async () => {
-    renderAt("/projects/p1", projectApi());
+    renderAt("/projects/p1?tab=prompt", projectApi());
     await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     const rules = within(screen.getByRole("dialog")).getByRole("region", { name: /fixed rules/i });
     expect(rules.textContent?.split("\n")[0]).toBe(
@@ -172,7 +172,7 @@ describe("project glossary and custom prompt", () => {
   });
 
   it("shows the fixed rules read-only above the project's custom prompt", async () => {
-    renderAt("/projects/p1", projectApi());
+    renderAt("/projects/p1?tab=prompt", projectApi());
     await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     const dialog = screen.getByRole("dialog");
     const rules = within(dialog).getByRole("region", { name: /fixed rules/i });
@@ -187,7 +187,7 @@ describe("project glossary and custom prompt", () => {
   it("pre-fills the default style guidance and stores nothing when it is saved unchanged", async () => {
     const getProjectSettings = vi.fn(async () => ({ ...stored, customPrompt: "" }));
     const api = { ...projectApi(), getProjectSettings };
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=prompt", api);
     await userEvent.click(await screen.findByRole("button", { name: "Custom prompt" }));
     expect(screen.getByRole("textbox", { name: "Custom prompt" })).toHaveValue(
       "Use natural, readable prose in the target language while preserving the source meaning.",
@@ -201,7 +201,7 @@ describe("project glossary and custom prompt", () => {
 
   it("locks the volume picker while suggestions are running", async () => {
     const api = { ...projectApi(), suggestGlossary: () => new Promise<never>(() => {}) };
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
     await screen.findByText(/1 request/);
     const picker = screen.getByRole("combobox", { name: "Volume to sample" });
@@ -216,7 +216,7 @@ describe("project glossary and custom prompt", () => {
       usage: null,
     }));
     const api = { ...projectApi(), suggestGlossary };
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await userEvent.click(await screen.findByRole("button", { name: /^glossary/i }));
     await screen.findByText(/1 request/);
     await userEvent.click(await screen.findByRole("button", { name: "Suggest from volume" }));
@@ -267,7 +267,7 @@ describe("suggesting from all volumes", () => {
 
   it("shows the volume count, requests and characters before starting", async () => {
     renderAt(
-      "/projects/p1",
+      "/projects/p1?tab=glossary",
       allVolumesApi(async () => ({ terms: [], usage: null })),
     );
     await chooseAllVolumes();
@@ -289,9 +289,9 @@ describe("suggesting from all volumes", () => {
       terms: byVolume[bookId]?.[body.chunk ?? 0] ?? [],
       usage: null,
     }));
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await screen.findByText(/3 volumes/);
+    await within(screen.getByRole("dialog")).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
@@ -313,9 +313,9 @@ describe("suggesting from all volumes", () => {
             signal?.addEventListener("abort", () => reject(new Error("aborted")));
           }),
     );
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await screen.findByText(/3 volumes/);
+    await within(screen.getByRole("dialog")).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
     expect(await screen.findByText("Suggesting… volume 2 of 3")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Stop" }));
@@ -332,9 +332,9 @@ describe("suggesting from all volumes", () => {
       if (bookId === "v2") throw new Error("Rate limited");
       return { terms: [{ source: `${bookId}-term`, target: "T" }], usage: null };
     });
-    renderAt("/projects/p1", api);
+    renderAt("/projects/p1?tab=glossary", api);
     await chooseAllVolumes();
-    await screen.findByText(/3 volumes/);
+    await within(screen.getByRole("dialog")).findByText(/3 volumes/);
     await userEvent.click(screen.getByRole("button", { name: "Suggest from all volumes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Rate limited");
