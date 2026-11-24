@@ -49,6 +49,7 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
    - **Translating:**
      - **Translate chapter** translates the current chapter. **Translate all** does every chapter, starting with **Book title & navigation** (book title, author, publisher, TOC labels; listed first in the chapter rail), so translated titles appear early. **Translate title & contents** does just that part.
      - The button changes as a chapter progresses: **Translated**, **Continue**, **Retry N failed** (re-sends only failed passages) or **Try again**.
+     - The chapter list shows each chapter's status (translated, partly translated, has failed passages, or not started) with its passage count. A chapter shows its translated title once one exists, otherwise its original title. On a phone, **Open chapters** opens the list as a sheet.
    - **When something fails:**
      - A failed passage says why, for example that the model declined it and under which policy category.
      - Errors that stop a chapter (bad key, rate limits) appear in a banner with a fix hint. A fatal error also stops the rest of that job's queue.
@@ -58,6 +59,7 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
      - Edits are vetted before they are shown (inline placeholders must still match the source). A suggestion whose paragraph changed since proofreading is marked outdated rather than applied.
 4. **Reader:**
    - Views: Translation, Interleaved or Side-by-side.
+   - Contents lists the chapters with their status. It sits beside the text from 768 px and opens as a sheet from the **Contents** button on a phone.
    - Layouts: **Scroll** or **Paged** (←/→, Space, tap or swipe).
    - Settings: font, size, width and theme (the same theme as the Settings menu).
 5. **Export:**

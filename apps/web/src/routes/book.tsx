@@ -18,7 +18,7 @@ import {
 } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
 import { useProofreadRun } from "@/api/use-proofread-run";
-import { ChapterRail } from "@/components/chapter-rail";
+import { ChapterRailPanel, ChapterSheet } from "@/components/chapter-rail";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { resolveSelection, type Selection } from "@/components/editor/model-selection";
 import { EditorPanes } from "@/components/editor/panes";
@@ -26,13 +26,6 @@ import { ProofreadMenu } from "@/components/editor/proofread-menu";
 import { ProofreadBar, ProofreadSheet } from "@/components/editor/proofread-review";
 import { EditorToolbar } from "@/components/editor/toolbar";
 import { TranslationError } from "@/components/editor/translation-error";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useHosted } from "@/keys/hosted-context";
 import { contentsFirst } from "@/lib/chapter-order";
 import {
@@ -198,15 +191,14 @@ export function BookPage() {
     );
   }
 
-  const rail = (
-    <ChapterRail
-      chapters={chapters}
-      job={job.data}
-      activeId={chapterId}
-      onSelect={goTo}
-      pending={pendingByChapter}
-    />
-  );
+  const rail = {
+    chapters,
+    job: job.data,
+    activeId: chapterId,
+    onSelect: goTo,
+    pending: pendingByChapter,
+    sourceLang: book.data?.sourceLang,
+  };
 
   return (
     <div className="flex h-dvh flex-col">
@@ -249,21 +241,8 @@ export function BookPage() {
         }
       />
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-72 shrink-0 flex-col border-r bg-card/40 md:flex">
-          <h2 className="px-5 pt-4 pb-1 font-mono text-xs tracking-widest text-muted-foreground uppercase">
-            Chapters
-          </h2>
-          <div className="min-h-0 flex-1 overflow-y-auto">{rail}</div>
-        </aside>
-        <Sheet open={railOpen} onOpenChange={setRailOpen}>
-          <SheetContent side="left" className="w-80 gap-0 p-0">
-            <SheetHeader>
-              <SheetTitle>Chapters</SheetTitle>
-              <SheetDescription className="sr-only">Choose a chapter</SheetDescription>
-            </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto">{rail}</div>
-          </SheetContent>
-        </Sheet>
+        <ChapterRailPanel title="Chapters" className="hidden w-72 shrink-0 md:flex" {...rail} />
+        <ChapterSheet title="Chapters" open={railOpen} onOpenChange={setRailOpen} {...rail} />
         <main className="flex min-w-0 flex-1 flex-col">
           <EditorToolbar
             chapterProgress={chapterProgress}

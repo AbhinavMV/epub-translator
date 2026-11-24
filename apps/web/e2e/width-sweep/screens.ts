@@ -289,6 +289,15 @@ export const SCREENS: readonly Screen[] = [
   { name: "reader untranslated", path: "/books/angel-3/read/c1", ready: readerReady },
   { name: "reader long title", path: "/books/long-2/read/c1", ready: readerReady },
   {
+    name: "reader contents sheet",
+    path: "/books/long-2/read/c1",
+    ready: readerReady,
+    open: click((page) => page.getByRole("button", { name: "Contents", exact: true })),
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
+    reachable: (width) => width < 768,
+  },
+  {
     name: "reader settings",
     path: "/books/angel-1/read/c1",
     ready: readerReady,
