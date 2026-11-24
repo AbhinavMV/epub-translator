@@ -57,10 +57,11 @@ Every page has the same header: the app mark (back to the library), a breadcrumb
      - Suggestions are tagged accuracy, consistency, terminology or fluency, and show as word diffs with a reason. Accept or reject them one by one or all at once.
      - Edits are vetted before they are shown (inline placeholders must still match the source). A suggestion whose paragraph changed since proofreading is marked outdated rather than applied.
 4. **Reader:**
-   - Views: Translation, Interleaved or Side-by-side.
+   - The header is one row: the breadcrumb (Library / Project / chapter) leads back, then **Contents**, **Aa** and, from 640 px, **Edit**.
    - Contents lists the chapters with their status. It sits beside the text from 768 px and opens as a sheet from the **Contents** button on a phone.
-   - Layouts: **Scroll** or **Paged** (←/→, Space, tap or swipe).
-   - Settings: font, size, width and theme (the same theme as the Settings menu).
+   - **Aa** opens the reader settings: view (Translation, Interleaved or Side by side), layout (**Scroll** or **Paged**, with ←/→, Space, tap or swipe), font, size, line height, width and theme (the same four themes as the Settings menu).
+   - A chapter that isn't fully translated opens with a notice saying how many passages are translated, and **Translate in editor** opens that chapter in the editor.
+   - In the scroll layout, **Previous** and **Next** at the end of the chapter show its position ("2 of 12").
 5. **Export:**
    - **Export EPUB** (translation only or **Bilingual**) downloads the book with translated metadata. The originals are kept as `alternate-script` entries.
    - **Export TXT** gives plain text.

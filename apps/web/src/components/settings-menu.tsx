@@ -17,7 +17,7 @@ import { useHosted } from "@/keys/hosted-context";
 import { KeysDialog } from "@/keys/keys-dialog";
 import { type ThemeName, usePrefs } from "@/lib/reader-settings-store";
 
-const THEMES: { value: ThemeName; label: string; swatch: string }[] = [
+export const THEMES: { value: ThemeName; label: string; swatch: string }[] = [
   { value: "light", label: "Light", swatch: "#fcfcfd" },
   { value: "sepia", label: "Sepia", swatch: "#efe4cf" },
   { value: "dark", label: "Dark", swatch: "#0a0b0d" },
