@@ -44,7 +44,6 @@ export async function requireProject(
 
 export interface ProjectOverview extends ProjectWithBooks {
   progress: ProjectProgressSummary;
-  /** Per volume id. */
   volumes: Map<string, VolumeProgress>;
 }
 

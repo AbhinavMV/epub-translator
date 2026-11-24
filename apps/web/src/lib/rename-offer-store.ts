@@ -22,7 +22,6 @@ export function createRenameOfferStore(storage: StorageLike | null) {
 
 export type RenameOfferStore = ReturnType<typeof createRenameOfferStore>;
 
-/** "Not now" on the rename offer is remembered per project and offered title. */
 export function useRenameOfferDismissal(projectId: string, title: string | null) {
   const store = useDeviceStores().renameOffer;
   const dismissed = useSyncExternalStore(store.subscribe, () =>
