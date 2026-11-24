@@ -7,6 +7,7 @@ import { UnlockDialog } from "@/keys/keys-dialog";
 import { MemoryEnvelopeStore } from "@/keys/memory-store";
 import { UnlockBus } from "@/keys/unlock-bus";
 import { Vault } from "@/keys/vault";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { hostedProviders } from "@/translate/hosted-api";
 
 const KEY = "sk-ant-fake-ui-0123456789ABCDwxyz";
@@ -20,10 +21,12 @@ async function setup(prepare?: (vault: Vault) => Promise<void>) {
   const unlock = new UnlockBus();
   const hosted = { vault, unlock, runtime: {} } as unknown as Hosted;
   render(
-    <HostedProvider hosted={hosted}>
-      <SettingsMenu />
-      <UnlockDialog />
-    </HostedProvider>,
+    <DeviceStoresProvider stores={createDeviceStores(null)}>
+      <HostedProvider hosted={hosted}>
+        <SettingsMenu />
+        <UnlockDialog />
+      </HostedProvider>
+    </DeviceStoresProvider>,
   );
   const user = userEvent.setup();
   const openKeys = async () => {

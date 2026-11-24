@@ -42,7 +42,6 @@ export function ProjectGlossaryPanel({
 }: {
   projectId: string;
   books: BookSummary[];
-  /** Opens with Suggest terms showing, reading every volume. */
   suggest?: boolean;
 }) {
   const { data, saving, persist } = useProjectTerms(projectId);

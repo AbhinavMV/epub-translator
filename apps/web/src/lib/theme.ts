@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { prefsStore, type ThemeName, usePrefs } from "./reader-settings-store";
+import { type ThemeName, usePrefs } from "./reader-settings-store";
 
 export type ResolvedTheme = "light" | "sepia" | "dark";
 
@@ -22,8 +22,8 @@ function subscribeDark(onChange: () => void) {
 
 const prefersDark = () => darkQuery()?.matches ?? false;
 
-export function useApplyTheme(store = prefsStore): ResolvedTheme {
-  const [prefs] = usePrefs(store);
+export function useApplyTheme(): ResolvedTheme {
+  const [prefs] = usePrefs();
   const dark = useSyncExternalStore(subscribeDark, prefersDark);
   const resolved = resolveTheme(prefs.theme, dark);
 

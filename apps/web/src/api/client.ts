@@ -106,7 +106,6 @@ export interface Api {
     body: TranslateBody,
   ): Promise<JobSummary | null>;
   translateAll(jobId: string, body: TranslateBody): Promise<JobSummary | null>;
-  retryChapter(jobId: string, chapterId: string, body: TranslateBody): Promise<JobSummary | null>;
   clearChapter(jobId: string, chapterId: string): Promise<JobSummary | null>;
   cancelJob(jobId: string): Promise<JobSummary | null>;
   openJobEvents(jobId: string): EventSourceLike;
@@ -325,8 +324,6 @@ export function createHttpApi(
     translateChapter: (jobId, chapterId, body) =>
       jobOrNull(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/translate`, body),
     translateAll: (jobId, body) => jobOrNull(`/jobs/${enc(jobId)}/translate-all`, body),
-    retryChapter: (jobId, chapterId, body) =>
-      jobOrNull(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/retry`, body),
     clearChapter: (jobId, chapterId) =>
       jobOrNull(`/jobs/${enc(jobId)}/chapters/${enc(chapterId)}/clear`),
     cancelJob: (jobId) => jobOrNull(`/jobs/${enc(jobId)}/cancel`),

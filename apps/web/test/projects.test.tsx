@@ -21,6 +21,7 @@ import { ApiProvider } from "@/api/api-context";
 import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { LibraryPage } from "@/routes/library";
 import { ProjectPage } from "@/routes/project";
 
@@ -50,7 +51,9 @@ function renderAt(path: string, overrides: Partial<Api>) {
     >
       <ApiProvider api={api}>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={createDeviceStores(null)}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,

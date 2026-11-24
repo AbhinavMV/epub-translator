@@ -7,6 +7,7 @@ import {
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AppHeader, type Crumb, volumeLabel } from "@/components/app-header";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 
 function renderHeader(crumbs: Crumb[]) {
   const root = createRootRoute({ component: () => <AppHeader crumbs={crumbs} /> });
@@ -14,7 +15,11 @@ function renderHeader(crumbs: Crumb[]) {
     routeTree: root,
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
-  render(<RouterProvider router={router} />);
+  render(
+    <DeviceStoresProvider stores={createDeviceStores(null)}>
+      <RouterProvider router={router} />
+    </DeviceStoresProvider>,
+  );
 }
 
 describe("AppHeader", () => {

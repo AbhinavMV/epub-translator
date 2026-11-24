@@ -5,8 +5,9 @@ import {
   MAX_GLOSSARY_ENTRIES,
 } from "@et/contracts";
 import { Plus, Search, Sparkles, Trash2, X } from "lucide-react";
-import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useToastClearance } from "@/components/toast-layer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,6 @@ const toEntries = (rows: readonly Row[]): GlossaryEntry[] =>
 const matches = (row: Row, query: string) =>
   [row.source, row.target, row.note].some((v) => v.toLowerCase().includes(query));
 
-/** The grid that lays out a glossary row: stacked on phones, one line from 640 px. */
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_auto] sm:items-center";
 
@@ -59,7 +59,6 @@ export interface GlossaryEditorProps {
   conflicts: readonly GlossaryConflict[];
   volumeLabel: (rendering: GlossaryRendering) => string;
   saving: boolean;
-  /** `settled` names the conflicts the reader settled since the last save. */
   onSave: (glossary: GlossaryEntry[], settled: string[]) => Promise<unknown>;
   onDirtyChange?: (dirty: boolean) => void;
   initialSuggesting?: boolean;
@@ -87,6 +86,8 @@ export function GlossaryEditor({
 
   const baseline = useMemo(() => snapshot(saved), [saved]);
   const dirty = settled.length > 0 || snapshot(rows) !== baseline;
+  const saveBar = useRef<HTMLElement>(null);
+  useToastClearance(saveBar, dirty);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   useEffect(() => {
@@ -308,6 +309,7 @@ export function GlossaryEditor({
 
       {dirty ? (
         <section
+          ref={saveBar}
           aria-label="Unsaved glossary changes"
           className="sticky bottom-3 z-10 flex min-w-0 flex-wrap items-center gap-2 rounded-xl bg-foreground py-2 pr-2 pl-4 text-background shadow-lg"
         >

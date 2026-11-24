@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { CoverPlaceholder } from "@/components/cover-placeholder";
 import { StatusLine } from "@/components/status-line";
-import { projectProgress } from "@/lib/progress-status";
+import { projectStatus } from "@/lib/progress-status";
 
 export function ProjectCard({ project }: { project: ProjectSummary }) {
   const [coverFailed, setCoverFailed] = useState(false);
@@ -33,7 +33,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
         >
           {project.name}
         </h3>
-        <StatusLine status={projectProgress(project)} className="mt-auto" />
+        <StatusLine status={projectStatus(project)} className="mt-auto" />
       </div>
     </Link>
   );

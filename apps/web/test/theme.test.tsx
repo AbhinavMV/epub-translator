@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPrefsStore, type PrefsStore } from "@/lib/reader-settings-store";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { useApplyTheme } from "@/lib/theme";
 
 function fakeDarkQuery(initial: boolean) {
@@ -18,8 +18,8 @@ function fakeDarkQuery(initial: boolean) {
   };
 }
 
-function Probe({ store }: { store: PrefsStore }) {
-  return <span data-testid="theme">{useApplyTheme(store)}</span>;
+function Probe() {
+  return <span data-testid="theme">{useApplyTheme()}</span>;
 }
 
 afterEach(() => {
@@ -30,9 +30,13 @@ afterEach(() => {
 describe("useApplyTheme", () => {
   it("follows the device live when the theme is System", () => {
     const setDark = fakeDarkQuery(false);
-    const store = createPrefsStore(null);
-    store.set({ theme: "system" });
-    render(<Probe store={store} />);
+    const stores = createDeviceStores(null);
+    stores.prefs.set({ theme: "system" });
+    render(
+      <DeviceStoresProvider stores={stores}>
+        <Probe />
+      </DeviceStoresProvider>,
+    );
     expect(screen.getByTestId("theme")).toHaveTextContent("light");
 
     act(() => setDark(true));
@@ -42,9 +46,13 @@ describe("useApplyTheme", () => {
 
   it("ignores the device for a named theme", () => {
     const setDark = fakeDarkQuery(false);
-    const store = createPrefsStore(null);
-    store.set({ theme: "sepia" });
-    render(<Probe store={store} />);
+    const stores = createDeviceStores(null);
+    stores.prefs.set({ theme: "sepia" });
+    render(
+      <DeviceStoresProvider stores={stores}>
+        <Probe />
+      </DeviceStoresProvider>,
+    );
     act(() => setDark(true));
     expect(document.documentElement.dataset.theme).toBe("sepia");
   });

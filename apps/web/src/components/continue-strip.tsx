@@ -7,8 +7,9 @@ import { useBook, useProject } from "@/api/queries";
 import { volumeLabel } from "@/components/app-header";
 import { CoverPlaceholder } from "@/components/cover-placeholder";
 import { Button } from "@/components/ui/button";
-import { type LastOpened, lastOpenedStore, useLastOpened } from "@/lib/last-opened-store";
-import { volumeProgress } from "@/lib/progress-status";
+import { useDeviceStores } from "@/lib/device-stores";
+import { type LastOpened, useLastOpened } from "@/lib/last-opened-store";
+import { volumeStatus } from "@/lib/progress-status";
 
 export function ContinueStrip() {
   const last = useLastOpened();
@@ -19,11 +20,12 @@ function ContinueBook({ last }: { last: LastOpened }) {
   const book = useBook(last.bookId);
   const project = useProject(book.data?.projectId);
   const [coverFailed, setCoverFailed] = useState(false);
+  const { lastOpened } = useDeviceStores();
 
   const missing = book.error instanceof ApiRequestError && book.error.status === 404;
   useEffect(() => {
-    if (missing) lastOpenedStore.clear();
-  }, [missing]);
+    if (missing) lastOpened.clear();
+  }, [missing, lastOpened]);
 
   if (!book.data) return null;
   const chapters = book.data.chapters.filter((c) => c.id !== CONTENTS_CHAPTER_ID);
@@ -32,7 +34,7 @@ function ContinueBook({ last }: { last: LastOpened }) {
   const details = [
     book.data.volumeNumber != null ? volumeLabel(book.data) : null,
     position >= 0 ? `Chapter ${position + 1}` : null,
-    volume && project.data ? volumeProgress(volume, project.data.mainLang).text : null,
+    volume && project.data ? volumeStatus(volume, project.data.mainLang).text : null,
   ].filter(Boolean);
   const name = project.data?.name ?? book.data.translatedTitle ?? book.data.title;
 

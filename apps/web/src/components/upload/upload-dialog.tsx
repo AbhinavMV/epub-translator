@@ -39,7 +39,6 @@ function fileProblem(file: File, maxBytes: number | undefined): string | null {
   return null;
 }
 
-/** State for one Upload EPUB dialog; pass it to `UploadDialog` and, for drop anywhere, `usePageDrop`. */
 export function useUploadDialog() {
   const api = useApi();
   const prepare = usePrepareImport();
@@ -75,9 +74,7 @@ export function useUploadDialog() {
 
   return {
     state,
-    /** Opens the dialog at its first step, or reads `file` straight away. */
     open: choose,
-    /** Opens the first step unless the dialog is already showing. */
     reveal: () => setState((s) => (s.open ? s : { open: true, step: "choose" })),
     close: () => {
       latest.current = null;
@@ -91,7 +88,6 @@ export type UploadDialogController = ReturnType<typeof useUploadDialog>;
 const hasFiles = (e: globalThis.DragEvent) =>
   Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
-/** Dropping an EPUB anywhere on the page opens the upload dialog with it. */
 export function usePageDrop(upload: UploadDialogController) {
   const ref = useRef(upload);
   useEffect(() => {
@@ -133,7 +129,6 @@ export function UploadPrivacy({ className }: { className?: string }) {
   );
 }
 
-/** `projectId` preselects that project, for uploading a volume from a project page. */
 export function UploadDialog({
   upload,
   projectId,

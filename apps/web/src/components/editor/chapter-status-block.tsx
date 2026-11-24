@@ -1,7 +1,7 @@
 import type { ChapterProgress } from "@et/contracts";
 import { Loader2, Square } from "lucide-react";
 import { ProgressBar } from "@/components/status-line";
-import { chapterStatus, STATUS_LABEL } from "@/lib/chapter-status";
+import { BUSY_LABEL, chapterStatus } from "@/lib/chapter-status";
 import { cn } from "@/lib/utils";
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -32,7 +32,7 @@ function BusyPill({
     status === "running"
       ? `Translating ${Math.min(progress?.total ?? 0, (progress?.done ?? 0) + (progress?.flagged ?? 0))}/${progress?.total ?? 0} passages…`
       : status === "submitted"
-        ? STATUS_LABEL.submitted
+        ? BUSY_LABEL.submitted
         : status === "queued"
           ? "Queued…"
           : `Translating ${plural(busyElsewhere, "other chapter")}…`;

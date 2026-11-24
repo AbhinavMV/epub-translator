@@ -44,7 +44,6 @@ export function ModelSheet({
   onMode: (mode: TranslateMode) => void;
   targetLang: string;
   onTargetLang: (code: string) => void;
-  /** Controls the sheet from outside, e.g. from the phone editor's More sheet. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {

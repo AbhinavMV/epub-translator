@@ -2,7 +2,7 @@ import { compareTargetLanguages } from "@et/contracts";
 import type { StoredBook } from "../domain/book.ts";
 import type { Repositories } from "../ports/stores.ts";
 
-export type FullyTranslatedDeps = Pick<Repositories, "books" | "jobs" | "translations">;
+export type ProjectProgressDeps = Pick<Repositories, "books" | "jobs" | "translations">;
 
 interface LanguageProgress {
   translated: number;
@@ -14,15 +14,18 @@ export interface VolumeProgress {
   translatedPercent: number | null;
 }
 
-export interface ProjectProgress {
+export interface ProjectProgressSummary {
   fullyTranslatedLang: string | null;
   mainLang: string | null;
   translatedVolumeCount: number;
+}
+
+export interface ProjectProgress extends ProjectProgressSummary {
   volumes: VolumeProgress[];
 }
 
 async function languageProgress(
-  deps: FullyTranslatedDeps,
+  deps: ProjectProgressDeps,
   volumes: readonly StoredBook[],
 ): Promise<{ segments: number | undefined; langs: Map<string, LanguageProgress> }[]> {
   if (volumes.length === 0) return [];
@@ -74,7 +77,7 @@ function percent(progress: LanguageProgress | undefined, segments: number | unde
 }
 
 export async function projectProgress(
-  deps: FullyTranslatedDeps,
+  deps: ProjectProgressDeps,
   volumes: readonly StoredBook[],
 ): Promise<ProjectProgress> {
   const perVolume = await languageProgress(deps, volumes);
@@ -100,7 +103,7 @@ export async function projectProgress(
 
 /** Per volume, the target languages it is completely translated into, preferred first. */
 export async function completeLanguages(
-  deps: FullyTranslatedDeps,
+  deps: ProjectProgressDeps,
   volumes: readonly StoredBook[],
 ): Promise<string[][]> {
   return (await projectProgress(deps, volumes)).volumes.map((v) => v.completeLangs);
@@ -112,7 +115,7 @@ export function commonLanguage(perVolume: readonly string[][]): string | null {
 }
 
 export async function fullyTranslatedLanguage(
-  deps: FullyTranslatedDeps,
+  deps: ProjectProgressDeps,
   volumes: readonly StoredBook[],
 ): Promise<string | null> {
   return (await projectProgress(deps, volumes)).fullyTranslatedLang;

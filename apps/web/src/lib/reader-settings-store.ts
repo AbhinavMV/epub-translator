@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from "react";
+import { useDeviceStores } from "./device-stores";
+import { createListeners, readJson, type StorageLike, writeJson } from "./storage";
 
 export type ThemeName = "light" | "sepia" | "dark" | "system";
 export type FontName = "serif" | "sans" | "system";
@@ -29,11 +31,6 @@ export const DEFAULT_PREFS: Prefs = {
   railCollapsed: false,
 };
 
-export interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-}
-
 const STORAGE_KEY = "et.prefs";
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -63,49 +60,24 @@ function normalize(raw: unknown): Prefs {
   };
 }
 
-function load(storage: StorageLike | null): Prefs {
-  try {
-    const text = storage?.getItem(STORAGE_KEY);
-    return normalize(text ? JSON.parse(text) : null);
-  } catch {
-    return { ...DEFAULT_PREFS };
-  }
-}
-
 export function createPrefsStore(storage: StorageLike | null) {
-  let state = load(storage);
-  const listeners = new Set<() => void>();
+  let state = normalize(readJson(storage, STORAGE_KEY));
+  const { notify, subscribe } = createListeners();
   return {
     get: () => state,
     set(patch: Partial<Prefs>) {
       state = normalize({ ...state, ...patch });
-      try {
-        storage?.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch {
-        // storage unavailable: keep in-memory value
-      }
-      for (const l of listeners) l();
+      writeJson(storage, STORAGE_KEY, state);
+      notify();
     },
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => void listeners.delete(listener);
-    },
+    subscribe,
   };
 }
 
 export type PrefsStore = ReturnType<typeof createPrefsStore>;
 
-function browserStorage(): StorageLike | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-export const prefsStore: PrefsStore = createPrefsStore(browserStorage());
-
-export function usePrefs(store: PrefsStore = prefsStore) {
+export function usePrefs() {
+  const store = useDeviceStores().prefs;
   const prefs = useSyncExternalStore(store.subscribe, store.get);
   return [prefs, store.set] as const;
 }

@@ -20,6 +20,7 @@ import { AuthProvider } from "@/auth/auth-context";
 import { RequireAuth } from "@/auth/require-auth";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { HostedProvider } from "@/keys/hosted-context";
+import { createDeviceStores, DeviceStoresProvider } from "@/lib/device-stores";
 import { LibraryPage } from "@/routes/library";
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -55,7 +56,9 @@ function renderLibrary(app: AppServices) {
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <DeviceStoresProvider stores={createDeviceStores(null)}>
+            <RouterProvider router={router} />
+          </DeviceStoresProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ApiProvider>

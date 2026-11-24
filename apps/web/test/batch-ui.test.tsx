@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ChapterRail } from "@/components/chapter-rail";
 import { ChapterStatusBlock } from "@/components/editor/chapter-status-block";
 import { ModeToggle } from "@/components/editor/mode-toggle";
-import { isBusy, STATUS_LABEL } from "@/lib/chapter-status";
+import { BUSY_LABEL, isBusy } from "@/lib/chapter-status";
 import { makeJob } from "./fixtures";
 
 const submitted = {
@@ -39,7 +39,7 @@ describe("ModeToggle", () => {
 describe("submitted chapter state", () => {
   it("counts as busy and has a label", () => {
     expect(isBusy("submitted")).toBe(true);
-    expect(STATUS_LABEL.submitted).toBe("Submitted · waiting for batch");
+    expect(BUSY_LABEL.submitted).toBe("Submitted · waiting for batch");
   });
 
   it("shows the label on the chapter rail", () => {

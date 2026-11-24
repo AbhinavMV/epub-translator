@@ -28,21 +28,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { VolumeNumberForm } from "@/components/volume-number-editor";
-import { lastOpenedStore } from "@/lib/last-opened-store";
-import { volumeProgress } from "@/lib/progress-status";
+import { useDeviceStores } from "@/lib/device-stores";
+import { volumeStatus } from "@/lib/progress-status";
 import { cn } from "@/lib/utils";
 
 function useOpenReader() {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { lastOpened } = useDeviceStores();
   return async (book: BookSummary) => {
     try {
       const detail = await queryClient.fetchQuery({
         queryKey: keys.book(book.id),
         queryFn: () => api.getBook(book.id),
       });
-      const last = lastOpenedStore.get();
+      const last = lastOpened.get();
       const resumable =
         last?.bookId === book.id && detail.chapters.some((c) => c.id === last.chapterId);
       const chapterId = resumable
@@ -85,7 +86,7 @@ function VolumeRow({ book, mainLang }: { book: BookSummary; mainLang: string | n
   const labelId = useId();
   const [editing, setEditing] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
-  const status = volumeProgress(book, mainLang);
+  const status = volumeStatus(book, mainLang);
   const label = volumeLabel(book);
   const title = book.translatedTitle || book.title;
   const original = title !== book.title ? book.title : null;

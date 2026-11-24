@@ -5,10 +5,10 @@ import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import type { ProjectSeed } from "@/api/mock-seed";
 import type { Vault } from "@/keys/vault";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
+
 import { createHostedApi } from "@/translate/hosted-api";
 import type { ClientRuntime } from "@/translate/runtime";
-import { renderAt, setUpRouteTests } from "./route-harness";
+import { deviceStores, renderAt, setUpRouteTests } from "./route-harness";
 
 setUpRouteTests();
 
@@ -39,6 +39,24 @@ const NO_GLOSSARY: ProjectSeed[] = [
     glossary: [{ source: "ホロ", target: "Holo" }],
     volumes: [{ id: "named-1", title: "名前のある物語 1", volumeNumber: 1 }],
   },
+  {
+    id: "project-done",
+    name: "終わった物語",
+    volumes: [
+      {
+        id: "done-1",
+        title: "終わった物語 1",
+        volumeNumber: 1,
+        translations: [
+          {
+            lang: "en",
+            bookTitle: "A Finished Story",
+            chapters: { c1: "done", c2: "done", c3: "done" },
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function spied(base: Api = createMockApi(NO_GLOSSARY)) {
@@ -46,12 +64,8 @@ function spied(base: Api = createMockApi(NO_GLOSSARY)) {
     ...base,
     translateChapter: vi.fn(base.translateChapter),
     translateAll: vi.fn(base.translateAll),
-    retryChapter: vi.fn(base.retryChapter),
   };
-  const sent = () =>
-    api.translateChapter.mock.calls.length +
-    api.translateAll.mock.calls.length +
-    api.retryChapter.mock.calls.length;
+  const sent = () => api.translateChapter.mock.calls.length + api.translateAll.mock.calls.length;
   return { api, sent };
 }
 
@@ -260,14 +274,14 @@ describe("glossary-first guard in the editor", () => {
     renderAt("/books/plain-1?chapter=c3", api);
     await user.click(await toolbarButton("Translate chapter"));
     await translateAnyway(user);
-    expect(glossarySkipStore.isSkipped("project-plain")).toBe(true);
+    expect(deviceStores().glossarySkip.isSkipped("project-plain")).toBe(true);
     await pickFromTranslateMenu(user, "All chapters");
     await waitFor(() => expect(api.translateAll).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull();
   });
 
   it("translates straight away once the project was skipped", async () => {
-    glossarySkipStore.skip("project-plain");
+    deviceStores().glossarySkip.skip("project-plain");
     const user = userEvent.setup();
     const { api } = spied();
     renderAt("/books/plain-1?chapter=c3", api);
@@ -285,6 +299,31 @@ describe("glossary-first guard in the editor", () => {
     expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull();
   });
 
+  it("does not ask when every volume is already translated", async () => {
+    const user = userEvent.setup();
+    const { api } = spied();
+    renderAt("/books/done-1?chapter=c1", api);
+    await pickFromTranslateMenu(user, "All chapters");
+    await waitFor(() => expect(api.translateAll).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull();
+  });
+
+  it("asks instead of translating when the glossary cannot be loaded", async () => {
+    const user = userEvent.setup();
+    const base = createMockApi(NO_GLOSSARY);
+    const { api, sent } = spied({
+      ...base,
+      getProjectSettings: () => Promise.reject(new Error("offline")),
+    });
+    renderAt("/books/named-1?chapter=c1", api);
+    await user.click(await toolbarButton("Translate chapter"));
+    const dialog = await expectPromptHolds(sent);
+    expect(dialog).toHaveTextContent("could not be loaded");
+    await user.click(within(dialog).getByRole("button", { name: "Translate anyway" }));
+    await waitFor(() => expect(sent()).toBe(1));
+    expect(deviceStores().glossarySkip.isSkipped("project-named")).toBe(false);
+  });
+
   it("sends nothing and remembers nothing when the prompt is dismissed", async () => {
     const user = userEvent.setup();
     const { api, sent } = spied();
@@ -294,7 +333,7 @@ describe("glossary-first guard in the editor", () => {
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: PROMPT })).toBeNull());
     expect(sent()).toBe(0);
-    expect(glossarySkipStore.isSkipped("project-plain")).toBe(false);
+    expect(deviceStores().glossarySkip.isSkipped("project-plain")).toBe(false);
   });
 
   it("Set up glossary opens the project's Glossary tab with Suggest terms, sending nothing", async () => {
@@ -308,7 +347,7 @@ describe("glossary-first guard in the editor", () => {
     expect(router.state.location.pathname).toBe("/projects/project-plain");
     expect(router.state.location.search).toMatchObject({ tab: "glossary", suggest: true });
     expect(sent()).toBe(0);
-    expect(glossarySkipStore.isSkipped("project-plain")).toBe(false);
+    expect(deviceStores().glossarySkip.isSkipped("project-plain")).toBe(false);
   });
 
   it("holds a translation started before the glossary has loaded", async () => {

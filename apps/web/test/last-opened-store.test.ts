@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createLastOpenedStore } from "@/lib/last-opened-store";
-import type { StorageLike } from "@/lib/reader-settings-store";
+import type { StorageLike } from "@/lib/storage";
 
 function memory() {
   const mem = new Map<string, string>();

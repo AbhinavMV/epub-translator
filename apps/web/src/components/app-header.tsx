@@ -6,7 +6,6 @@ import { AppMark } from "@/components/app-mark";
 import { SettingsMenu } from "@/components/settings-menu";
 import { cn } from "@/lib/utils";
 
-/** One breadcrumb level. The last crumb is always shown as the current page, whatever its kind. */
 export type Crumb =
   | { kind: "library" }
   | { kind: "project"; projectId: string; name: string }
@@ -20,24 +19,29 @@ export function volumeLabel(
   return book.translatedTitle || book.title;
 }
 
-/**
- * Library / Project / Vol. N for a volume's editor and reader. The project level appears once the
- * book's project has loaded; the volume level hints at the full title.
- */
 export function useVolumeCrumbs(
   book:
-    | Pick<BookSummary, "projectId" | "volumeNumber" | "title" | "translatedTitle" | "sourceLang">
+    | Pick<
+        BookSummary,
+        "id" | "projectId" | "volumeNumber" | "title" | "translatedTitle" | "sourceLang"
+      >
     | undefined,
   translatedTitle?: string | null,
+  chapter?: { label: string; lang?: string },
 ): Crumb[] {
   const project = useProject(book?.projectId);
   const crumbs: Crumb[] = [{ kind: "library" }];
   if (project.data) {
     crumbs.push({ kind: "project", projectId: project.data.id, name: project.data.name });
   }
-  if (!book) return [...crumbs, { kind: "current", label: "…" }];
+  if (!book) return [...crumbs, { kind: "current", label: chapter?.label ?? "…" }];
   const title = translatedTitle || book.translatedTitle || book.title;
   const label = volumeLabel({ ...book, translatedTitle: title });
+  if (chapter) {
+    crumbs.push({ kind: "book", bookId: book.id, label });
+    crumbs.push({ kind: "current", ...chapter, hint: `${label} · ${chapter.label}` });
+    return crumbs;
+  }
   crumbs.push({
     kind: "current",
     label,
@@ -66,22 +70,33 @@ const SEPARATOR = "shrink-0 px-0.5 text-border";
 function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
   const label = labelOf(crumb);
   const props = { className, title: label, "data-overflow": "clip" as const };
+  const exact = { exact: true };
   switch (crumb.kind) {
     case "library":
       return (
-        <Link to="/" {...props}>
+        <Link to="/" activeOptions={exact} {...props}>
           {label}
         </Link>
       );
     case "project":
       return (
-        <Link to="/projects/$projectId" params={{ projectId: crumb.projectId }} {...props}>
+        <Link
+          to="/projects/$projectId"
+          params={{ projectId: crumb.projectId }}
+          activeOptions={exact}
+          {...props}
+        >
           {label}
         </Link>
       );
     case "book":
       return (
-        <Link to="/books/$bookId" params={{ bookId: crumb.bookId }} {...props}>
+        <Link
+          to="/books/$bookId"
+          params={{ bookId: crumb.bookId }}
+          activeOptions={exact}
+          {...props}
+        >
           {label}
         </Link>
       );
@@ -92,48 +107,34 @@ function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
 
 export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   const current = crumbs.at(-1);
-  const above = crumbs.slice(0, -1);
   if (!current) return <nav aria-label="Breadcrumb" className="min-w-0 flex-1" />;
+  const parent = crumbs.at(-2);
+  const earlier = crumbs.slice(0, -2);
   const label = labelOf(current);
-  // On a phone the Library level gives way when there are deeper levels to show.
-  const libraryHidden = above[0]?.kind === "library" && above.length > 1;
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
-      {above.length > 0 && (
-        // Starts from its minimum and grows only into space the current page leaves, so the
-        // project level clips first and the current page clips only when it alone is too wide.
-        <span
-          className={cn(
-            "flex max-w-fit grow basis-0 items-center",
-            above.length === 1 && above[0]?.kind === "library" ? "min-w-min" : "min-w-8",
-          )}
-        >
-          {above.map((crumb, i) => {
-            const phoneHidden = libraryHidden && i <= 1;
-            return (
-              <Fragment key={`${crumb.kind}-${labelOf(crumb)}`}>
-                {i > 0 && (
-                  <span aria-hidden className={cn(SEPARATOR, phoneHidden && "max-sm:hidden")}>
-                    /
-                  </span>
-                )}
-                <CrumbLink
-                  crumb={crumb}
-                  className={cn(
-                    LINK,
-                    crumb.kind !== "library" && "min-w-8 shrink-[20]",
-                    i === 0 && phoneHidden && "max-sm:hidden",
-                  )}
-                />
-              </Fragment>
-            );
-          })}
-        </span>
-      )}
-      {above.length > 0 && (
-        <span aria-hidden className={SEPARATOR}>
-          /
-        </span>
+      {earlier.map((crumb) => (
+        <Fragment key={`${crumb.kind}-${labelOf(crumb)}`}>
+          <CrumbLink
+            crumb={crumb}
+            className={cn(
+              LINK,
+              "max-sm:hidden",
+              crumb.kind === "library" ? "shrink-0" : "min-w-8 shrink-[20]",
+            )}
+          />
+          <span aria-hidden className={cn(SEPARATOR, "max-sm:hidden")}>
+            /
+          </span>
+        </Fragment>
+      ))}
+      {parent && (
+        <>
+          <CrumbLink crumb={parent} className={cn(LINK, "max-w-[max(45%,5rem)] shrink-0")} />
+          <span aria-hidden className={SEPARATOR}>
+            /
+          </span>
+        </>
       )}
       <span
         aria-current="page"

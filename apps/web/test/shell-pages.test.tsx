@@ -1,8 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { lastOpenedStore } from "@/lib/last-opened-store";
-import { renderAt, setUpRouteTests } from "./route-harness";
+
+import { deviceStores, renderAt, setUpRouteTests } from "./route-harness";
 
 setUpRouteTests();
 
@@ -31,7 +31,7 @@ describe.each([
   it("records the open book and chapter for this device", async () => {
     renderAt(path);
     await waitFor(() =>
-      expect(lastOpenedStore.get()).toMatchObject({ bookId: "angel-2", chapterId: "c2" }),
+      expect(deviceStores().lastOpened.get()).toMatchObject({ bookId: "angel-2", chapterId: "c2" }),
     );
   });
 });

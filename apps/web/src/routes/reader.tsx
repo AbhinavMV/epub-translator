@@ -9,9 +9,9 @@ import {
   PencilLine,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useBook, useChapter, useJob, useProject, useWorkspace } from "@/api/queries";
+import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
-import { AppHeader, type Crumb, volumeLabel } from "@/components/app-header";
+import { AppHeader, useVolumeCrumbs } from "@/components/app-header";
 import { ChapterRailPanel, ChapterSheet } from "@/components/chapter-rail";
 import { PartSentinel } from "@/components/part-sentinel";
 import { ChapterContent } from "@/components/reader/chapter-view";
@@ -144,31 +144,18 @@ export function ReaderPage() {
     maxWidth: sideBySide ? `${widthEm * 2 + 4}em` : undefined,
   } as React.CSSProperties;
 
-  const project = useProject(book.data?.projectId);
-  const crumbs: Crumb[] = [{ kind: "library" }];
-  if (project.data) {
-    crumbs.push({ kind: "project", projectId: project.data.id, name: project.data.name });
-  }
   const translatedTitle =
     chapterId === CONTENTS_CHAPTER_ID ? undefined : job.data?.titles.chapters[chapterId];
   const chapterTitle =
     chapterId === CONTENTS_CHAPTER_ID
       ? "Book title & navigation"
       : (translatedTitle ?? summary?.title ?? view?.title ?? "…");
-  const volume = book.data
-    ? volumeLabel({
-        ...book.data,
-        translatedTitle: job.data?.titles.book || book.data.translatedTitle,
-      })
-    : undefined;
-  crumbs.push({
-    kind: "current",
+  const crumbs = useVolumeCrumbs(book.data, job.data?.titles.book, {
     label: chapterTitle,
     lang:
       translatedTitle || chapterId === CONTENTS_CHAPTER_ID
         ? undefined
         : (book.data?.sourceLang ?? undefined),
-    hint: volume ? `${volume} · ${chapterTitle}` : chapterTitle,
   });
 
   const content = view ? (

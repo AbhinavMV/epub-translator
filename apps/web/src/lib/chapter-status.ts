@@ -7,7 +7,9 @@ export function progressFor(
   return job?.progress.find((p) => p.chapterId === chapterId);
 }
 
-export function isBusy(status: ChapterStatus | undefined): boolean {
+type BusyStatus = Extract<ChapterStatus, "queued" | "running" | "submitted">;
+
+export function isBusy(status: ChapterStatus | undefined): status is BusyStatus {
   return status === "running" || status === "queued" || status === "submitted";
 }
 
@@ -19,14 +21,10 @@ export function hasAnyTranslation(job: JobSummary | undefined): boolean {
   return job?.progress.some((p) => p.done > 0) ?? false;
 }
 
-export const STATUS_LABEL: Record<ChapterStatus, string> = {
-  idle: "Not translated",
+export const BUSY_LABEL: Record<BusyStatus, string> = {
   queued: "Queued",
   running: "Translating",
   submitted: "Submitted · waiting for batch",
-  done: "Translated",
-  partial: "Partly translated",
-  failed: "Failed",
 };
 
 export type ChapterState = "not-started" | "busy" | "partial" | "failed" | "done";
@@ -58,7 +56,7 @@ export function chapterStatus(
   const passages = `${translated}/${total} passages`;
 
   if (progress && isBusy(progress.status)) {
-    return { ...counts, state: "busy", label: STATUS_LABEL[progress.status], detail: passages };
+    return { ...counts, state: "busy", label: BUSY_LABEL[progress.status], detail: passages };
   }
   if (failed > 0) {
     return {

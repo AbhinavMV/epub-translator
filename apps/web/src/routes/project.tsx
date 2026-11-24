@@ -27,8 +27,9 @@ import {
   usePageDrop,
   useUploadDialog,
 } from "@/components/upload/upload-dialog";
+import { needsGlossaryFirst } from "@/lib/glossary-first";
 import { useGlossarySkipped } from "@/lib/glossary-skip-store";
-import { projectProgress, volumeProgress } from "@/lib/progress-status";
+import { projectStatus, volumeStatus } from "@/lib/progress-status";
 import { useRenameOfferDismissal } from "@/lib/rename-offer-store";
 import { translatedProjectName } from "@/lib/translated-project-name";
 
@@ -42,7 +43,6 @@ export function parseProjectTab(value: unknown): Exclude<ProjectTab, "volumes"> 
 
 export interface ProjectSearch {
   tab?: Exclude<ProjectTab, "volumes">;
-  /** Opens the Glossary tab's Suggest terms panel. */
   suggest?: true;
 }
 
@@ -203,9 +203,9 @@ function ProjectHead({
   const suggested = translatedProjectName(project.books);
   const translatedName = suggested && suggested !== project.name ? suggested : null;
   const translatedCount = project.books.filter(
-    (b) => volumeProgress(b, project.mainLang).done,
+    (b) => volumeStatus(b, project.mainLang).done,
   ).length;
-  const progress = projectProgress({
+  const progress = projectStatus({
     volumeCount: project.books.length,
     translatedVolumeCount: translatedCount,
     fullyTranslatedLang: project.fullyTranslatedLang,
@@ -260,11 +260,9 @@ export function ProjectPage() {
   const detail = project.data;
   const warnNoGlossary =
     tab !== "glossary" &&
-    !glossarySkipped &&
-    settings.data?.glossary.length === 0 &&
+    settings.data !== undefined &&
     detail !== undefined &&
-    !detail.fullyTranslatedLang &&
-    detail.books.some((b) => !volumeProgress(b, detail.mainLang).done);
+    needsGlossaryFirst(detail, settings.data.glossary.length, glossarySkipped);
 
   const selectTab = (value: string) =>
     void navigate({

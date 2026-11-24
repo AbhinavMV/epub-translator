@@ -14,35 +14,44 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { glossarySkipStore } from "@/lib/glossary-skip-store";
+import { useDeviceStores } from "@/lib/device-stores";
+import { needsGlossaryFirst } from "@/lib/glossary-first";
 
 /**
- * Holds every translation the editor starts in a project with no glossary until the reader
- * chooses Translate anyway (remembered per project on this device) or Set up glossary.
+ * Holds a translation until the reader chooses Translate anyway or Set up glossary, when the
+ * project page would warn about the empty glossary or the glossary cannot be loaded. Translate
+ * anyway is remembered per project only for an empty glossary, not for one that failed to load.
  */
 export function useGlossaryFirst(projectId: string | null | undefined) {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { glossarySkip } = useDeviceStores();
   const project = useProject(projectId);
   useProjectSettings(projectId ?? undefined);
-  const [held, setHeld] = useState<{ run: () => void } | null>(null);
+  const [held, setHeld] = useState<{ run: () => void; unreadable: boolean } | null>(null);
 
   const guard = async (run: () => void) => {
-    if (!projectId || glossarySkipStore.isSkipped(projectId)) return run();
-    let glossarySize: number;
+    if (!projectId || glossarySkip.isSkipped(projectId)) return run();
+    let ask: boolean;
     try {
-      const settings = await queryClient.ensureQueryData({
-        queryKey: keys.projectSettings(projectId),
-        queryFn: () => api.getProjectSettings(projectId),
-      });
-      glossarySize = settings.glossary.length;
+      const [settings, detail] = await Promise.all([
+        queryClient.ensureQueryData({
+          queryKey: keys.projectSettings(projectId),
+          queryFn: () => api.getProjectSettings(projectId),
+        }),
+        queryClient.ensureQueryData({
+          queryKey: keys.project(projectId),
+          queryFn: () => api.getProject(projectId),
+        }),
+      ]);
+      ask = needsGlossaryFirst(detail, settings.glossary.length, glossarySkip.isSkipped(projectId));
     } catch {
-      // A glossary we cannot read should not stop the reader from translating.
-      return run();
+      setHeld({ run, unreadable: true });
+      return;
     }
-    if (glossarySize > 0 || glossarySkipStore.isSkipped(projectId)) return run();
-    setHeld({ run });
+    if (ask) setHeld({ run, unreadable: false });
+    else run();
   };
 
   const dialog = (
@@ -56,9 +65,11 @@ export function useGlossaryFirst(projectId: string | null | undefined) {
         <DialogHeader>
           <DialogTitle>Translate without a glossary?</DialogTitle>
           <DialogDescription className="[overflow-wrap:anywhere]">
-            {project.data?.name ?? "This project"} has no glossary yet. Names and recurring terms
-            may be translated differently in each chapter, and fixing them later means retranslating
-            or proofreading.
+            {held?.unreadable
+              ? `The glossary for ${project.data?.name ?? "this project"} could not be loaded, so it can’t be checked before translating.`
+              : `${project.data?.name ?? "This project"} has no glossary yet.`}{" "}
+            Names and recurring terms may be translated differently in each chapter, and fixing them
+            later means retranslating or proofreading.
           </DialogDescription>
           <p className="text-sm text-muted-foreground">
             Suggest terms reads a sample of the text and proposes entries for you to review. It
@@ -69,10 +80,9 @@ export function useGlossaryFirst(projectId: string | null | undefined) {
           <Button
             variant="outline"
             onClick={() => {
-              const run = held?.run;
               setHeld(null);
-              if (projectId) glossarySkipStore.skip(projectId);
-              run?.();
+              if (projectId && held && !held.unreadable) glossarySkip.skip(projectId);
+              held?.run();
             }}
           >
             Translate anyway

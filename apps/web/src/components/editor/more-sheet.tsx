@@ -52,7 +52,7 @@ export function MoreSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[85dvh] gap-0 rounded-t-xl">
-        <SheetHeader className="pr-12">
+        <SheetHeader>
           <SheetTitle className="break-words">{title}</SheetTitle>
           <SheetDescription className="sr-only">Tools for this volume</SheetDescription>
         </SheetHeader>

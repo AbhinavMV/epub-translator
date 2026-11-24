@@ -32,7 +32,6 @@ export function ProjectGlossarySuggestions({
 }: {
   books: BookSummary[];
   onAdd: (entries: GlossaryEntry[]) => void;
-  /** Starts on All volumes instead of the latest volume. */
   readAll?: boolean;
 }) {
   const providers = useProviders();

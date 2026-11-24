@@ -36,11 +36,11 @@ One source term, its rendering, and an optional note.
 _Avoid_: Term
 
 **Glossary skip**:
-The reader's choice, on the project page (**Skip for now**) or before a translation (**Translate anyway**), to translate a project that has no glossary entries. It is remembered per project on one device, and turns off both the project warning and the editor's "Translate without a glossary?" prompt.
+The reader's decision to translate a project without any glossary entries. Once made, the reader is no longer urged to set up a glossary for that project before translating.
 _Avoid_: Dismiss, ignore glossary
 
 **Glossary conflict**:
-A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader settles the conflict by picking a rendering (or writing a new one) and saving the glossary.
+A glossary entry for which merged books supplied different renderings; one rendering is in force until the reader settles the conflict by choosing a rendering or writing a new one.
 
 **Custom prompt**:
 The project's free-text style instructions, which take the place of the default style guidance when translating any of its books. The fidelity and format rules always apply and cannot be edited.
@@ -53,9 +53,9 @@ The rendering of a book's own title, taken from its English translation. With it
 A project in which every volume has a complete translation into the same target language. Flagged segments count as translated; proofreading is not required.
 
 **Main language**:
-The target language a project's progress is counted in: the one the most volumes are completely translated into; on a tie, the one the most volumes have any translated passage in; on a further tie, the language listed first among the target languages. A project with no translated passage in any language has none. A volume counts as translated, and its percentage is measured, only in the main language, so a project is fully translated exactly when it has volumes and every one is translated.
+The target language a project's progress is counted in: the language most of its volumes are translated into. A volume counts as translated only in the main language. A project with nothing translated yet has no main language.
 _Avoid_: Primary language, default language
 
 **Chapter status**:
-Where a chapter's translation stands, read from its passage counts: Translated (every passage, flagged ones included), Partly translated, Has failed passages, Not started, or Translating while work is queued or running. The editor's chapter list and the reader's contents both show it.
+Where a chapter's translation stands. It is one of Translated (every passage, flagged ones included), Partly translated, Has failed passages, Not started, or Translating (while work on it is waiting or under way).
 _Avoid_: Character count, progress dot
