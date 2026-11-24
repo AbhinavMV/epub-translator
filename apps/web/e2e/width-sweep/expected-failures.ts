@@ -7,27 +7,6 @@ import type { ExpectedFailure } from "./expectations";
  */
 export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
   {
-    screen: "admin",
-    offender:
-      'overflows: div > main > section > div[data-slot="table-container"] "EmailRoleStatusActionsa.reader.with.a.ra…"',
-    widths: [280, 1023],
-    review: "H1",
-  },
-  {
-    screen: "admin",
-    offender:
-      'overflows: div > main > section > div[data-slot="table-container"] "ForStatusExpiresActionsan.invited.friend…"',
-    widths: [280, 1023],
-    review: "H1",
-  },
-  {
-    screen: "editor chapters sheet",
-    offender:
-      'past-viewport: div[data-slot="sheet-content"][role="dialog"] "ChaptersChoose a chapter013 to review198…"',
-    widths: [280, 639],
-    review: "sweep: the sheet is wider than a 280 px screen",
-  },
-  {
     screen: "glossary dialog empty",
     offender:
       'overflows: div > div > button[data-slot="select-trigger"][role="combobox"][aria-label="Model"] > span[data-slot="select-value"] "claude-sonnet-5-5"',
@@ -82,30 +61,6 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
       'overflows: div[data-slot="dialog-content"][role="dialog"] > div > div "Suggest from volumeclaude-haiku-5-5"',
     widths: [280, 639],
     review: "P1",
-  },
-  {
-    screen: "hosted library",
-    offender: 'overflows: section > div > a > div "狼と香辛料1 volumeFully translated"',
-    widths: [280, 639],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "hosted library",
-    offender: 'overflows: section > div > a > div "魔女の旅々2 volumesFully translated · French"',
-    widths: [280, 1023],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "library",
-    offender: 'overflows: section > div > a > div "狼と香辛料1 volumeFully translated"',
-    widths: [280, 639],
-    review: "sweep: project card labels overflow the card",
-  },
-  {
-    screen: "library",
-    offender: 'overflows: section > div > a > div "魔女の旅々2 volumesFully translated · French"',
-    widths: [280, 1023],
-    review: "sweep: project card labels overflow the card",
   },
   {
     screen: "project long title",

@@ -8,6 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiProvider } from "@/api/api-context";
 import { createMockApi } from "@/api/mock";
@@ -100,5 +101,19 @@ describe.each([
     await waitFor(() =>
       expect(lastOpenedStore.get()).toMatchObject({ bookId: "angel-2", chapterId: "c2" }),
     );
+  });
+});
+
+describe("reader contents sheet", () => {
+  it("lists chapters with their status and opens the one chosen", async () => {
+    const user = userEvent.setup();
+    renderAt("/books/angel-2-5/read/c1");
+    await user.click(await screen.findByRole("button", { name: "Contents" }));
+    const sheet = await screen.findByRole("dialog", { name: "Contents" });
+    const failed = await within(sheet).findAllByRole("img", { name: "Has failed passages" });
+    const target = failed[0]?.closest("button");
+    expect(target).toBeTruthy();
+    if (target) await user.click(target);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Contents" })).toBeNull());
   });
 });

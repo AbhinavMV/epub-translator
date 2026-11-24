@@ -30,7 +30,11 @@ export function SignInPage() {
   };
 
   return (
-    <AuthShell title="Sign in" description="Access is by invitation only.">
+    <AuthShell
+      title="Sign in"
+      description="Access is by invitation only."
+      footer="Forgot your password? Ask the person who invited you for a reset link."
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field
           id="email"

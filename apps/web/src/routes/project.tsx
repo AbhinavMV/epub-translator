@@ -11,6 +11,7 @@ import { ProjectTermsSection } from "@/components/project/project-terms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UploadDialog, usePageDrop, useUploadDialog } from "@/components/upload/upload-dialog";
 import { ProjectVolume } from "@/components/volume-number-editor";
 import { translatedProjectName } from "@/lib/translated-project-name";
 
@@ -82,6 +83,8 @@ export function ProjectPage() {
   const { projectId } = useParams({ from: "/projects/$projectId" });
   const project = useProject(projectId);
   const remove = useDeleteBook();
+  const upload = useUploadDialog();
+  usePageDrop(upload);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -92,6 +95,7 @@ export function ProjectPage() {
         ]}
       />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
+        <UploadDialog upload={upload} projectId={projectId} />
         <header className="flex flex-col gap-4">
           {project.data ? (
             <ProjectName project={project.data} />

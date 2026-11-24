@@ -23,6 +23,8 @@ export interface Screen {
   hosted?: "1" | "signed-out";
   /** Reader preferences stored before the app boots (theme is set by the sweep). */
   prefs?: Record<string, unknown>;
+  /** Other localStorage entries stored before the app boots. */
+  storage?: Record<string, string>;
   /** Visible once the page has its data. */
   ready: (page: Page) => Locator;
   /** Opens the overlay or state under test; the sweep calls it again whenever it has closed. */
@@ -52,13 +54,27 @@ const glossaryLoaded = (page: Page) =>
     .filter({ hasText: "Anthropic" })
     .filter({ hasText: "claude-haiku-5-5" });
 
+const openApiKeys = async (page: Page) => {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "API keys" }).click();
+};
+
+const MOCK_PASSPHRASE = "mock passphrase";
+
 const adminReady = (page: Page) => page.getByText("kenji@example.com").first();
 
 const ANGEL = "お隣の天使様にいつの間にか駄目人間にされていた件";
 const LONG_SERIES = /^片田舎で静かに暮らしたかった/;
 
+const libraryReady = (page: Page) => page.getByRole("heading", { level: 1, name: "Library" });
+
+const openUpload = async (page: Page) => {
+  await page.getByRole("button", { name: "Upload EPUB" }).first().click();
+};
+
 const upload = (fileName: string) => async (page: Page) => {
-  await page.locator('input[type="file"]').setInputFiles({
+  await openUpload(page);
+  await page.locator(`${OVERLAY.dialog} input[type="file"]`).setInputFiles({
     name: fileName,
     mimeType: "application/epub+zip",
     buffer: Buffer.from("not really an epub; the mock only reads the name"),
@@ -78,11 +94,27 @@ const click = (target: (page: Page) => Locator) => async (page: Page) => {
 };
 
 export const SCREENS: readonly Screen[] = [
-  { name: "library", path: "/", ready: heading("EPUB Translator") },
+  { name: "library", path: "/", ready: libraryReady },
+  {
+    name: "library continue strip",
+    path: "/",
+    storage: {
+      "et.lastOpened": JSON.stringify({ bookId: "long-2", chapterId: "c1", openedAt: 1 }),
+    },
+    ready: (page) => page.getByRole("region", { name: "Continue" }).getByText(/Vol\. 2/),
+  },
+  {
+    name: "upload choose a file",
+    path: "/",
+    ready: libraryReady,
+    open: openUpload,
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
   {
     name: "upload into an existing project",
     path: "/",
-    ready: heading("EPUB Translator"),
+    ready: libraryReady,
     open: upload(`${ANGEL} 4.epub`),
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
@@ -90,7 +122,7 @@ export const SCREENS: readonly Screen[] = [
   {
     name: "upload as a new project",
     path: "/",
-    ready: heading("EPUB Translator"),
+    ready: libraryReady,
     open: upload(
       "A completely new series whose title keeps going well past any reasonable length 1.epub",
     ),
@@ -294,6 +326,15 @@ export const SCREENS: readonly Screen[] = [
   { name: "reader untranslated", path: "/books/angel-3/read/c1", ready: readerReady },
   { name: "reader long title", path: "/books/long-2/read/c1", ready: readerReady },
   {
+    name: "reader contents sheet",
+    path: "/books/long-2/read/c1",
+    ready: readerReady,
+    open: click((page) => page.getByRole("button", { name: "Contents", exact: true })),
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
+    reachable: (width) => width < 768,
+  },
+  {
     name: "reader settings",
     path: "/books/angel-1/read/c1",
     ready: readerReady,
@@ -302,7 +343,7 @@ export const SCREENS: readonly Screen[] = [
     scope: OVERLAY.popover,
   },
 
-  { name: "hosted library", path: "/", hosted: "1", ready: heading("EPUB Translator") },
+  { name: "hosted library", path: "/", hosted: "1", ready: libraryReady },
   {
     name: "settings menu",
     path: "/books/angel-1?chapter=c1",
@@ -315,16 +356,25 @@ export const SCREENS: readonly Screen[] = [
     name: "hosted settings menu",
     path: "/",
     hosted: "1",
-    ready: heading("EPUB Translator"),
+    ready: libraryReady,
     open: click((page) => page.getByRole("button", { name: "Settings", exact: true })),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
   },
   {
+    name: "hosted upload choose a file",
+    path: "/",
+    hosted: "1",
+    ready: libraryReady,
+    open: openUpload,
+    opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
     name: "hosted upload",
     path: "/",
     hosted: "1",
-    ready: heading("EPUB Translator"),
+    ready: libraryReady,
     open: upload(`${ANGEL} 4.epub`),
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
@@ -363,11 +413,42 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1?chapter=c1",
     hosted: "1",
     ready: editorReady,
-    open: async (page) => {
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByRole("menuitem", { name: "API keys" }).click();
-    },
+    open: openApiKeys,
     opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "api keys unlocked",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => {
+      await openApiKeys(page);
+      await page.getByLabel("New passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByLabel("Repeat passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByRole("button", { name: "Set passphrase" }).click();
+      await page.getByRole("button", { name: "Add Google Gemini key" }).click();
+    },
+    opened: (page) => page.locator(OVERLAY.dialog).filter({ hasText: "Generative Language API" }),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "api keys locked",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => {
+      await openApiKeys(page);
+      await page.getByLabel("New passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByLabel("Repeat passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByRole("button", { name: "Set passphrase" }).click();
+      await page.getByRole("button", { name: "Add Anthropic Claude key" }).click();
+      await page.getByLabel("Anthropic Claude API key").fill("sk-ant-mock-key-0000");
+      await page.getByRole("button", { name: "Save key" }).click();
+      await page.getByText(/^saved · ending/).waitFor();
+      await page.getByRole("button", { name: "Lock now" }).click();
+    },
+    opened: (page) => page.locator(OVERLAY.dialog).filter({ hasText: "Forgot it?" }),
     scope: OVERLAY.dialog,
   },
   {

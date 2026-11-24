@@ -9,17 +9,23 @@ const STILL = `*, *::before, *::after {
   caret-color: transparent !important;
 }`;
 
-export async function prepare(page: Page, theme: Theme, prefs: Record<string, unknown> = {}) {
+export async function prepare(
+  page: Page,
+  theme: Theme,
+  prefs: Record<string, unknown> = {},
+  storage: Record<string, string> = {},
+) {
   await page.addInitScript(
-    ({ css, stored }) => {
+    ({ css, stored, entries }) => {
       window.localStorage.setItem("et.prefs", JSON.stringify(stored));
+      for (const [key, value] of Object.entries(entries)) window.localStorage.setItem(key, value);
       document.addEventListener("DOMContentLoaded", () => {
         const style = document.createElement("style");
         style.textContent = css;
         document.head.append(style);
       });
     },
-    { css: STILL, stored: { ...prefs, theme } },
+    { css: STILL, stored: { ...prefs, theme }, entries: storage },
   );
 }
 
