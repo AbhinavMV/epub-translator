@@ -111,12 +111,16 @@ const openModelSheet = async (page: Page) => {
 
 /** Opens the proofread panel from the bar above the text, or from More on a phone. */
 const openProofreadSheet = async (page: Page) => {
-  const bar = page.getByRole("button", { name: /^(Review|Show)$/ }).filter({ visible: true });
-  if ((await bar.count()) > 0) await bar.first().click();
-  else {
+  if (await page.getByRole("group", { name: "Chapter actions" }).isVisible()) {
     await openMore(page);
     await moreSheet(page)
       .getByRole("button", { name: /^(Review \d+ suggestions?|Show proofread results)$/ })
+      .click();
+  } else {
+    await page
+      .getByRole("button", { name: /^(Review|Show)$/ })
+      .filter({ visible: true })
+      .first()
       .click();
   }
 };
@@ -352,11 +356,8 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1?chapter=c1",
     ready: editorReady,
     open: async (page) => {
-      await page
-        .getByRole("button", { name: /^(Review|Show)$/ })
-        .first()
-        .click();
-      const sheet = page.locator(OVERLAY.sheet);
+      await openProofreadSheet(page);
+      const sheet = page.getByRole("dialog", { name: /proofread/i });
       await sheet
         .getByText(/suggestions? (left|reviewed)/)
         .first()
