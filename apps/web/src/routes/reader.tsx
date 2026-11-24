@@ -1,11 +1,18 @@
 import { CONTENTS_CHAPTER_ID } from "@et/contracts";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, PencilLine } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  List,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PencilLine,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBook, useChapter, useJob, useWorkspace } from "@/api/queries";
 import { useJobEvents } from "@/api/use-job-events";
 import { AppHeader, useVolumeCrumbs } from "@/components/app-header";
-import { ChapterRail } from "@/components/chapter-rail";
+import { ChapterRailPanel, ChapterSheet } from "@/components/chapter-rail";
 import { PartSentinel } from "@/components/part-sentinel";
 import { ChapterContent } from "@/components/reader/chapter-view";
 import { PagedReader, type PagePosition } from "@/components/reader/paged-reader";
@@ -57,6 +64,7 @@ export function ReaderPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(0);
   const [startAt, setStartAt] = useState<StartAt>("first");
+  const [contentsOpen, setContentsOpen] = useState(false);
   const paged = effectiveLayout(prefs.layout, prefs.viewMode) === "paged";
 
   const go = useCallback(
@@ -71,6 +79,13 @@ export function ReaderPage() {
     },
     [navigate, bookId, search.job],
   );
+  const rail = {
+    chapters,
+    job: job.data,
+    activeId: chapterId,
+    onSelect: (id: string) => go(id),
+    sourceLang: book.data?.sourceLang,
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset scroll when the chapter changes
   useEffect(() => {
@@ -172,10 +187,20 @@ export function ReaderPage() {
         <Button
           variant="ghost"
           size="icon"
+          className="max-md:hidden"
           aria-label={prefs.railCollapsed ? "Show contents" : "Hide contents"}
           onClick={() => setPrefs({ railCollapsed: !prefs.railCollapsed })}
         >
           {prefs.railCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Contents"
+          onClick={() => setContentsOpen(true)}
+        >
+          <List />
         </Button>
         <span className="mr-auto font-mono text-xs whitespace-nowrap text-muted-foreground">
           Chapter {position >= 0 ? position + 1 : "–"} of {chapters.length || "–"}
@@ -198,15 +223,19 @@ export function ReaderPage() {
       </div>
       <div className="flex min-h-0 flex-1">
         {!prefs.railCollapsed && (
-          <aside className="hidden w-64 shrink-0 overflow-y-auto border-r bg-card/40 md:block">
-            <ChapterRail
-              chapters={chapters}
-              job={job.data}
-              activeId={chapterId}
-              onSelect={(id) => go(id)}
-            />
-          </aside>
+          <ChapterRailPanel
+            title="Contents"
+            className="hidden w-64 shrink-0 md:flex"
+            {...rail}
+            compact
+          />
         )}
+        <ChapterSheet
+          title="Contents"
+          open={contentsOpen}
+          onOpenChange={setContentsOpen}
+          {...rail}
+        />
         {paged ? (
           <PagedReader
             key={chapterId}
