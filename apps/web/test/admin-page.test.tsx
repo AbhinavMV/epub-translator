@@ -48,6 +48,32 @@ describe("AdminPage", () => {
     expect(await screen.findByText("reader@example.com")).toBeInTheDocument();
   });
 
+  it("shows each invite as one row with who, status, expiry and its action", async () => {
+    setup();
+    const list = await screen.findByRole("list", { name: "Invites" });
+    const [row] = await within(list).findAllByRole("listitem");
+    if (!row) throw new Error("no invite row");
+    expect(row).toHaveTextContent("Anyone with the link");
+    expect(row).toHaveTextContent("pending");
+    expect(row).toHaveTextContent(/Expires \S/);
+    expect(within(row).getByRole("button", { name: /Revoke invite/ })).toBeInTheDocument();
+  });
+
+  it("shows each user as one row with role, status and actions", async () => {
+    setup();
+    const list = await screen.findByRole("list", { name: "Users" });
+    const rows = await within(list).findAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    const reader = rows[1];
+    if (!reader) throw new Error("no user row");
+    expect(reader).toHaveTextContent("reader@example.com");
+    expect(reader).toHaveTextContent("user");
+    expect(reader).toHaveTextContent("active");
+    expect(
+      within(reader).getByRole("button", { name: "Delete reader@example.com" }),
+    ).toBeInTheDocument();
+  });
+
   it("creates an invite and shows the link once", async () => {
     const createInvite = vi.fn().mockResolvedValue({ invite, token: "tok-123" });
     setup({ createInvite });

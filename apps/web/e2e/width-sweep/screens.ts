@@ -54,6 +54,13 @@ const glossaryLoaded = (page: Page) =>
     .filter({ hasText: "Anthropic" })
     .filter({ hasText: "claude-haiku-5-5" });
 
+const openApiKeys = async (page: Page) => {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "API keys" }).click();
+};
+
+const MOCK_PASSPHRASE = "mock passphrase";
+
 const adminReady = (page: Page) => page.getByText("kenji@example.com").first();
 
 const ANGEL = "お隣の天使様にいつの間にか駄目人間にされていた件";
@@ -376,11 +383,42 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1?chapter=c1",
     hosted: "1",
     ready: editorReady,
-    open: async (page) => {
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByRole("menuitem", { name: "API keys" }).click();
-    },
+    open: openApiKeys,
     opened: scoped(OVERLAY.dialog),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "api keys unlocked",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => {
+      await openApiKeys(page);
+      await page.getByLabel("New passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByLabel("Repeat passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByRole("button", { name: "Set passphrase" }).click();
+      await page.getByRole("button", { name: "Add Google Gemini key" }).click();
+    },
+    opened: (page) => page.locator(OVERLAY.dialog).filter({ hasText: "Generative Language API" }),
+    scope: OVERLAY.dialog,
+  },
+  {
+    name: "api keys locked",
+    path: "/books/angel-1?chapter=c1",
+    hosted: "1",
+    ready: editorReady,
+    open: async (page) => {
+      await openApiKeys(page);
+      await page.getByLabel("New passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByLabel("Repeat passphrase").fill(MOCK_PASSPHRASE);
+      await page.getByRole("button", { name: "Set passphrase" }).click();
+      await page.getByRole("button", { name: "Add Anthropic Claude key" }).click();
+      await page.getByLabel("Anthropic Claude API key").fill("sk-ant-mock-key-0000");
+      await page.getByRole("button", { name: "Save key" }).click();
+      await page.getByText(/^saved · ending/).waitFor();
+      await page.getByRole("button", { name: "Lock now" }).click();
+    },
+    opened: (page) => page.locator(OVERLAY.dialog).filter({ hasText: "Forgot it?" }),
     scope: OVERLAY.dialog,
   },
   {
