@@ -68,6 +68,8 @@ const pairs: [fg: string, bg: string, min: number][] = [
   ["primary-foreground", "primary-hover", TEXT],
   ["cover-fallback-foreground", "cover-fallback", TEXT],
   ["rail-active-foreground", "rail-active", TEXT],
+  ["ok", "background", TEXT],
+  ["ok", "card", TEXT],
   ["destructive", "background", TEXT],
   ["destructive", "card", TEXT],
   ["ring", "background", UI],
