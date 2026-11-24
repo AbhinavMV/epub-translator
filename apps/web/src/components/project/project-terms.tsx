@@ -3,7 +3,6 @@ import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useProjectSettings, useResolveGlossaryConflict, useSaveProjectTerms } from "@/api/queries";
-import { PromptDialog } from "@/components/editor/prompt-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlossaryEditor } from "./glossary-editor";
 import { ProjectGlossarySuggestions } from "./project-glossary-suggestions";
+import { PromptEditor } from "./prompt-editor";
 
 function useProjectTerms(projectId: string) {
   const settings = useProjectSettings(projectId);
@@ -129,24 +129,10 @@ export function ProjectGlossaryPanel({
 export function ProjectPromptPanel({ projectId }: { projectId: string }) {
   const { data, saving, persist } = useProjectTerms(projectId);
   return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
-        Style guidance sent with every translation request in this project, on top of the fixed
-        rules.
-      </p>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <PromptDialog
-          value={data?.customPrompt}
-          disabled={!data}
-          saving={saving}
-          onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}
-        />
-        {data ? (
-          <p className="min-w-0 text-sm text-muted-foreground">
-            {data.customPrompt ? "Custom prompt set" : "Using the default style guidance"}
-          </p>
-        ) : null}
-      </div>
-    </div>
+    <PromptEditor
+      value={data?.customPrompt}
+      saving={saving}
+      onSave={(customPrompt) => persist({ customPrompt }, "Could not save the custom prompt")}
+    />
   );
 }

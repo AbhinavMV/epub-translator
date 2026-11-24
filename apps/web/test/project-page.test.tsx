@@ -123,7 +123,7 @@ describe("project tabs", () => {
       "aria-selected",
       "true",
     );
-    expect(await screen.findByRole("button", { name: /^Custom prompt/ })).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: "Custom prompt" })).toBeInTheDocument();
   });
 
   it("falls back to Volumes for an unknown tab", () => {
