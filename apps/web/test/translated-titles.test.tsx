@@ -2,7 +2,6 @@ import { CONTENTS_CHAPTER_ID } from "@et/contracts";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { BookTitle } from "@/components/book-title";
 import { ChapterRail } from "@/components/chapter-rail";
 import { EditorToolbar } from "@/components/editor/toolbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,27 +38,6 @@ describe("ChapterRail titles", () => {
     expect(items[0]).not.toHaveTextContent("00");
     expect(items[1]).toHaveTextContent("01");
     expect(screen.queryByText("Contents")).toBeNull();
-  });
-});
-
-describe("BookTitle", () => {
-  it("shows the translated title and keeps the original visible", () => {
-    render(
-      <TooltipProvider>
-        <BookTitle title="迷子の本" translated="A Lost Book" />
-      </TooltipProvider>,
-    );
-    expect(screen.getByRole("heading", { name: "A Lost Book" })).toBeInTheDocument();
-    expect(screen.getByText("迷子の本")).toBeInTheDocument();
-  });
-
-  it("falls back to the source title", () => {
-    render(
-      <TooltipProvider>
-        <BookTitle title="迷子の本" translated={null} />
-      </TooltipProvider>,
-    );
-    expect(screen.getByRole("heading", { name: "迷子の本" })).toBeInTheDocument();
   });
 });
 

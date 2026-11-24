@@ -1,4 +1,5 @@
 import type {
+  BookDetail,
   BookSummary,
   ProjectDetail,
   ProjectSettings,
@@ -343,12 +344,17 @@ describe("suggesting from all volumes", () => {
 });
 
 describe("book editor header", () => {
-  it("links to the project instead of editing the glossary or prompt", async () => {
+  it("links to the project from the breadcrumb instead of editing the glossary or prompt", async () => {
+    const book = {
+      ...detail.books[0],
+      projectId: "p1",
+      chapters: [],
+      settings: {},
+    } as unknown as BookDetail;
     const { router } = renderAt("/books/v1", projectApi(), () => (
       <EditorHeader
         bookId="v1"
-        projectId="p1"
-        title="魔女の旅々 1"
+        book={book}
         translatedTitle={null}
         chapterId={undefined}
         jobId={undefined}
@@ -363,7 +369,8 @@ describe("book editor header", () => {
         onOpenRail={() => {}}
       />
     ));
-    const link = await screen.findByRole("link", { name: /project/i });
+    const nav = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    const link = await within(nav).findByRole("link", { name: detail.name });
     expect(screen.queryByRole("button", { name: /^glossary/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /custom prompt/i })).toBeNull();
     await userEvent.click(link);

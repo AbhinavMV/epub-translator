@@ -274,11 +274,19 @@ export const SCREENS: readonly Screen[] = [
 
   { name: "hosted library", path: "/", hosted: "1", ready: heading("EPUB Translator") },
   {
-    name: "account menu",
+    name: "settings menu",
+    path: "/books/angel-1?chapter=c1",
+    ready: editorReady,
+    open: click((page) => page.getByRole("button", { name: "Settings", exact: true })),
+    opened: scoped(OVERLAY.menu),
+    scope: OVERLAY.menu,
+  },
+  {
+    name: "hosted settings menu",
     path: "/",
     hosted: "1",
     ready: heading("EPUB Translator"),
-    open: click((page) => page.getByRole("button", { name: "Account menu" })),
+    open: click((page) => page.getByRole("button", { name: "Settings", exact: true })),
     opened: scoped(OVERLAY.menu),
     scope: OVERLAY.menu,
   },
@@ -325,7 +333,10 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1?chapter=c1",
     hosted: "1",
     ready: editorReady,
-    open: async (page) => iconButton(page, "key-round").click(),
+    open: async (page) => {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("menuitem", { name: "API keys" }).click();
+    },
     opened: scoped(OVERLAY.dialog),
     scope: OVERLAY.dialog,
   },

@@ -47,8 +47,8 @@ export function ProviderSelect({
               <span className="flex flex-col">
                 <span>{p.label}</span>
                 {!p.configured && (
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {hosted ? "Add a key under AI keys" : envHint(p)}
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {hosted ? "Add a key under Settings → API keys" : envHint(p)}
                   </span>
                 )}
               </span>

@@ -1,4 +1,4 @@
-import { KeyRound, Lock, LockOpen } from "lucide-react";
+import { Lock, LockOpen } from "lucide-react";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { HOSTED_FALLBACKS } from "@/translate/hosted-api";
@@ -282,24 +281,21 @@ function KeysBody({ hosted, onDone }: { hosted: Hosted; onDone: () => void }) {
   );
 }
 
-export function KeysDialog() {
+export function KeysDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const hosted = useHosted();
-  const [open, setOpen] = useState(false);
-  const snapshot = useVaultSnapshot(hosted?.vault);
   if (!hosted) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <KeyRound />
-          <span className="hidden sm:inline">AI keys</span>
-          {snapshot?.status === "locked" ? <Lock className="size-3 text-muted-foreground" /> : null}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>AI keys</DialogTitle>
+          <DialogTitle>API keys</DialogTitle>
           <DialogDescription>
             Keys stay on this device, encrypted with your passphrase. They are sent only to the AI
             provider you pick, never to this app's server. They lock after 30 idle minutes.
@@ -324,7 +320,7 @@ export function UnlockDialog() {
     <Dialog open={pending} onOpenChange={(open) => !open && hosted.unlock.dismiss()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Unlock your AI keys</DialogTitle>
+          <DialogTitle>Unlock your API keys</DialogTitle>
           <DialogDescription>
             Enter your passphrase to use the keys saved on this device.
           </DialogDescription>

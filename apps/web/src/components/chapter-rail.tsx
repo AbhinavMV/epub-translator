@@ -45,7 +45,7 @@ export function ChapterRail({
                 : "hover:bg-accent text-foreground",
             )}
           >
-            <span className="flex items-center gap-2 font-mono text-[11px] tracking-wide uppercase opacity-70">
+            <span className="flex items-center gap-2 font-mono text-xs tracking-wide uppercase opacity-70">
               {!generated && <span>{String(chapter.index + 1).padStart(2, "0")}</span>}
               <span
                 role="img"
@@ -56,7 +56,7 @@ export function ChapterRail({
               {suggestions > 0 && (
                 <span
                   title={`${suggestions} proofreading suggestion${suggestions === 1 ? "" : "s"}`}
-                  className="rounded-full bg-flag/15 px-1.5 text-[10px] text-foreground normal-case"
+                  className="rounded-full bg-flag/15 px-1.5 text-xs text-foreground normal-case"
                 >
                   {suggestions} to review
                 </span>

@@ -41,6 +41,7 @@ import {
   progressFor,
   translatedChapterCount,
 } from "@/lib/chapter-status";
+import { useRecordLastOpened } from "@/lib/last-opened-store";
 import { effectiveMode, loadMode, saveMode } from "@/lib/translate-mode";
 import { useBatchPolling, useHostedSync } from "@/translate/use-hosted-sync";
 
@@ -68,6 +69,7 @@ export function BookPage() {
     chapters.find((c) => c.id !== CONTENTS_CHAPTER_ID)?.id ??
     chapters[0]?.id;
   const chapterIndex = chapters.findIndex((c) => c.id === chapterId);
+  useRecordLastOpened(bookId, chapterId === CONTENTS_CHAPTER_ID ? undefined : chapterId);
   const chapter = useChapter(bookId, chapterId, jobId);
   const chapterProgress = progressFor(job.data, chapterId ?? "");
   const busy = isBusy(chapterProgress?.status);
@@ -111,7 +113,7 @@ export function BookPage() {
     job.data?.progress.filter((p) => p.chapterId !== chapterId && isBusy(p.status)).length ?? 0;
 
   const noProviderHint = hosted
-    ? "No AI key yet. Add one under AI keys."
+    ? "No API key yet. Add one under Settings → API keys."
     : "No provider configured. Set ANTHROPIC_API_KEY in apps/api/.env";
 
   const proofreads = useProofreads(jobId);
@@ -210,8 +212,7 @@ export function BookPage() {
     <div className="flex h-dvh flex-col">
       <EditorHeader
         bookId={bookId}
-        projectId={book.data?.projectId}
-        title={book.data?.title}
+        book={book.data}
         translatedTitle={job.data?.titles.book}
         chapterId={chapterId}
         jobId={jobId}
@@ -249,7 +250,7 @@ export function BookPage() {
       />
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-72 shrink-0 flex-col border-r bg-card/40 md:flex">
-          <h2 className="px-5 pt-4 pb-1 font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
+          <h2 className="px-5 pt-4 pb-1 font-mono text-xs tracking-widest text-muted-foreground uppercase">
             Chapters
           </h2>
           <div className="min-h-0 flex-1 overflow-y-auto">{rail}</div>

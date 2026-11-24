@@ -65,9 +65,9 @@ export function BookCard({
             {book.author ?? "Unknown author"}
           </p>
           {book.volumeNumber != null && (
-            <p className="font-mono text-[11px] text-muted-foreground">Vol. {book.volumeNumber}</p>
+            <p className="font-mono text-xs text-muted-foreground">Vol. {book.volumeNumber}</p>
           )}
-          <p className="font-mono text-[11px] text-muted-foreground">
+          <p className="font-mono text-xs text-muted-foreground">
             {book.chapterCount} chapters
             {book.sourceLang ? ` · ${book.sourceLang.toUpperCase()}` : ""}
           </p>

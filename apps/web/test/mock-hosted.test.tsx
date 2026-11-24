@@ -9,6 +9,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ApiProvider } from "@/api/api-context";
 import { createMockApp } from "@/api/mock-app";
@@ -116,10 +117,13 @@ describe("mock hosted switch", () => {
     expect(mockHostedState("", storage)).toBe("signed-out");
   });
 
-  it("renders the library with hosted upload wording and the account menu", async () => {
+  it("renders the library with hosted upload wording and the account items in Settings", async () => {
     renderLibrary(await createMockApp("?hosted=1", memoryStorage()));
     expect(await screen.findByText(/Books are stored privately in your account\./)).toBeVisible();
-    expect(await screen.findByRole("button", { name: "Account menu" })).toBeInTheDocument();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Settings" }));
+    for (const name of ["API keys", "Admin", "Sign out"]) {
+      expect(await screen.findByRole("menuitem", { name })).toBeInTheDocument();
+    }
   });
 
   it("sends a signed-out visitor to sign in", async () => {

@@ -47,7 +47,7 @@ export function ProjectTermsSection({
     <section aria-labelledby="terms-heading" className="flex flex-col gap-3">
       <h2
         id="terms-heading"
-        className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase"
+        className="font-mono text-xs tracking-widest text-muted-foreground uppercase"
       >
         Glossary and custom prompt
       </h2>

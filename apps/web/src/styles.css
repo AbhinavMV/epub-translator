@@ -3,6 +3,7 @@
 @import "@fontsource-variable/literata";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant coarse (@media (pointer: coarse));
 
 :root {
   --ff-serif:

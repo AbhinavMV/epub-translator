@@ -34,7 +34,7 @@ export function ModeToggle({
         }
       >
         Batch
-        <span className="hidden font-mono text-[10px] text-muted-foreground lg:inline">−50%</span>
+        <span className="hidden font-mono text-xs text-muted-foreground lg:inline">−50%</span>
       </ToggleGroupItem>
     </ToggleGroup>
   );

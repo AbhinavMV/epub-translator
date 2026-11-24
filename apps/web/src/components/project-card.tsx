@@ -29,7 +29,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm leading-tight font-semibold">
           {project.name}
         </h3>
-        <p className="font-mono text-[11px] text-muted-foreground">
+        <p className="font-mono text-xs text-muted-foreground">
           {project.volumeCount === 1 ? "1 volume" : `${project.volumeCount} volumes`}
         </p>
         <FullyTranslatedBadge lang={project.fullyTranslatedLang} />

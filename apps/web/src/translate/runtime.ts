@@ -17,7 +17,7 @@ import { WorkLoop } from "./work-loop";
 
 export class KeyUnavailableError extends Error {
   constructor(provider: string) {
-    super(`Add and unlock your ${provider} key under AI keys to translate.`);
+    super(`Add and unlock your ${provider} key under Settings → API keys to translate.`);
     this.name = "KeyUnavailableError";
   }
 }

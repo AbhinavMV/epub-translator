@@ -23,7 +23,7 @@ function Field({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
+        <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
           {label}
         </span>
         {value && <span className="font-mono text-xs">{value}</span>}

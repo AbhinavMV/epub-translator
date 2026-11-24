@@ -239,7 +239,7 @@ export function EditorToolbar({
               <button
                 type="button"
                 onClick={onCheckBatch}
-                className="rounded-full px-2 py-0.5 text-[11px] hover:bg-primary/15"
+                className="rounded-full px-2 py-0.5 text-xs hover:bg-primary/15"
               >
                 Check batch
               </button>

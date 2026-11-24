@@ -1,5 +1,4 @@
 import { DEFAULT_INVITE_HOURS, type InviteSummary, type UserSummary } from "@et/contracts";
-import { Link } from "@tanstack/react-router";
 import { Copy } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -13,8 +12,7 @@ import {
   useUsers,
 } from "@/auth/admin-queries";
 import { useAuth } from "@/auth/auth-context";
-import { AppMark } from "@/components/app-mark";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppHeader } from "@/components/app-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,7 +48,7 @@ async function copy(text: string) {
 
 function SectionTitle({ id, children }: { id: string; children: string }) {
   return (
-    <h2 id={id} className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
+    <h2 id={id} className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
       {children}
     </h2>
   );
@@ -298,27 +296,23 @@ export function AdminPage() {
   const allowed = auth.mode === "supabase" && auth.me?.isAdmin === true;
 
   return (
-    <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-center gap-3">
-        <AppMark />
-        <h1 className="min-w-0 flex-1 font-serif text-xl font-semibold">Admin</h1>
-        <Link to="/" className="text-sm underline">
-          Library
-        </Link>
-        <ThemeToggle />
-      </header>
-      {allowed ? (
-        <>
-          <InvitesSection />
-          <UsersSection selfId={auth.me?.id ?? null} />
-        </>
-      ) : (
-        <p role="alert" className="text-sm text-muted-foreground">
-          {auth.mode === "none"
-            ? "Administration is only available on the hosted app."
-            : "You do not have access to this page."}
-        </p>
-      )}
+    <div className="flex min-h-full flex-col">
+      <AppHeader crumbs={[{ kind: "library" }, { kind: "current", label: "Admin" }]} />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
+        <h1 className="font-serif text-xl font-semibold">Admin</h1>
+        {allowed ? (
+          <>
+            <InvitesSection />
+            <UsersSection selfId={auth.me?.id ?? null} />
+          </>
+        ) : (
+          <p role="alert" className="text-sm text-muted-foreground">
+            {auth.mode === "none"
+              ? "Administration is only available on the hosted app."
+              : "You do not have access to this page."}
+          </p>
+        )}
+      </main>
     </div>
   );
 }

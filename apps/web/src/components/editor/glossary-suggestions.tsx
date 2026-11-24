@@ -148,7 +148,7 @@ export function GlossarySuggestions({
           </SelectContent>
         </Select>
         {usage && (
-          <span className="font-mono text-[11px] text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             {number.format(usage.inputTokens)} in · {number.format(usage.outputTokens)} out
           </span>
         )}

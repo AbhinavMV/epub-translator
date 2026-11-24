@@ -106,7 +106,7 @@ export function GlossaryDialog({
           <BookA />
           Glossary
           {count > 0 && (
-            <span className="rounded-sm bg-primary/15 px-1 font-mono text-[10px] text-foreground">
+            <span className="rounded-sm bg-primary/15 px-1 font-mono text-xs text-foreground">
               {count}
             </span>
           )}
@@ -155,7 +155,7 @@ export function GlossaryDialog({
           </ScrollArea>
         ) : (
           <ScrollArea className="max-h-[50vh] pr-3">
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 pb-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase sm:grid-cols-[1fr_1fr_1fr_auto]">
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 pb-2 font-mono text-xs tracking-wide text-muted-foreground uppercase sm:grid-cols-[1fr_1fr_1fr_auto]">
               <span>Source</span>
               <span>Rendering</span>
               <span className="hidden sm:block">Note</span>
