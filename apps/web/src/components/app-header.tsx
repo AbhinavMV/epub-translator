@@ -21,18 +21,27 @@ export function volumeLabel(
 
 export function useVolumeCrumbs(
   book:
-    | Pick<BookSummary, "projectId" | "volumeNumber" | "title" | "translatedTitle" | "sourceLang">
+    | Pick<
+        BookSummary,
+        "id" | "projectId" | "volumeNumber" | "title" | "translatedTitle" | "sourceLang"
+      >
     | undefined,
   translatedTitle?: string | null,
+  chapter?: { label: string; lang?: string },
 ): Crumb[] {
   const project = useProject(book?.projectId);
   const crumbs: Crumb[] = [{ kind: "library" }];
   if (project.data) {
     crumbs.push({ kind: "project", projectId: project.data.id, name: project.data.name });
   }
-  if (!book) return [...crumbs, { kind: "current", label: "…" }];
+  if (!book) return [...crumbs, { kind: "current", label: chapter?.label ?? "…" }];
   const title = translatedTitle || book.translatedTitle || book.title;
   const label = volumeLabel({ ...book, translatedTitle: title });
+  if (chapter) {
+    crumbs.push({ kind: "book", bookId: book.id, label });
+    crumbs.push({ kind: "current", ...chapter, hint: `${label} · ${chapter.label}` });
+    return crumbs;
+  }
   crumbs.push({
     kind: "current",
     label,
@@ -60,7 +69,12 @@ const SEPARATOR = "shrink-0 px-0.5 text-border";
 
 function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
   const label = labelOf(crumb);
-  const props = { className, title: label, "data-overflow": "clip" as const };
+  const props = {
+    className,
+    title: label,
+    "data-overflow": "clip" as const,
+    activeOptions: { exact: true },
+  };
   switch (crumb.kind) {
     case "library":
       return (
@@ -87,47 +101,34 @@ function CrumbLink({ crumb, className }: { crumb: Crumb; className: string }) {
 
 export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
   const current = crumbs.at(-1);
-  const above = crumbs.slice(0, -1);
   if (!current) return <nav aria-label="Breadcrumb" className="min-w-0 flex-1" />;
+  const parent = crumbs.at(-2);
+  const earlier = crumbs.slice(0, -2);
   const label = labelOf(current);
-  const libraryHidden = above[0]?.kind === "library" && above.length > 1;
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
-      {above.length > 0 && (
-        // Starts from its minimum and grows only into space the current page leaves, so the
-        // project level clips first and the current page clips only when it alone is too wide.
-        <span
-          className={cn(
-            "flex max-w-fit grow basis-0 items-center",
-            above.length === 1 && above[0]?.kind === "library" ? "min-w-min" : "min-w-8",
-          )}
-        >
-          {above.map((crumb, i) => {
-            const phoneHidden = libraryHidden && i <= 1;
-            return (
-              <Fragment key={`${crumb.kind}-${labelOf(crumb)}`}>
-                {i > 0 && (
-                  <span aria-hidden className={cn(SEPARATOR, phoneHidden && "max-sm:hidden")}>
-                    /
-                  </span>
-                )}
-                <CrumbLink
-                  crumb={crumb}
-                  className={cn(
-                    LINK,
-                    crumb.kind !== "library" && "min-w-8 shrink-[20]",
-                    i === 0 && phoneHidden && "max-sm:hidden",
-                  )}
-                />
-              </Fragment>
-            );
-          })}
-        </span>
-      )}
-      {above.length > 0 && (
-        <span aria-hidden className={SEPARATOR}>
-          /
-        </span>
+      {earlier.map((crumb) => (
+        <Fragment key={`${crumb.kind}-${labelOf(crumb)}`}>
+          <CrumbLink
+            crumb={crumb}
+            className={cn(
+              LINK,
+              "max-sm:hidden",
+              crumb.kind === "library" ? "shrink-0" : "min-w-8 shrink-[20]",
+            )}
+          />
+          <span aria-hidden className={cn(SEPARATOR, "max-sm:hidden")}>
+            /
+          </span>
+        </Fragment>
+      ))}
+      {parent && (
+        <>
+          <CrumbLink crumb={parent} className={cn(LINK, "max-w-[max(45%,5rem)] shrink-0")} />
+          <span aria-hidden className={SEPARATOR}>
+            /
+          </span>
+        </>
       )}
       <span
         aria-current="page"
