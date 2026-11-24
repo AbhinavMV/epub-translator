@@ -246,6 +246,16 @@ export const SCREENS: readonly Screen[] = [
     opened: suggestPanelLoaded,
   },
   {
+    name: "project glossary warning",
+    path: "/projects/project-long",
+    ready: (page) => page.getByRole("region", { name: "No glossary yet" }),
+  },
+  {
+    name: "glossary suggest panel from warning",
+    path: "/projects/project-long?tab=glossary&suggest=true",
+    ready: suggestPanelLoaded,
+  },
+  {
     name: "glossary unsaved changes",
     path: "/projects/project-angel?tab=glossary",
     ready: glossaryReady,
@@ -343,6 +353,16 @@ export const SCREENS: readonly Screen[] = [
     opened: moreSheet,
     scope: OVERLAY.sheet,
     reachable: phone,
+  },
+  {
+    name: "translate without a glossary dialog",
+    path: "/books/long-2?chapter=c1",
+    ready: editorReady,
+    open: click((page) =>
+      page.getByRole("button", { name: "Translate chapter" }).filter({ visible: true }).first(),
+    ),
+    opened: (page) => page.getByRole("dialog", { name: "Translate without a glossary?" }),
+    scope: OVERLAY.dialog,
   },
   {
     name: "editor more sheet long title",

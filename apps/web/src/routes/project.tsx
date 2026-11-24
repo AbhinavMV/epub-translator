@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useProject, useProjectSettings, useRenameProject } from "@/api/queries";
 import { AppHeader } from "@/components/app-header";
 import { DeleteProjectDialog } from "@/components/delete-project-dialog";
+import { GlossaryWarning } from "@/components/project/glossary-warning";
 import { ProjectGlossaryPanel, ProjectPromptPanel } from "@/components/project/project-terms";
 import { VolumeList } from "@/components/project/volume-list";
 import { StatusLine } from "@/components/status-line";
@@ -26,6 +27,7 @@ import {
   usePageDrop,
   useUploadDialog,
 } from "@/components/upload/upload-dialog";
+import { useGlossarySkipped } from "@/lib/glossary-skip-store";
 import { projectProgress, volumeProgress } from "@/lib/progress-status";
 import { useRenameOfferDismissal } from "@/lib/rename-offer-store";
 import { translatedProjectName } from "@/lib/translated-project-name";
@@ -36,6 +38,18 @@ export type ProjectTab = (typeof TABS)[number];
 /** Volumes is the default tab, so it is left out of the URL. */
 export function parseProjectTab(value: unknown): Exclude<ProjectTab, "volumes"> | undefined {
   return value === "glossary" || value === "prompt" ? value : undefined;
+}
+
+export interface ProjectSearch {
+  tab?: Exclude<ProjectTab, "volumes">;
+  /** Opens the Glossary tab's Suggest terms panel. */
+  suggest?: true;
+}
+
+export function parseProjectSearch(search: Record<string, unknown>): ProjectSearch {
+  const tab = parseProjectTab(search.tab);
+  const suggest = tab === "glossary" && (search.suggest === true || search.suggest === "true");
+  return { tab, suggest: suggest ? true : undefined };
 }
 
 const volumes = (n: number) => `${n} volume${n === 1 ? "" : "s"}`;
@@ -235,13 +249,22 @@ function ProjectHead({
 
 export function ProjectPage() {
   const { projectId } = useParams({ from: "/projects/$projectId" });
-  const search: { tab?: unknown } = useSearch({ strict: false });
-  const tab: ProjectTab = parseProjectTab(search.tab) ?? "volumes";
+  const search = parseProjectSearch(useSearch({ strict: false }));
+  const tab: ProjectTab = search.tab ?? "volumes";
   const navigate = useNavigate();
   const project = useProject(projectId);
   const settings = useProjectSettings(projectId);
   const upload = useUploadDialog();
   usePageDrop(upload);
+  const glossarySkipped = useGlossarySkipped(projectId);
+  const detail = project.data;
+  const warnNoGlossary =
+    tab !== "glossary" &&
+    !glossarySkipped &&
+    settings.data?.glossary.length === 0 &&
+    detail !== undefined &&
+    !detail.fullyTranslatedLang &&
+    detail.books.some((b) => !volumeProgress(b, detail.mainLang).done);
 
   const selectTab = (value: string) =>
     void navigate({
@@ -272,6 +295,18 @@ export function ProjectPage() {
         ) : (
           <>
             <ProjectHead project={project.data} upload={upload} />
+            {warnNoGlossary ? (
+              <GlossaryWarning
+                projectId={projectId}
+                onSuggest={() =>
+                  void navigate({
+                    to: "/projects/$projectId",
+                    params: { projectId },
+                    search: { tab: "glossary", suggest: true },
+                  })
+                }
+              />
+            ) : null}
             <Tabs value={tab} onValueChange={selectTab}>
               <TabsList aria-label="Project">
                 <TabsTrigger value="volumes">
@@ -304,7 +339,11 @@ export function ProjectPage() {
                 )}
               </TabsContent>
               <TabsContent value="glossary">
-                <ProjectGlossaryPanel projectId={projectId} books={project.data.books} />
+                <ProjectGlossaryPanel
+                  projectId={projectId}
+                  books={project.data.books}
+                  suggest={search.suggest === true}
+                />
               </TabsContent>
               <TabsContent value="prompt">
                 <ProjectPromptPanel projectId={projectId} />

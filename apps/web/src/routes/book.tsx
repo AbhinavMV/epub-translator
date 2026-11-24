@@ -25,6 +25,7 @@ import { ChapterPager } from "@/components/editor/chapter-pager";
 import { ChapterStatusBlock } from "@/components/editor/chapter-status-block";
 import { EditorHeader } from "@/components/editor/editor-header";
 import { ExportMenu } from "@/components/editor/export-menu";
+import { useGlossaryFirst } from "@/components/editor/glossary-first";
 import { resolveSelection, type Selection } from "@/components/editor/model-selection";
 import { ModelSheet } from "@/components/editor/model-sheet";
 import { MORE_ITEM, MoreSheet } from "@/components/editor/more-sheet";
@@ -87,13 +88,16 @@ export function BookPage() {
   };
   const saveSettings = useSaveSettings(bookId);
   const action = useJobAction(jobId);
+  const glossaryFirst = useGlossaryFirst(book.data?.projectId);
   /** Every translation the editor starts goes through here; `null` means all chapters. */
   const startTranslation = (target: string | null | undefined) => {
     if (!body || target === undefined) return;
-    action.mutate(
-      target === null
-        ? { kind: "translate-all", body }
-        : { kind: "translate", chapterId: target, body },
+    void glossaryFirst.guard(() =>
+      action.mutate(
+        target === null
+          ? { kind: "translate-all", body }
+          : { kind: "translate", chapterId: target, body },
+      ),
     );
   };
 
@@ -411,6 +415,7 @@ export function BookPage() {
               />
             }
           />
+          {glossaryFirst.dialog}
           <MoreSheet
             open={moreOpen}
             onOpenChange={setMoreOpen}

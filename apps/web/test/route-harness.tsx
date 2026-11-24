@@ -10,10 +10,13 @@ import {
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { ApiProvider } from "@/api/api-context";
+import type { Api } from "@/api/client";
 import { createMockApi } from "@/api/mock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { glossarySkipStore } from "@/lib/glossary-skip-store";
 import { lastOpenedStore } from "@/lib/last-opened-store";
 import { BookPage } from "@/routes/book";
+import { parseProjectSearch } from "@/routes/project";
 import { ReaderPage } from "@/routes/reader";
 
 class NoopObserver {
@@ -29,18 +32,20 @@ export function setUpRouteTests() {
     globalThis.ResizeObserver ??= NoopObserver as unknown as typeof ResizeObserver;
     Element.prototype.scrollTo ??= () => {};
     lastOpenedStore.clear();
+    glossarySkipStore.clear();
   });
   afterEach(() => vi.unstubAllGlobals());
 }
 
 /** Renders the editor and reader routes over the seeded mock API, starting at `path`. */
-export function renderAt(path: string) {
+export function renderAt(path: string, api: Api = createMockApi()) {
   const root = createRootRoute({ component: Outlet });
   const routes = [
     createRoute({ getParentRoute: () => root, path: "/", component: () => <p>library</p> }),
     createRoute({
       getParentRoute: () => root,
       path: "/projects/$projectId",
+      validateSearch: parseProjectSearch,
       component: () => <p>project</p>,
     }),
     createRoute({
@@ -68,11 +73,12 @@ export function renderAt(path: string) {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <ApiProvider api={createMockApi()}>
+      <ApiProvider api={api}>
         <TooltipProvider>
           <RouterProvider router={router} />
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,
   );
+  return { router };
 }

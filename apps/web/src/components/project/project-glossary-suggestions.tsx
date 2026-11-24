@@ -28,13 +28,18 @@ const volumeLabel = (book: BookSummary) =>
 export function ProjectGlossarySuggestions({
   books,
   onAdd,
+  readAll = false,
 }: {
   books: BookSummary[];
   onAdd: (entries: GlossaryEntry[]) => void;
+  /** Starts on All volumes instead of the latest volume. */
+  readAll?: boolean;
 }) {
   const providers = useProviders();
   const hosted = useHosted();
-  const [bookId, setBookId] = useState<string | null>(null);
+  const [bookId, setBookId] = useState<string | null>(
+    readAll && books.length > 1 ? ALL_VOLUMES : null,
+  );
   const [targetLang, setTargetLang] = useState("en");
   const [chosen, setChosen] = useState<Selection | null>(null);
   const [running, setRunning] = useState(false);
