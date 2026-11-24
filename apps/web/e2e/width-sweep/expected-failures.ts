@@ -116,11 +116,4 @@ export const EXPECTED_FAILURES: readonly ExpectedFailure[] = [
     widths: [280, 639],
     review: "sweep: long titles and labels overflow volume cards",
   },
-  {
-    screen: "reader settings",
-    offender:
-      'past-viewport: div > div[data-slot="popover-content"][role="dialog"] "FontSerifSansSystemSize19pxLine height1.…"',
-    widths: [280, 639],
-    review: "sweep: the popover is wider than a phone screen",
-  },
 ];

@@ -324,6 +324,18 @@ export const SCREENS: readonly Screen[] = [
   },
   { name: "reader failed passages", path: "/books/angel-2-5/read/c2", ready: readerReady },
   { name: "reader untranslated", path: "/books/angel-3/read/c1", ready: readerReady },
+  {
+    name: "reader paged untranslated",
+    path: "/books/angel-3/read/c1",
+    prefs: { layout: "paged" },
+    ready: (page) => page.getByTestId("paged-columns"),
+  },
+  {
+    name: "reader paged interleaved",
+    path: "/books/angel-2-5/read/c2",
+    prefs: { layout: "paged", viewMode: "interleaved" },
+    ready: (page) => page.getByTestId("paged-columns"),
+  },
   { name: "reader long title", path: "/books/long-2/read/c1", ready: readerReady },
   {
     name: "reader contents sheet",
@@ -339,8 +351,8 @@ export const SCREENS: readonly Screen[] = [
     path: "/books/angel-1/read/c1",
     ready: readerReady,
     open: click((page) => page.getByRole("button", { name: "Reader settings" })),
-    opened: scoped(OVERLAY.popover),
-    scope: OVERLAY.popover,
+    opened: scoped(OVERLAY.sheet),
+    scope: OVERLAY.sheet,
   },
 
   { name: "hosted library", path: "/", hosted: "1", ready: libraryReady },
